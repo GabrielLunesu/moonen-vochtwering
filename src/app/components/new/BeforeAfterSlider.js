@@ -7,7 +7,13 @@ const BeforeAfterSlider = () => {
   const [sliderPosition, setSliderPosition] = useState(50);
   const [isDragging, setIsDragging] = useState(false);
   const [animationComplete, setAnimationComplete] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const containerRef = useRef(null);
+  
+  // Set mounted state to true when component mounts
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
   
   const handleMouseDown = (e) => {
     e.preventDefault();
@@ -62,7 +68,7 @@ const BeforeAfterSlider = () => {
   
   // Initial animation that stops at 50%
   useEffect(() => {
-    if (animationComplete) return;
+    if (!isMounted || animationComplete) return;
     
     let startPosition = 0;
     
@@ -77,12 +83,30 @@ const BeforeAfterSlider = () => {
     }, 30);
     
     return () => clearInterval(interval);
-  }, [animationComplete]);
+  }, [animationComplete, isMounted]);
+
+  // If component is not mounted yet (during SSR), render a simple placeholder
+  if (!isMounted) {
+    return (
+      <div className="relative w-[300px] h-[300px] md:w-[420px] md:h-[420px] rounded-xl border-2 border-primary overflow-hidden bg-white shadow-lg">
+        <div className="absolute top-0 left-0 w-full h-full">
+          <Image
+            src="/images/before.png"
+            alt="Voor behandeling"
+            fill
+            className="object-cover"
+            sizes="(max-width: 768px) 300px, 420px"
+            priority
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div 
       ref={containerRef}
-      className={`relative w-[400px] h-[300px] md:w-[420px] md:h-[420px] rounded-xl border-2 border-primary overflow-hidden bg-white cursor-ew-resize shadow-lg before-after-container ${isDragging ? 'slider-active' : ''}`}
+      className={`relative w-[300px] h-[300px] md:w-[420px] md:h-[420px] rounded-xl border-2 border-primary overflow-hidden bg-white cursor-ew-resize shadow-lg before-after-container ${isDragging ? 'slider-active' : ''}`}
       onMouseMove={handleMouseMove}
       onTouchMove={handleTouchMove}
       onMouseDown={handleMouseDown}
@@ -91,7 +115,7 @@ const BeforeAfterSlider = () => {
       {/* Before Image - Full width */}
       <div className="absolute top-0 left-0 w-full h-full">
         <Image
-          src="/images/after.png"
+          src="/images/before.png"
           alt="Voor behandeling"
           fill
           className="object-cover"
@@ -106,7 +130,7 @@ const BeforeAfterSlider = () => {
         style={{ width: `${sliderPosition}%` }}
       >
         <Image
-          src="/images/before.png"
+          src="/images/after.png"
           alt="Na behandeling"
           fill
           className="object-cover"

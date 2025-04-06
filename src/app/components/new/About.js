@@ -62,33 +62,16 @@ export default function About() {
         <div className="flex flex-col md:flex-row items-center gap-8 md:gap-12">
           <div ref={imageRef} className="w-full md:w-1/2 opacity-0">
             <div className="relative h-[300px] md:h-[450px] rounded-lg overflow-hidden bg-primary/5 border border-primary/20 p-4">
-              {/* SVG illustration of a house with moisture protection */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <svg className="w-4/5 h-4/5 text-primary/80" viewBox="0 0 300 300" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  {/* House outline */}
-                  <path d="M150,50 L250,120 V250 H50 V120 Z" stroke="currentColor" strokeWidth="6" />
-                  
-                  {/* Roof */}
-                  <path d="M30,120 L150,30 L270,120" stroke="currentColor" strokeWidth="6" />
-                  
-                  {/* Door */}
-                  <path d="M130,250 V180 H170 V250" stroke="currentColor" strokeWidth="4" />
-                  
-                  {/* Windows */}
-                  <rect x="80" y="150" width="40" height="40" stroke="currentColor" strokeWidth="4" />
-                  <rect x="180" y="150" width="40" height="40" stroke="currentColor" strokeWidth="4" />
-                  
-                  {/* Water drops */}
-                  <path d="M80,120 C70,140 70,160 80,170 C90,160 90,140 80,120 Z" fill="currentColor" opacity="0.6" className="animate-float" />
-                  <path d="M220,130 C210,150 210,170 220,180 C230,170 230,150 220,130 Z" fill="currentColor" opacity="0.6" className="animate-float stagger-1" />
-                  
-                  {/* Moisture shield */}
-                  <path d="M30,120 C30,220 150,270 270,120" stroke="currentColor" strokeWidth="4" strokeDasharray="8 4" opacity="0.8" />
-                  
-                  {/* Foundation with protection */}
-                  <rect x="40" y="250" width="220" height="20" fill="currentColor" opacity="0.2" />
-                  <path d="M40,250 L260,250" stroke="currentColor" strokeWidth="6" />
-                </svg>
+              {/* Replace SVG with about.png image */}
+              <div className="absolute inset-0">
+                <Image
+                  src="/images/about.png"
+                  alt="Moonen Vochtwering kelder renovatie"
+                  fill
+                  className="object-cover rounded-lg"
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                  priority
+                />
               </div>
             </div>
           </div>
