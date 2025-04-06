@@ -140,11 +140,11 @@ const BeforeAfterSlider = () => {
       </div>
       
       {/* Labels */}
-      <div className="absolute top-4 left-4 bg-black/70 text-white px-3 py-1 rounded text-sm font-medium">
-        VOOR
-      </div>
-      <div className="absolute top-4 right-4 bg-primary text-white px-3 py-1 rounded text-sm font-medium">
+      <div className="absolute top-4 left-4 bg-primary text-white px-3 py-1 rounded text-sm font-medium">
         NA
+      </div>
+      <div className="absolute top-4 right-4 bg-black/70 text-white px-3 py-1 rounded text-sm font-medium">
+        VOOR
       </div>
     </div>
   );
