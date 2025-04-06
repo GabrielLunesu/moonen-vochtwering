@@ -10,7 +10,6 @@ export default function Hero() {
   const subtitleRef = useRef(null);
   const ctaRef = useRef(null);
   const imageRef = useRef(null);
-  const waterDropsRef = useRef(null);
   const statsRef = useRef(null);
 
   useEffect(() => {
@@ -19,7 +18,6 @@ export default function Hero() {
     const subtitleElement = subtitleRef.current;
     const ctaElement = ctaRef.current;
     const imageElement = imageRef.current;
-    const waterDropsElement = waterDropsRef.current;
     const statsElement = statsRef.current;
 
     if (titleElement) {
@@ -34,50 +32,13 @@ export default function Hero() {
     if (imageElement) {
       imageElement.classList.add('animate-slide-in-right', 'stagger-1');
     }
-    if (waterDropsElement) {
-      waterDropsElement.classList.add('animate-fade-in', 'stagger-2');
-    }
     if (statsElement) {
       statsElement.classList.add('animate-fade-in', 'stagger-3');
     }
-
-    // Rain animation
-    const createRaindrop = () => {
-      if (!waterDropsElement) return;
-      
-      const raindrop = document.createElement('div');
-      raindrop.classList.add('raindrop');
-      
-      const size = Math.random() * 8 + 3;
-      raindrop.style.width = `${size}px`;
-      raindrop.style.height = `${size * 1.5}px`;
-      
-      raindrop.style.left = `${Math.random() * 100}%`;
-      raindrop.style.animationDuration = `${Math.random() * 2 + 1}s`;
-      raindrop.style.opacity = Math.random() * 0.4 + 0.2;
-      
-      waterDropsElement.appendChild(raindrop);
-      
-      setTimeout(() => {
-        raindrop.remove();
-      }, 3000);
-    };
-    
-    const rainInterval = setInterval(createRaindrop, 100);
-    
-    return () => {
-      clearInterval(rainInterval);
-    };
   }, []);
 
   return (
     <section className="pt-28 pb-16 md:pt-36 md:pb-24 relative overflow-hidden">
-      {/* Animated water drops in background */}
-      <div 
-        ref={waterDropsRef} 
-        className="absolute top-0 left-0 w-full h-full pointer-events-none opacity-0"
-      />
-      
       {/* SVG House Shield - background element */}
       <div className="absolute top-0 right-0 w-1/2 h-full opacity-5 pointer-events-none">
         <svg viewBox="0 0 200 200" fill="currentColor" className="w-full h-full text-primary">
