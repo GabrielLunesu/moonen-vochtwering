@@ -30,7 +30,7 @@ export default function Navbar() {
         <Link href="/" className="flex items-center">
           <div className="relative h-10 w-10 md:h-12 md:w-12 mr-2 md:mr-3">
             <Image 
-              src="/logo.png" 
+              src="/images/logo.png" 
               alt="Moonen Vochtwering Logo" 
               width={48}
               height={48}

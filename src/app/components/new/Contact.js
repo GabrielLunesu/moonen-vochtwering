@@ -271,8 +271,8 @@ export default function Contact() {
                   </svg>
                   <div>
                     <p className="font-medium text-black text-sm md:text-base">Adres</p>
-                    <p className="text-black text-sm md:text-base">Heerlerbaan 224</p>
-                    <p className="text-black text-sm md:text-base">6418 CH Heerlen</p>
+                    <p className="text-black text-sm md:text-base">Grasbroekerweg 141</p>
+                    <p className="text-black text-sm md:text-base">6412BD Heerlen</p>
                   </div>
                 </div>
                 
@@ -282,8 +282,8 @@ export default function Contact() {
                   </svg>
                   <div>
                     <p className="font-medium text-black text-sm md:text-base">Telefoon</p>
-                    <Link href="tel:+31645789012" className="text-primary hover:underline text-sm md:text-base">
-                      06 45 78 90 12
+                    <Link href="tel:+31618162515" className="text-primary hover:underline text-sm md:text-base">
+                      06 18 16 25 15
                     </Link>
                   </div>
                 </div>
@@ -307,7 +307,6 @@ export default function Contact() {
                   <div>
                     <p className="font-medium text-black text-sm md:text-base">Openingstijden</p>
                     <p className="text-black text-sm md:text-base">Ma - Vr: 08:00 - 17:00</p>
-                    <p className="text-black text-sm md:text-base">Za: Op afspraak</p>
                   </div>
                 </div>
               </div>

@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import BeforeAfterSlider from './BeforeAfterSlider';
 
 export default function Hero() {
   const titleRef = useRef(null);
@@ -127,33 +128,8 @@ export default function Hero() {
               ref={imageRef}
               className="relative opacity-0"
             >
-              {/* House with water protection illustration */}
-              <div className="w-[300px] h-[300px] md:w-[420px] md:h-[420px] rounded-xl border-2 border-primary p-2 bg-white relative overflow-hidden hover:shadow-xl transition-all duration-300">
-                <svg className="absolute top-0 left-0 w-full h-full opacity-10 text-primary" viewBox="0 0 100 100">
-                  <path d="M10,50 Q50,10 90,50 L90,90 L10,90 Z" fill="currentColor" />
-                  <path d="M30,90 L30,60 L45,60 L45,90 Z" fill="currentColor" />
-                  <path d="M55,90 L55,50 L70,50 L70,90 Z" fill="currentColor" />
-                </svg>
-                
-                <div className="w-full h-full rounded-lg overflow-hidden relative">
-                  <div className="absolute inset-0 bg-gradient-to-b from-primary/40 to-primary/5 z-10"></div>
-                  
-                  {/* We'll display a house image here. For now using a placeholder */}
-                  <div className="absolute inset-0 flex items-center justify-center z-20">
-                    <svg className="w-3/4 h-3/4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                      <path d="M9 22V12h6v10" />
-                      <path d="M8 9h8" strokeDasharray="12" strokeDashoffset="0" className="animate-dash" />
-                      <path d="M4 10l8-6 8 6" strokeDasharray="24" strokeDashoffset="0" className="animate-dash" />
-                      <path d="M4 22h16" strokeDasharray="16" strokeDashoffset="0" className="animate-dash-reverse" />
-                      {/* Water drop shield */}
-                      <g transform="translate(12, 15) scale(0.5)">
-                        <path d="M0 -8 C-5 2, -5 8, 0 12 C5 8, 5 2, 0 -8z" fill="currentColor" stroke="none" />
-                      </g>
-                    </svg>
-                  </div>
-                </div>
-              </div>
+              {/* Replace the old image with the BeforeAfterSlider */}
+              <BeforeAfterSlider />
               
               <div className="absolute bottom-0 left-0 right-0 text-center -mb-8">
                 <h2 className="text-2xl md:text-3xl font-bold rounded-full text-white bg-primary inline-block px-6 py-2 shadow-lg">

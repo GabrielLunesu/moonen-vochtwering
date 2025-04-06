@@ -207,6 +207,46 @@ body {
   animation-delay: 0.4s;
 }
 
+/* Before-After Slider Animations */
+@keyframes pulse {
+  0%, 100% { 
+    box-shadow: 0 0 0 2px rgba(53, 91, 35, 0.5);
+  }
+  50% { 
+    box-shadow: 0 0 0 5px rgba(53, 91, 35, 0.3);
+  }
+}
+
+@keyframes slideLeftRight {
+  0%, 100% {
+    transform: translateX(-5px) translateY(-50%);
+  }
+  50% {
+    transform: translateX(5px) translateY(-50%);
+  }
+}
+
+.slider-handle {
+  animation: pulse 2s infinite;
+}
+
+.slider-handle:hover {
+  animation-play-state: paused;
+}
+
+.slider-active .slider-handle {
+  animation-play-state: paused;
+}
+
+.before-after-container:hover .slider-indicator {
+  animation: slideLeftRight 1.5s ease-in-out infinite;
+}
+
+/* Section styles */
+.section {
+  padding: 4rem 0;
+}
+
 /* Modern components */
 .section {
   scroll-margin-top: 80px;
