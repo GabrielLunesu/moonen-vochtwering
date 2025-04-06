@@ -188,7 +188,7 @@ export default function Contact() {
                       name="name"
                       value={formData.name}
                       onChange={handleChange}
-                      className={`w-full px-3 md:px-4 py-2 md:py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary transition-colors ${errors.name ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
+                      className={`w-full px-3 md:px-4 py-2 md:py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary transition-colors text-black ${errors.name ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                       placeholder="Uw naam"
                     />
                     {errors.name && <p className="text-red-500 text-xs md:text-sm mt-1">{errors.name}</p>}
@@ -201,7 +201,7 @@ export default function Contact() {
                       name="email"
                       value={formData.email}
                       onChange={handleChange}
-                      className={`w-full px-3 md:px-4 py-2 md:py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary transition-colors ${errors.email ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
+                      className={`w-full px-3 md:px-4 py-2 md:py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary transition-colors text-black ${errors.email ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                       placeholder="uw@email.nl"
                     />
                     {errors.email && <p className="text-red-500 text-xs md:text-sm mt-1">{errors.email}</p>}
@@ -216,7 +216,7 @@ export default function Contact() {
                     name="phone"
                     value={formData.phone}
                     onChange={handleChange}
-                    className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary transition-colors"
+                    className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary transition-colors text-black"
                     placeholder="Uw telefoonnummer"
                   />
                 </div>
@@ -229,7 +229,7 @@ export default function Contact() {
                     value={formData.message}
                     onChange={handleChange}
                     rows="4"
-                    className={`w-full px-3 md:px-4 py-2 md:py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary transition-colors ${errors.message ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
+                    className={`w-full px-3 md:px-4 py-2 md:py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary transition-colors text-black ${errors.message ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                     placeholder="Uw bericht"
                   ></textarea>
                   {errors.message && <p className="text-red-500 text-xs md:text-sm mt-1">{errors.message}</p>}
