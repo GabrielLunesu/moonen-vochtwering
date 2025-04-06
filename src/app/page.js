@@ -11,6 +11,7 @@ import GoogleReviews from './components/new/GoogleReviews';
 import Contact from './components/new/Contact';
 import Footer from './components/new/Footer';
 import ScrollToTop from './components/new/ScrollToTop';
+import Locations from './components/new/Locations';
 
 export default function Home() {
   return (
@@ -22,6 +23,7 @@ export default function Home() {
       <Werkwijze />
       {/* <Gallery /> */}
       <GoogleReviews />
+      {/* <Locations /> */}
       <About />
       <Contact />
       <Footer />

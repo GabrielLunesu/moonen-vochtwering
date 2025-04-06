@@ -17,8 +17,8 @@ export async function POST(request) {
     const transporter = nodemailer.createTransport({
       service: 'Gmail',
       auth: {
-        user: process.env.EMAIL_USER || 'info@moonenvochtwering.nl',
-        pass: process.env.EMAIL_APP_PASSWORD || 'nlcn pcfw syoy xxop', // Fallback for local development
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_APP_PASSWORD,
       },
     });
 
