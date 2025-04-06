@@ -343,6 +343,9 @@ export default function Contact() {
                   <span className="text-black text-sm">Voerendaal</span>
                 </div>
               </div>
+              <p className="text-black text-sm md:text-base mt-4">
+                <strong>KVK-nummer:</strong> 14090765
+              </p>
             </div>
           </div>
         </div>
