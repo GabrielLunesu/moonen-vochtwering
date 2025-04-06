@@ -54,14 +54,14 @@ export default function Hero() {
               ref={titleRef} 
               className="text-3xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6 opacity-0 text-black"
             >
-              Specialist in <span className="text-gradient">vochtwering</span> & <span className="text-gradient">vochtbestrijding</span>
+              Vochtbestrijding in <span className="text-gradient">Heerlen</span> & <span className="text-gradient">Parkstad</span>
             </h1>
             
             <p 
               ref={subtitleRef}
               className="text-base md:text-lg text-black mb-8 opacity-0"
             >
-              Bescherm uw woning of bedrijfspand tegen vocht, schimmel en lekkages met Moonen Vochtwering. Wij bieden professionele oplossingen voor vochtwering en -bestrijding in Heerlen en omgeving Parkstad.
+              Specialist in vochtbestrijding en kelderafdichting in Heerlen, Kerkrade, Landgraaf en omgeving Parkstad. Meer dan 15 jaar ervaring in het bestrijden van vocht en schimmel. Vraag nu een gratis inspectie aan.
             </p>
             
             <div 
