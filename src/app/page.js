@@ -23,7 +23,7 @@ export default function Home() {
       <Werkwijze />
       {/* <Gallery /> */}
       <GoogleReviews />
-      {/* <Locations /> */}
+      <Locations />
       <About />
       <Contact />
       <Footer />
