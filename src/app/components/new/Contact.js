@@ -125,6 +125,11 @@ export default function Contact() {
         formRef.current.scrollIntoView({ behavior: 'smooth' });
       }
       
+      // Track form conversion for Google Ads
+      if (typeof window !== 'undefined' && window.gtag_report_conversion) {
+        window.gtag_report_conversion();
+      }
+      
       // Reset success message after 5 seconds
       setTimeout(() => {
         setSubmitSuccess(false);
