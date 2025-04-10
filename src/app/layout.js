@@ -10,9 +10,9 @@ const inter = Inter({
 });
 
 export const metadata = {
-  title: "Vochtbestrijding Heerlen & Parkstad | Moonen Vochtwering Specialist",
-  description: "Specialist in vochtbestrijding en vochtwering in Heerlen, Kerkrade, Landgraaf, Brunssum en heel Parkstad. Kelder waterdicht maken, schimmelbestrijding en meer. ✓ 15+ jaar ervaring ✓ Gratis inspectie",
-  keywords: "vochtbestrijding heerlen, vochtwering parkstad, vochtproblemen kelder, kelder waterdicht maken, vochtbestrijding kerkrade, schimmelbestrijding heerlen, vochtwering brunssum, vocht kelder, kelderafdichting, injecteren vocht",
+  title: "Vochtbestrijding Limburg | Moonen Vochtwering Specialist",
+  description: "Specialist in vochtbestrijding en vochtwering in heel Limburg. Kelder waterdicht maken, schimmelbestrijding en meer in Maastricht, Roermond, Venlo, Sittard en omgeving. ✓ 15+ jaar ervaring ✓ Gratis inspectie",
+  keywords: "vochtbestrijding limburg, vochtwering maastricht, vochtproblemen kelder, kelder waterdicht maken, vochtbestrijding roermond, schimmelbestrijding venlo, vochtwering sittard, vocht kelder, kelderafdichting, injecteren vocht",
   authors: [{ name: "Moonen Vochtwering" }],
   creator: "Moonen Vochtwering",
   publisher: "Moonen Vochtwering",
@@ -22,8 +22,8 @@ export const metadata = {
     telephone: false,
   },
   openGraph: {
-    title: "Vochtbestrijding Heerlen & Parkstad | Moonen Vochtwering",
-    description: "Professionele vochtbestrijding in Heerlen, Kerkrade, Landgraaf, Brunssum en omgeving Parkstad. Kelder waterdicht maken, schimmelbestrijding en vochtproblemen oplossen met 15+ jaar ervaring.",
+    title: "Vochtbestrijding Limburg | Moonen Vochtwering",
+    description: "Professionele vochtbestrijding in heel Limburg. Kelder waterdicht maken, schimmelbestrijding en vochtproblemen oplossen in Maastricht, Roermond, Venlo, Sittard en omgeving met 15+ jaar ervaring.",
     url: "https://moonenvochtwering.nl",
     siteName: "Moonen Vochtwering",
     locale: "nl_NL",
@@ -33,7 +33,7 @@ export const metadata = {
         url: '/images/logo.png',
         width: 800,
         height: 600,
-        alt: 'Moonen Vochtwering - Vochtbestrijding specialist in Heerlen en Parkstad',
+        alt: 'Moonen Vochtwering - Vochtbestrijding specialist in Limburg',
       }
     ],
   },

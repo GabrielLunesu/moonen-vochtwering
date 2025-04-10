@@ -320,32 +320,32 @@ export default function Contact() {
             <div className="card p-4 md:p-8">
               <h3 className="text-lg md:text-xl font-semibold mb-4 text-black">Werkgebied</h3>
               <p className="text-black text-sm md:text-base mb-4">
-                Wij zijn actief in Heerlen en omgeving Parkstad, waaronder:
+                Wij zijn actief in heel Limburg, waaronder:
               </p>
               <div className="grid grid-cols-2 gap-2">
+                <div className="flex items-center">
+                  <div className="w-2 h-2 bg-primary rounded-full mr-2"></div>
+                  <span className="text-black text-sm">Maastricht</span>
+                </div>
                 <div className="flex items-center">
                   <div className="w-2 h-2 bg-primary rounded-full mr-2"></div>
                   <span className="text-black text-sm">Heerlen</span>
                 </div>
                 <div className="flex items-center">
                   <div className="w-2 h-2 bg-primary rounded-full mr-2"></div>
-                  <span className="text-black text-sm">Kerkrade</span>
+                  <span className="text-black text-sm">Venlo</span>
                 </div>
                 <div className="flex items-center">
                   <div className="w-2 h-2 bg-primary rounded-full mr-2"></div>
-                  <span className="text-black text-sm">Landgraaf</span>
+                  <span className="text-black text-sm">Roermond</span>
                 </div>
                 <div className="flex items-center">
                   <div className="w-2 h-2 bg-primary rounded-full mr-2"></div>
-                  <span className="text-black text-sm">Brunssum</span>
+                  <span className="text-black text-sm">Sittard</span>
                 </div>
                 <div className="flex items-center">
                   <div className="w-2 h-2 bg-primary rounded-full mr-2"></div>
-                  <span className="text-black text-sm">Simpelveld</span>
-                </div>
-                <div className="flex items-center">
-                  <div className="w-2 h-2 bg-primary rounded-full mr-2"></div>
-                  <span className="text-black text-sm">Voerendaal</span>
+                  <span className="text-black text-sm">Weert</span>
                 </div>
               </div>
               <p className="text-black text-sm md:text-base mt-4">

@@ -33,34 +33,34 @@ const Locations = () => {
 
   const cities = [
     {
-      name: 'Heerlen',
+      name: 'Maastricht',
       services: ['Kelderafdichting', 'Vochtbestrijding muren', 'Schimmelbestrijding'],
-      description: 'Moonen Vochtwering is dé specialist in vochtbestrijding in Heerlen. Wij bieden professionele oplossingen voor alle soorten vochtproblemen in kelders, muren en op plafonds.'
+      description: 'Moonen Vochtwering is dé specialist in vochtbestrijding in Maastricht. Wij bieden professionele oplossingen voor alle soorten vochtproblemen in kelders, muren en op plafonds in monumentale panden en moderne woningen.'
     },
     {
-      name: 'Kerkrade',
+      name: 'Heerlen',
       services: ['Vochtbestrijding kelder', 'Injecteren tegen optrekkend vocht', 'Schimmelaanpak'],
-      description: 'Heeft u last van vocht in uw woning in Kerkrade? Wij hebben ruime ervaring met het oplossen van vochtproblemen in kelders en vochtige muren in Kerkrade en omgeving.'
+      description: 'Heeft u last van vocht in uw woning in Heerlen? Wij hebben ruime ervaring met het oplossen van vochtproblemen in kelders en vochtige muren in Heerlen en omgeving.'
     },
     {
-      name: 'Landgraaf',
+      name: 'Venlo',
       services: ['Kelderdichting', 'Gevelimpregnatie', 'Vochtbestrijding kruipruimte'],
-      description: 'Voor vochtbestrijding in Landgraaf kunt u rekenen op onze expertise. Wij lossen vochtproblemen in kelders, muren en kruipruimtes duurzaam op.'
+      description: 'Voor vochtbestrijding in Venlo kunt u rekenen op onze expertise. Wij lossen vochtproblemen in kelders, muren en kruipruimtes duurzaam op in heel Noord-Limburg.'
     },
     {
-      name: 'Brunssum',
+      name: 'Roermond',
       services: ['Kelderafdichting', 'Schimmelbestrijding', 'Vochtwering buitenmuren'],
-      description: 'In Brunssum helpen we woningeigenaren met effectieve oplossingen voor vocht- en schimmelproblemen. Onze aanpak zorgt voor een droge en gezonde woning.'
+      description: 'In Roermond helpen we woningeigenaren met effectieve oplossingen voor vocht- en schimmelproblemen. Onze aanpak zorgt voor een droge en gezonde woning in Midden-Limburg.'
     },
     {
-      name: 'Simpelveld',
+      name: 'Sittard-Geleen',
       services: ['Kelder waterdicht maken', 'Behandeling optrekkend vocht', 'Vochtmeting'],
-      description: 'Vochtbestrijding in Simpelveld vraagt om specialistische kennis. Met Moonen Vochtwering kiest u voor een ervaren partner die vochtproblemen effectief aanpakt.'
+      description: 'Vochtbestrijding in Sittard-Geleen vraagt om specialistische kennis. Met Moonen Vochtwering kiest u voor een ervaren partner die vochtproblemen effectief aanpakt in de Westelijke Mijnstreek.'
     },
     {
-      name: 'Voerendaal',
+      name: 'Weert',
       services: ['Vochtbestrijding kelder', 'Injecteren vocht', 'Schimmelbestrijding badkamer'],
-      description: 'Voor alle inwoners van Voerendaal bieden wij professionele vochtbestrijding. Van kelderdichting tot schimmelbestrijding, wij zorgen voor een blijvende oplossing.'
+      description: 'Voor alle inwoners van Weert bieden wij professionele vochtbestrijding. Van kelderdichting tot schimmelbestrijding, wij zorgen voor een blijvende oplossing in heel Midden-Limburg.'
     }
   ];
 
@@ -68,9 +68,9 @@ const Locations = () => {
     <section id="werkgebied" className="py-16 bg-white">
       <div className="container mx-auto px-4">
         <div ref={headingRef} className="text-center mb-12 opacity-0">
-          <h2 className="text-4xl font-bold text-gray-900 mb-4">Vochtbestrijding in Parkstad en omgeving</h2>
+          <h2 className="text-4xl font-bold text-gray-900 mb-4">Vochtbestrijding in heel Limburg</h2>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Moonen Vochtwering is uw specialist voor vochtbestrijding in de regio Parkstad. Van kelderafdichting tot schimmelbestrijding, wij helpen u in de volgende gemeenten:
+            Moonen Vochtwering is uw specialist voor vochtbestrijding in de provincie Limburg. Van kelderafdichting tot schimmelbestrijding, wij helpen u in onder andere de volgende steden en regio's:
           </p>
         </div>
 

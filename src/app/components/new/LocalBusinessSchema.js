@@ -7,7 +7,7 @@ const LocalBusinessSchema = () => {
     '@context': 'https://schema.org',
     '@type': 'LocalBusiness',
     'name': 'Moonen Vochtwering',
-    'description': 'Specialist in vochtbestrijding en vochtwering in Heerlen en omgeving Parkstad. Oplossingen voor kelders, muren en schimmelbestrijding.',
+    'description': 'Specialist in vochtbestrijding en vochtwering in heel Limburg. Oplossingen voor kelders, muren en schimmelbestrijding.',
     'image': 'https://moonenvochtwering.nl/images/logo.png',
     'url': 'https://moonenvochtwering.nl',
     'telephone': '+31618162515',
@@ -39,32 +39,32 @@ const LocalBusinessSchema = () => {
     ],
     'areaServed': [
       {
+        '@type': 'AdministrativeArea',
+        'name': 'Limburg'
+      },
+      {
+        '@type': 'City',
+        'name': 'Maastricht'
+      },
+      {
         '@type': 'City',
         'name': 'Heerlen'
       },
       {
         '@type': 'City',
-        'name': 'Kerkrade'
+        'name': 'Venlo'
       },
       {
         '@type': 'City',
-        'name': 'Landgraaf'
+        'name': 'Roermond'
       },
       {
         '@type': 'City',
-        'name': 'Brunssum'
+        'name': 'Sittard-Geleen'
       },
       {
         '@type': 'City',
-        'name': 'Simpelveld'
-      },
-      {
-        '@type': 'City',
-        'name': 'Voerendaal'
-      },
-      {
-        '@type': 'Place',
-        'name': 'Parkstad'
+        'name': 'Weert'
       }
     ],
     'serviceArea': {
@@ -74,7 +74,7 @@ const LocalBusinessSchema = () => {
         'latitude': '50.8853',
         'longitude': '5.9721'
       },
-      'geoRadius': '15000'
+      'geoRadius': '50000'
     },
     'hasOfferCatalog': {
       '@type': 'OfferCatalog',
@@ -85,7 +85,7 @@ const LocalBusinessSchema = () => {
           'itemOffered': {
             '@type': 'Service',
             'name': 'Kelderafdichting',
-            'description': 'Professionele waterdichting van kelders in Heerlen en omgeving'
+            'description': 'Professionele waterdichting van kelders in heel Limburg'
           }
         },
         {

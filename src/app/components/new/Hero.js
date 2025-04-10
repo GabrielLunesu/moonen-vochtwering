@@ -54,14 +54,14 @@ export default function Hero() {
               ref={titleRef} 
               className="text-3xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6 opacity-0 text-black"
             >
-              Vochtbestrijding in <span className="text-gradient">Heerlen</span> & <span className="text-gradient">Parkstad</span>
+              Vochtbestrijding in <span className="text-gradient">Limburg</span>
             </h1>
             
             <p 
               ref={subtitleRef}
               className="text-base md:text-lg text-black mb-8 opacity-0"
             >
-              Specialist in vochtbestrijding en kelderafdichting in Heerlen, Kerkrade, Landgraaf en omgeving Parkstad. Meer dan 15 jaar ervaring in het bestrijden van vocht en schimmel. Vraag nu een gratis inspectie aan.
+              Specialist in vochtbestrijding en kelderafdichting in heel Limburg. Van Maastricht tot Venlo, van Roermond tot Sittard. Meer dan 15 jaar ervaring in het bestrijden van vocht en schimmel. Vraag nu een gratis inspectie aan.
             </p>
             
             <div 
