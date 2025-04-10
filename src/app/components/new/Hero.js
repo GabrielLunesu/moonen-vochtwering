@@ -35,6 +35,16 @@ export default function Hero() {
     if (statsElement) {
       statsElement.classList.add('animate-fade-in', 'stagger-3');
     }
+
+    // Cleanup function with the stored references
+    return () => {
+      // No need to check for current.current here since we're using the stored elements
+      if (titleElement) titleElement.classList.remove('animate-fade-in');
+      if (subtitleElement) subtitleElement.classList.remove('animate-fade-in', 'stagger-1');
+      if (ctaElement) ctaElement.classList.remove('animate-fade-in', 'stagger-2');
+      if (imageElement) imageElement.classList.remove('animate-slide-in-right', 'stagger-1');
+      if (statsElement) statsElement.classList.remove('animate-fade-in', 'stagger-3');
+    };
   }, []);
 
   return (

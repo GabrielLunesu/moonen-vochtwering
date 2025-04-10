@@ -70,7 +70,7 @@ const Locations = () => {
         <div ref={headingRef} className="text-center mb-12 opacity-0">
           <h2 className="text-4xl font-bold text-gray-900 mb-4">Vochtbestrijding in heel Limburg</h2>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Moonen Vochtwering is uw specialist voor vochtbestrijding in de provincie Limburg. Van kelderafdichting tot schimmelbestrijding, wij helpen u in onder andere de volgende steden en regio's:
+            Moonen Vochtwering is uw specialist voor vochtbestrijding in de provincie Limburg. Van kelderafdichting tot schimmelbestrijding, wij helpen u in onder andere de volgende steden en regio&apos;s:
           </p>
         </div>
 

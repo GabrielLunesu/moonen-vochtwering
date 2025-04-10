@@ -17,13 +17,15 @@ export default function Services() {
       { threshold: 0.1 }
     );
 
-    if (servicesRef.current) {
-      observer.observe(servicesRef.current);
+    const servicesElement = servicesRef.current;
+
+    if (servicesElement) {
+      observer.observe(servicesElement);
     }
 
     return () => {
-      if (servicesRef.current) {
-        observer.unobserve(servicesRef.current);
+      if (servicesElement) {
+        observer.unobserve(servicesElement);
       }
     };
   }, []);
