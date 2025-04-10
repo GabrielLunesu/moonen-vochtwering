@@ -1,6 +1,7 @@
 import { Inter } from "next/font/google";
 import "./globals.css";
 import LocalBusinessSchema from "./components/new/LocalBusinessSchema";
+import Script from "next/script";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -56,6 +57,16 @@ export default function RootLayout({ children }) {
       <head>
         <link rel="icon" href="/images/logo.png" type="image/png" />
         <meta name="google-site-verification" content="your-verification-code" />
+        
+        <Script async src="https://www.googletagmanager.com/gtag/js?id=AW-16996721083" />
+        <Script id="google-ads" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'AW-16996721083');
+          `}
+        </Script>
       </head>
       <body
         className={`${inter.variable} font-sans antialiased`}
