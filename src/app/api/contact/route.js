@@ -3,12 +3,12 @@ import nodemailer from 'nodemailer';
 
 export async function POST(request) {
   try {
-    const { name, email, phone, message } = await request.json();
+    const { name, email, phone, plaatsnaam, message } = await request.json();
 
     // Validate required fields
-    if (!name || !email || !message) {
+    if (!name || !email || !message || !phone || !plaatsnaam) {
       return NextResponse.json(
-        { error: 'Naam, e-mail en bericht zijn verplicht' },
+        { error: 'Naam, e-mail, telefoonnummer, plaatsnaam en bericht zijn verplicht' },
         { status: 400 }
       );
     }
@@ -41,7 +41,8 @@ export async function POST(request) {
       
 Naam: ${name}
 E-mail: ${email}
-Telefoonnummer: ${phone || 'Niet ingevuld'}
+Telefoonnummer: ${phone}
+Plaatsnaam: ${plaatsnaam}
 Bericht: ${message}
 
 Verzonden op: ${date}`,
@@ -49,7 +50,8 @@ Verzonden op: ${date}`,
         <h2>Nieuw bericht van contactformulier website</h2>
         <p><strong>Naam:</strong> ${name}</p>
         <p><strong>E-mail:</strong> ${email}</p>
-        <p><strong>Telefoonnummer:</strong> ${phone || 'Niet ingevuld'}</p>
+        <p><strong>Telefoonnummer:</strong> ${phone}</p>
+        <p><strong>Plaatsnaam:</strong> ${plaatsnaam}</p>
         <p><strong>Bericht:</strong></p>
         <p>${message.replace(/\n/g, '<br>')}</p>
         <p><small>Verzonden op: ${date}</small></p>
@@ -65,6 +67,12 @@ Verzonden op: ${date}`,
 
 Bedankt voor uw bericht. We hebben uw aanvraag ontvangen en zullen zo spoedig mogelijk contact met u opnemen.
 
+Samenvatting aanvraag:
+Naam: ${name}
+E-mail: ${email}
+Telefoonnummer: ${phone}
+Plaatsnaam: ${plaatsnaam}
+
 Met vriendelijke groet,
 
 Moonen Vochtwering
@@ -78,6 +86,12 @@ www.moonenvochtwering.nl`,
           <p>Beste ${name},</p>
           
           <p>Bedankt voor uw bericht. We hebben uw aanvraag ontvangen en zullen zo spoedig mogelijk contact met u opnemen.</p>
+
+          <p><strong>Samenvatting aanvraag</strong><br/>
+          Naam: ${name}<br/>
+          E-mail: ${email}<br/>
+          Telefoonnummer: ${phone}<br/>
+          Plaatsnaam: ${plaatsnaam}</p>
           
           <p>Met vriendelijke groet,</p>
           

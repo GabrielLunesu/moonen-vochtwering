@@ -8,6 +8,7 @@ export default function Contact() {
     name: '',
     email: '',
     phone: '',
+    plaatsnaam: '',
     message: ''
   });
   const [errors, setErrors] = useState({});
@@ -59,6 +60,14 @@ export default function Contact() {
       newErrors.email = 'E-mail is verplicht';
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = 'E-mail is ongeldig';
+    }
+
+    if (!formData.plaatsnaam.trim()) {
+      newErrors.plaatsnaam = 'Plaatsnaam is verplicht';
+    }
+
+    if (!formData.phone.trim()) {
+      newErrors.phone = 'Telefoonnummer is verplicht';
     }
     
     if (!formData.message.trim()) {
@@ -117,6 +126,7 @@ export default function Contact() {
         name: '',
         email: '',
         phone: '',
+        plaatsnaam: '',
         message: ''
       });
       
@@ -193,6 +203,7 @@ export default function Contact() {
                       name="name"
                       value={formData.name}
                       onChange={handleChange}
+                      required
                       className={`w-full px-3 md:px-4 py-2 md:py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary transition-colors text-black ${errors.name ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                       placeholder="Uw naam"
                     />
@@ -206,6 +217,7 @@ export default function Contact() {
                       name="email"
                       value={formData.email}
                       onChange={handleChange}
+                      required
                       className={`w-full px-3 md:px-4 py-2 md:py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary transition-colors text-black ${errors.email ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                       placeholder="uw@email.nl"
                     />
@@ -214,16 +226,33 @@ export default function Contact() {
                 </div>
                 
                 <div className="mb-4 md:mb-6">
-                  <label htmlFor="phone" className="block text-black font-medium mb-2 text-sm md:text-base">Telefoonnummer</label>
+                  <label htmlFor="plaatsnaam" className="block text-black font-medium mb-2 text-sm md:text-base">Plaatsnaam *</label>
+                  <input
+                    type="text"
+                    id="plaatsnaam"
+                    name="plaatsnaam"
+                    value={formData.plaatsnaam}
+                    onChange={handleChange}
+                    required
+                    className={`w-full px-3 md:px-4 py-2 md:py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary transition-colors text-black ${errors.plaatsnaam ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
+                    placeholder="Uw plaatsnaam"
+                  />
+                  {errors.plaatsnaam && <p className="text-red-500 text-xs md:text-sm mt-1">{errors.plaatsnaam}</p>}
+                </div>
+                
+                <div className="mb-4 md:mb-6">
+                  <label htmlFor="phone" className="block text-black font-medium mb-2 text-sm md:text-base">Telefoonnummer *</label>
                   <input
                     type="tel"
                     id="phone"
                     name="phone"
                     value={formData.phone}
                     onChange={handleChange}
-                    className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary transition-colors text-black"
+                    required
+                    className={`w-full px-3 md:px-4 py-2 md:py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary transition-colors text-black ${errors.phone ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                     placeholder="Uw telefoonnummer"
                   />
+                  {errors.phone && <p className="text-red-500 text-xs md:text-sm mt-1">{errors.phone}</p>}
                 </div>
                 
                 <div className="mb-4 md:mb-6">
@@ -234,6 +263,7 @@ export default function Contact() {
                     value={formData.message}
                     onChange={handleChange}
                     rows="4"
+                    required
                     className={`w-full px-3 md:px-4 py-2 md:py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary transition-colors text-black ${errors.message ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                     placeholder="Uw bericht"
                   ></textarea>
