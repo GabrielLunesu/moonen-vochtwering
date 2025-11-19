@@ -16,7 +16,7 @@ export default function Contact() {
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [submitError, setSubmitError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  
+
   const headingRef = useRef(null);
   const formRef = useRef(null);
   const infoRef = useRef(null);
@@ -51,11 +51,11 @@ export default function Contact() {
 
   const validateForm = () => {
     const newErrors = {};
-    
+
     if (!formData.name.trim()) {
       newErrors.name = 'Naam is verplicht';
     }
-    
+
     if (!formData.email.trim()) {
       newErrors.email = 'E-mail is verplicht';
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
@@ -69,11 +69,11 @@ export default function Contact() {
     if (!formData.phone.trim()) {
       newErrors.phone = 'Telefoonnummer is verplicht';
     }
-    
+
     if (!formData.message.trim()) {
       newErrors.message = 'Bericht is verplicht';
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -84,7 +84,7 @@ export default function Contact() {
       ...prev,
       [name]: value
     }));
-    
+
     // Clear error when user types
     if (errors[name]) {
       setErrors(prev => ({
@@ -96,15 +96,15 @@ export default function Contact() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
-    
+
     setIsSubmitting(true);
     setSubmitSuccess(false);
     setSubmitError(false);
-    
+
     try {
       const response = await fetch('/api/contact', {
         method: 'POST',
@@ -113,13 +113,13 @@ export default function Contact() {
         },
         body: JSON.stringify(formData),
       });
-      
+
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.error || 'Er is iets misgegaan bij het verzenden van uw bericht');
       }
-      
+
       // Success
       setSubmitSuccess(true);
       setFormData({
@@ -129,17 +129,17 @@ export default function Contact() {
         plaatsnaam: '',
         message: ''
       });
-      
+
       // Scroll to form top to show success message
       if (formRef.current) {
         formRef.current.scrollIntoView({ behavior: 'smooth' });
       }
-      
+
       // Track form conversion for Google Ads
       if (typeof window !== 'undefined' && window.gtag_report_conversion) {
         window.gtag_report_conversion();
       }
-      
+
       // Reset success message after 5 seconds
       setTimeout(() => {
         setSubmitSuccess(false);
@@ -147,7 +147,7 @@ export default function Contact() {
     } catch (error) {
       setSubmitError(true);
       setErrorMessage(error.message);
-      
+
       // Reset error message after 5 seconds
       setTimeout(() => {
         setSubmitError(false);
@@ -181,7 +181,7 @@ export default function Contact() {
                   </div>
                 </div>
               )}
-              
+
               {submitError && (
                 <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded mb-6 animate-fade-in">
                   <div className="flex">
@@ -192,7 +192,7 @@ export default function Contact() {
                   </div>
                 </div>
               )}
-              
+
               <form onSubmit={handleSubmit}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-4 md:mb-6">
                   <div>
@@ -224,7 +224,7 @@ export default function Contact() {
                     {errors.email && <p className="text-red-500 text-xs md:text-sm mt-1">{errors.email}</p>}
                   </div>
                 </div>
-                
+
                 <div className="mb-4 md:mb-6">
                   <label htmlFor="plaatsnaam" className="block text-black font-medium mb-2 text-sm md:text-base">Plaatsnaam *</label>
                   <input
@@ -239,7 +239,7 @@ export default function Contact() {
                   />
                   {errors.plaatsnaam && <p className="text-red-500 text-xs md:text-sm mt-1">{errors.plaatsnaam}</p>}
                 </div>
-                
+
                 <div className="mb-4 md:mb-6">
                   <label htmlFor="phone" className="block text-black font-medium mb-2 text-sm md:text-base">Telefoonnummer *</label>
                   <input
@@ -254,7 +254,7 @@ export default function Contact() {
                   />
                   {errors.phone && <p className="text-red-500 text-xs md:text-sm mt-1">{errors.phone}</p>}
                 </div>
-                
+
                 <div className="mb-4 md:mb-6">
                   <label htmlFor="message" className="block text-black font-medium mb-2 text-sm md:text-base">Bericht *</label>
                   <textarea
@@ -269,7 +269,7 @@ export default function Contact() {
                   ></textarea>
                   {errors.message && <p className="text-red-500 text-xs md:text-sm mt-1">{errors.message}</p>}
                 </div>
-                
+
                 <div className="flex flex-col md:flex-row items-center justify-between">
                   <p className="text-xs md:text-sm text-black mb-3 md:mb-0">* Verplichte velden</p>
                   <button
@@ -293,11 +293,11 @@ export default function Contact() {
               </form>
             </div>
           </div>
-          
+
           <div ref={infoRef} className="w-full lg:w-1/3 opacity-0">
             <div className="card p-4 md:p-8 mb-4 md:mb-6">
               <h3 className="text-lg md:text-xl font-semibold mb-4 md:mb-6 text-black">Contactgegevens</h3>
-              
+
               <div className="space-y-3 md:space-y-4">
                 <div className="flex items-start">
                   <svg className="w-5 h-5 text-primary mt-1 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -310,7 +310,7 @@ export default function Contact() {
                     <p className="text-black text-sm md:text-base">6412BD Heerlen</p>
                   </div>
                 </div>
-                
+
                 <div className="flex items-start">
                   <svg className="w-5 h-5 text-primary mt-1 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path>
@@ -322,7 +322,7 @@ export default function Contact() {
                     </Link>
                   </div>
                 </div>
-                
+
                 <div className="flex items-start">
                   <svg className="w-5 h-5 text-primary mt-1 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
@@ -334,7 +334,7 @@ export default function Contact() {
                     </Link>
                   </div>
                 </div>
-                
+
                 <div className="flex items-start">
                   <svg className="w-5 h-5 text-primary mt-1 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -346,11 +346,11 @@ export default function Contact() {
                 </div>
               </div>
             </div>
-            
+
             <div className="card p-4 md:p-8">
               <h3 className="text-lg md:text-xl font-semibold mb-4 text-black">Werkgebied</h3>
               <p className="text-black text-sm md:text-base mb-4">
-                Wij zijn actief in heel Limburg, waaronder:
+                Wij zijn actief in Zuid Limburg, waaronder:
               </p>
               <div className="grid grid-cols-2 gap-2">
                 <div className="flex items-center">
@@ -361,13 +361,10 @@ export default function Contact() {
                   <div className="w-2 h-2 bg-primary rounded-full mr-2"></div>
                   <span className="text-black text-sm">Heerlen</span>
                 </div>
+
                 <div className="flex items-center">
                   <div className="w-2 h-2 bg-primary rounded-full mr-2"></div>
-                  <span className="text-black text-sm">Venlo</span>
-                </div>
-                <div className="flex items-center">
-                  <div className="w-2 h-2 bg-primary rounded-full mr-2"></div>
-                  <span className="text-black text-sm">Roermond</span>
+                  <span className="text-black text-sm">Echt</span>
                 </div>
                 <div className="flex items-center">
                   <div className="w-2 h-2 bg-primary rounded-full mr-2"></div>
@@ -375,7 +372,11 @@ export default function Contact() {
                 </div>
                 <div className="flex items-center">
                   <div className="w-2 h-2 bg-primary rounded-full mr-2"></div>
-                  <span className="text-black text-sm">Weert</span>
+                  <span className="text-black text-sm">Geleen</span>
+                </div>
+                <div className="flex items-center">
+                  <div className="w-2 h-2 bg-primary rounded-full mr-2"></div>
+                  <span className="text-black text-sm">Valkenburg</span>
                 </div>
               </div>
               <p className="text-black text-sm md:text-base mt-4">

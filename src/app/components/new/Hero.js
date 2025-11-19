@@ -64,28 +64,28 @@ export default function Hero() {
               ref={titleRef} 
               className="text-3xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6 opacity-0 text-black"
             >
-              Vochtbestrijding in <span className="text-gradient">Limburg</span>
+              Dé Vochtspecialist van <span className="text-gradient">Zuid-Limburg</span>
             </h1>
             
             <p 
               ref={subtitleRef}
               className="text-base md:text-lg text-black mb-8 opacity-0"
             >
-              Specialist in vochtbestrijding en kelderafdichting in heel Limburg. Van Maastricht tot Venlo, van Roermond tot Sittard. Meer dan 15 jaar ervaring in het bestrijden van vocht en schimmel. Vraag nu een gratis inspectie aan.
+              <strong>Wij maken uw kelder gegarandeerd droog.</strong> Van Maastricht tot Echt: wij zijn de onbetwiste specialist. Sluit u aan bij meer dan 1000 tevreden klanten die kozen voor definitieve oplossingen.
             </p>
             
             <div 
               ref={ctaRef}
               className="flex flex-col sm:flex-row gap-4 opacity-0"
             >
-              <Link href="#contact" className="btn btn-primary text-center group">
-                <span>Gratis inspectie</span>
+              <Link href="#contact" className="btn btn-primary text-center group shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1">
+                <span>Maak mijn kelder droog</span>
                 <svg className="w-5 h-5 ml-2 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                 </svg>
               </Link>
               <Link href="#diensten" className="btn btn-outline text-center flex items-center">
-                <span>Onze diensten</span>
+                <span>Onze aanpak</span>
                 <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
@@ -103,8 +103,8 @@ export default function Hero() {
               <BeforeAfterSlider />
               
               <div className="absolute bottom-0 left-0 right-0 text-center -mb-8">
-                <h2 className="text-2xl md:text-3xl font-bold rounded-full text-white bg-primary inline-block px-6 py-2 shadow-lg">
-                  Moonen <span className="text-accent">Vochtwering</span>
+                <h2 className="text-xl md:text-2xl font-bold rounded-full text-white bg-primary inline-block px-8 py-3 shadow-xl border-4 border-white">
+                  Beste van <span className="text-accent">Zuid-Limburg</span>
                 </h2>
               </div>
             </div>
@@ -113,21 +113,21 @@ export default function Hero() {
         
         <div 
           ref={statsRef}
-          className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 mt-20 md:mt-24 pt-8 border-t border-gray-200 opacity-0"
+          className="grid grid-cols-3 gap-4 md:gap-8 mt-20 md:mt-24 pt-8 border-t border-gray-200 opacity-0"
         >
           <div className="text-center">
-            <div className="text-2xl md:text-3xl font-bold text-primary mb-1 md:mb-2">15+</div>
-            <p className="text-sm md:text-base text-black">Jaren ervaring</p>
+            <div className="text-3xl md:text-4xl font-bold text-primary mb-1 md:mb-2">15+</div>
+            <p className="text-sm md:text-base text-gray-600 font-medium">Jaren ervaring</p>
           </div>
           
-          <div className="text-center">
-            <div className="text-2xl md:text-3xl font-bold text-primary mb-1 md:mb-2">1000+</div>
-            <p className="text-sm md:text-base text-black">Tevreden klanten</p>
+          <div className="text-center border-l border-gray-100">
+            <div className="text-3xl md:text-4xl font-bold text-primary mb-1 md:mb-2">1000+</div>
+            <p className="text-sm md:text-base text-gray-600 font-medium">Droge kelders</p>
           </div>
           
-          <div className="text-center">
-            <div className="text-2xl md:text-3xl font-bold text-primary mb-1 md:mb-2">100%</div>
-            <p className="text-sm md:text-base text-black">Kwaliteitsgarantie</p>
+          <div className="text-center border-l border-gray-100">
+            <div className="text-3xl md:text-4xl font-bold text-primary mb-1 md:mb-2">100%</div>
+            <p className="text-sm md:text-base text-gray-600 font-medium">Resultaat</p>
           </div>
         </div>
       </div>

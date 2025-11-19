@@ -43,33 +43,33 @@ export default function Services() {
 
   const services = [
     {
-      title: 'Vochtdiagnose & Inspectie',
-      description: 'Professionele diagnose van vochtproblemen in uw woning of bedrijfspand met state-of-the-art meetapparatuur.',
+      title: 'Gratis Vochtdiagnose',
+      description: 'Geen gokwerk, maar zekerheid. Wij komen langs voor een grondige inspectie en helder advies. Volledig kosteloos.',
       icon: '/icons/water.svg',
     },
     {
-      title: 'Keldervochtbestrijding',
-      description: 'Effectieve oplossingen voor vochtige kelders en kruipruimtes. Bescherm uw kelder tegen water en grondvocht.',
+      title: 'Kelderafdichting',
+      description: 'Van vochtige opslag naar waardevolle leefruimte. Wij maken uw kelder gegarandeerd 100% waterdicht.',
       icon: '/icons/window.svg',
     },
     {
       title: 'Schimmelbestrijding',
-      description: 'Professionele verwijdering van schimmel en preventieve maatregelen om terugkeer te voorkomen.',
+      description: 'Bescherm uw gezondheid. Wij verwijderen schimmel definitief en pakken de oorzaak bij de wortel aan.',
       icon: '/icons/file.svg',
     },
     {
-      title: 'Injecteren & Waterdichting',
-      description: 'Gespecialiseerde injectietechnieken voor het waterdicht maken van muren, vloeren en funderingen.',
+      title: 'Muurinjectie',
+      description: 'Stop optrekkend vocht voorgoed. Onze geavanceerde injectietechniek vormt een ondoordringbare barrière.',
       icon: '/icons/globe.svg',
     },
     {
       title: 'Vochtwerend Stucwerk',
-      description: 'Speciale stucwerktechnieken die vocht afstoten en uw wanden beschermen tegen vochtdoorslag.',
+      description: 'Een strakke, droge afwerking die ademt maar vocht tegenhoudt. De perfecte finish voor uw muren.',
       icon: '/icons/window.svg',
     },
     {
-      title: 'Preventieve Vochtbehandeling',
-      description: 'Preventieve behandelingen en advies om toekomstige vochtproblemen te voorkomen.',
+      title: 'Gevelimpregnatie',
+      description: 'Bescherm uw woning tegen doorslaand vocht. Uw gevel blijft droog, schoon en isoleert beter.',
       icon: '/icons/water.svg',
     }
   ];
@@ -94,13 +94,13 @@ export default function Services() {
             >
               <div className="flex items-start mb-4">
                 <div className="bg-primary/10 p-3 rounded-lg mr-4 group-hover:bg-primary/20 transition-all">
-                  <svg 
-                    className="w-6 h-6 text-primary" 
-                    viewBox="0 0 24 24" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    strokeWidth="2" 
-                    strokeLinecap="round" 
+                  <svg
+                    className="w-6 h-6 text-primary"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
                     strokeLinejoin="round"
                   >
                     {service.title.includes('Vocht') && (
@@ -150,7 +150,7 @@ export default function Services() {
             </div>
           ))}
         </div>
-        
+
         <div className="mt-12 md:mt-16 text-center">
           <a href="#contact" className="btn btn-primary inline-flex items-center group">
             <span>Vraag een gratis inspectie aan</span>
