@@ -2,12 +2,12 @@ import React from 'react';
 import { Document, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer';
 
 const COLORS = {
-  primary: '#1A2B3C',
-  accent: '#D4793A',
-  lightBg: '#F5F0EB',
-  text: '#2C2C2C',
+  primary: '#8AAB4C',
+  primaryDark: '#6E8E3A',
+  primarySoft: '#EDF4DE',
+  text: '#1F2937',
   muted: '#6B7280',
-  border: '#E5E2DD',
+  border: '#DCE6C4',
   white: '#FFFFFF',
 };
 
@@ -24,156 +24,160 @@ const COMPANY = {
 
 const styles = StyleSheet.create({
   page: {
-    paddingTop: 34,
-    paddingBottom: 34,
-    paddingHorizontal: 36,
-    fontFamily: 'Helvetica',
+    paddingTop: 28,
+    paddingBottom: 28,
+    paddingHorizontal: 34,
     fontSize: 10,
     color: COLORS.text,
+    lineHeight: 1.35,
   },
-  topBar: {
-    height: 8,
+  topStripe: {
+    height: 9,
     backgroundColor: COLORS.primary,
-    marginBottom: 18,
+    marginBottom: 16,
   },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 16,
+    marginBottom: 14,
   },
   logoWrap: {
-    width: 180,
-    minHeight: 48,
+    width: 220,
+    minHeight: 52,
     justifyContent: 'center',
   },
   logoImage: {
-    width: 170,
-    height: 44,
+    width: 210,
+    height: 48,
     objectFit: 'contain',
   },
   logoFallback: {
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: 700,
-    color: COLORS.primary,
+    color: COLORS.primaryDark,
   },
-  companyInfo: {
+  companyMeta: {
     width: 190,
     alignItems: 'flex-end',
-    gap: 1,
+    gap: 2,
   },
-  companyLine: {
+  companyMetaLine: {
     color: COLORS.muted,
     fontSize: 9,
   },
   title: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: 700,
-    color: COLORS.primary,
-    letterSpacing: 0.6,
-    marginBottom: 10,
+    color: COLORS.primaryDark,
+    marginBottom: 12,
+    letterSpacing: 0.4,
   },
-  block: {
+  card: {
     borderWidth: 1,
     borderColor: COLORS.border,
+    borderRadius: 3,
     padding: 10,
     marginBottom: 10,
   },
-  blockTitle: {
+  cardTitle: {
     fontSize: 9,
     color: COLORS.muted,
-    marginBottom: 6,
     textTransform: 'uppercase',
     letterSpacing: 0.4,
-  },
-  infoGrid: {
-    flexDirection: 'row',
-  },
-  infoCol: {
-    flex: 1,
-    paddingRight: 8,
+    marginBottom: 6,
   },
   infoRow: {
     flexDirection: 'row',
     marginBottom: 4,
   },
-  label: {
-    width: 88,
+  infoLabel: {
+    width: 94,
     color: COLORS.muted,
     fontSize: 9,
   },
-  value: {
+  infoValue: {
     flex: 1,
     fontSize: 10,
-    fontWeight: 600,
+    fontWeight: 500,
   },
-  introText: {
-    lineHeight: 1.4,
-    marginBottom: 10,
+  intro: {
+    marginTop: 2,
+    fontSize: 10,
+    lineHeight: 1.45,
   },
-  summaryCard: {
+  summaryWrap: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 4,
+  },
+  summaryLeft: {
+    flex: 1,
     borderWidth: 1,
     borderColor: COLORS.border,
-    backgroundColor: COLORS.lightBg,
-    padding: 12,
-    marginTop: 8,
+    borderRadius: 3,
+    backgroundColor: COLORS.primarySoft,
+    padding: 10,
   },
-  summaryTitle: {
-    fontSize: 11,
+  summaryHeading: {
+    fontSize: 10,
     fontWeight: 700,
-    color: COLORS.primary,
-    marginBottom: 8,
+    color: COLORS.primaryDark,
+    marginBottom: 7,
     textTransform: 'uppercase',
-    letterSpacing: 0.4,
+    letterSpacing: 0.35,
   },
   summaryRow: {
     flexDirection: 'row',
-    marginBottom: 5,
+    alignItems: 'flex-start',
+    marginBottom: 4,
   },
   summaryLabel: {
-    width: 95,
+    width: 92,
     color: COLORS.muted,
     fontSize: 9,
   },
   summaryValue: {
     flex: 1,
     fontSize: 9.5,
-    lineHeight: 1.4,
+    lineHeight: 1.35,
   },
-  totalBox: {
-    marginTop: 12,
+  summaryRight: {
+    width: 170,
     borderWidth: 1,
-    borderColor: COLORS.accent,
+    borderColor: COLORS.border,
+    borderRadius: 3,
+    padding: 10,
     backgroundColor: COLORS.white,
-    padding: 8,
-    alignItems: 'center',
   },
-  totalLabel: {
-    fontSize: 9,
+  moneyMeta: {
+    fontSize: 8.5,
     color: COLORS.muted,
+    textAlign: 'right',
     textTransform: 'uppercase',
-    letterSpacing: 0.4,
-    marginBottom: 2,
+    letterSpacing: 0.3,
+    marginBottom: 4,
   },
-  totalValue: {
-    fontSize: 18,
+  moneyValue: {
+    fontSize: 24,
     fontWeight: 700,
-    color: COLORS.accent,
+    color: COLORS.primaryDark,
+    textAlign: 'right',
   },
   sectionTitle: {
     fontSize: 12,
     fontWeight: 700,
-    color: COLORS.primary,
-    marginBottom: 8,
+    color: COLORS.primaryDark,
     textTransform: 'uppercase',
-    letterSpacing: 0.4,
+    letterSpacing: 0.35,
+    marginBottom: 8,
   },
-  tableHead: {
+  tableHeader: {
     flexDirection: 'row',
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.primaryDark,
     color: COLORS.white,
-    borderTopLeftRadius: 2,
-    borderTopRightRadius: 2,
+    borderTopLeftRadius: 3,
+    borderTopRightRadius: 3,
     paddingVertical: 7,
     paddingHorizontal: 8,
     fontSize: 9,
@@ -187,42 +191,66 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
     paddingVertical: 7,
     paddingHorizontal: 8,
-    fontSize: 9.5,
-    alignItems: 'center',
+    fontSize: 9.4,
+    alignItems: 'flex-start',
   },
-  colDescription: { flex: 3.2, paddingRight: 8 },
-  colQty: { flex: 1.1, textAlign: 'right', paddingRight: 6 },
-  colPrice: { flex: 1.3, textAlign: 'right', paddingRight: 6 },
-  colTotal: { flex: 1.4, textAlign: 'right' },
-  totalsWrap: {
+  colDescription: {
+    flex: 4.2,
+    paddingRight: 8,
+    lineHeight: 1.35,
+  },
+  colQty: {
+    flex: 1.4,
+    textAlign: 'right',
+    paddingRight: 6,
+  },
+  colPrice: {
+    flex: 1.8,
+    textAlign: 'right',
+    paddingRight: 6,
+  },
+  colTotal: {
+    flex: 1.9,
+    textAlign: 'right',
+  },
+  totalsBox: {
     marginTop: 10,
-    marginLeft: 250,
+    marginLeft: 'auto',
+    width: 250,
     borderWidth: 1,
     borderColor: COLORS.border,
-    padding: 8,
+    borderRadius: 3,
+    padding: 9,
+    backgroundColor: COLORS.white,
   },
-  totalsRow: {
+  totalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 4,
+    marginBottom: 5,
+    fontSize: 9.4,
   },
-  totalsFinal: {
-    marginTop: 6,
+  totalRowDiscount: {
+    color: COLORS.primaryDark,
+  },
+  totalFinal: {
+    marginTop: 3,
     paddingTop: 6,
     borderTopWidth: 1,
     borderColor: COLORS.border,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
-  totalsFinalLabel: {
-    color: COLORS.primary,
-    fontWeight: 700,
+  totalFinalLabel: {
     fontSize: 10,
-  },
-  totalsFinalValue: {
-    color: COLORS.accent,
     fontWeight: 700,
-    fontSize: 12,
+    color: COLORS.primaryDark,
   },
-  photosWrap: {
+  totalFinalValue: {
+    fontSize: 12,
+    fontWeight: 700,
+    color: COLORS.primaryDark,
+  },
+  photosSection: {
     marginTop: 14,
     marginBottom: 12,
   },
@@ -238,7 +266,7 @@ const styles = StyleSheet.create({
   },
   photoImage: {
     width: '100%',
-    height: 126,
+    height: 118,
     borderWidth: 1,
     borderColor: COLORS.border,
     objectFit: 'cover',
@@ -248,32 +276,30 @@ const styles = StyleSheet.create({
     color: COLORS.muted,
     marginTop: 4,
   },
-  termsWrap: {
+  termsBox: {
     borderWidth: 1,
     borderColor: COLORS.border,
-    backgroundColor: COLORS.lightBg,
+    borderRadius: 3,
+    backgroundColor: COLORS.primarySoft,
     padding: 10,
     marginBottom: 12,
   },
-  termItem: {
-    fontSize: 9,
-    lineHeight: 1.4,
+  term: {
+    fontSize: 9.2,
     marginBottom: 4,
+    lineHeight: 1.35,
   },
-  closingText: {
+  closing: {
     fontSize: 9.5,
     lineHeight: 1.45,
-    marginBottom: 3,
+    marginBottom: 2,
   },
   footer: {
-    position: 'absolute',
-    bottom: 24,
-    left: 36,
-    right: 36,
+    marginTop: 12,
     borderTopWidth: 1,
     borderColor: COLORS.border,
     paddingTop: 6,
-    fontSize: 8,
+    fontSize: 8.2,
     color: COLORS.muted,
     textAlign: 'center',
   },
@@ -368,9 +394,7 @@ function buildQuoteData(lead) {
   const validityDays = Math.max(1, Math.trunc(toNumber(inspectionData?.geldigheid_dagen, 30)));
   const validUntil = addDays(issueDate, validityDays);
   const fallbackQuoteSuffix = (lead?.id || '').replaceAll('-', '').slice(0, 4).toUpperCase() || '0001';
-  const quoteNumber =
-    lead?.quote_number ||
-    `MV-${issueDate.getFullYear()}-${fallbackQuoteSuffix}`;
+  const quoteNumber = lead?.quote_number || `MV-${issueDate.getFullYear()}-${fallbackQuoteSuffix}`;
 
   return {
     quoteNumber,
@@ -378,12 +402,15 @@ function buildQuoteData(lead) {
     validUntilLabel: formatDate(validUntil),
     customerName: lead?.name || 'Klant',
     customerAddress: `${lead?.plaatsnaam || ''} ${lead?.postcode || ''}`.trim(),
+    customerEmail: lead?.email || null,
+    customerPhone: lead?.phone || null,
     diagnosis: inspectionData?.diagnose || lead?.diagnose || 'n.v.t.',
     diagnosisDetails: inspectionData?.diagnose_details || null,
     solution: inspectionData?.oplossing || lead?.oplossing || 'n.v.t.',
-    areaLabel: lead?.oppervlakte_m2 || inspectionData?.oppervlakte_m2
-      ? `${toNumber(lead?.oppervlakte_m2 ?? inspectionData?.oppervlakte_m2, 0)} m²`
-      : 'n.v.t.',
+    areaLabel:
+      lead?.oppervlakte_m2 || inspectionData?.oppervlakte_m2
+        ? `${toNumber(lead?.oppervlakte_m2 ?? inspectionData?.oppervlakte_m2, 0)} m²`
+        : 'n.v.t.',
     timeline: inspectionData?.doorlooptijd || '3 werkdagen',
     guarantee: `${toNumber(inspectionData?.garantie_jaren, 5)} jaar`,
     paymentTerms: inspectionData?.betaling || '40% bij opdracht, 60% na oplevering',
@@ -400,13 +427,13 @@ function buildQuoteData(lead) {
   };
 }
 
-export function QuoteDocument({ lead, logoDataUri = null }) {
+export function QuoteDocument({ lead, logoDataUri = null, fontFamily = 'Helvetica' }) {
   const quote = buildQuoteData(lead);
 
   return (
     <Document>
-      <Page size="A4" style={styles.page}>
-        <View style={styles.topBar} />
+      <Page size="A4" style={[styles.page, { fontFamily }]}>
+        <View style={styles.topStripe} />
 
         <View style={styles.headerRow}>
           <View style={styles.logoWrap}>
@@ -416,85 +443,79 @@ export function QuoteDocument({ lead, logoDataUri = null }) {
               <Text style={styles.logoFallback}>{COMPANY.name}</Text>
             )}
           </View>
-          <View style={styles.companyInfo}>
-            <Text style={styles.companyLine}>{COMPANY.street}</Text>
-            <Text style={styles.companyLine}>{COMPANY.city}</Text>
-            <Text style={styles.companyLine}>{COMPANY.phone}</Text>
-            <Text style={styles.companyLine}>{COMPANY.email}</Text>
+          <View style={styles.companyMeta}>
+            <Text style={styles.companyMetaLine}>{COMPANY.street}</Text>
+            <Text style={styles.companyMetaLine}>{COMPANY.city}</Text>
+            <Text style={styles.companyMetaLine}>{COMPANY.phone}</Text>
+            <Text style={styles.companyMetaLine}>{COMPANY.email}</Text>
           </View>
         </View>
 
-        <Text style={styles.title}>OFFERTE</Text>
+        <Text style={styles.title}>Offerte</Text>
 
-        <View style={styles.block}>
-          <Text style={styles.blockTitle}>Offertegegevens</Text>
-          <View style={styles.infoGrid}>
-            <View style={styles.infoCol}>
-              <View style={styles.infoRow}>
-                <Text style={styles.label}>Offertenummer</Text>
-                <Text style={styles.value}>{quote.quoteNumber}</Text>
-              </View>
-              <View style={styles.infoRow}>
-                <Text style={styles.label}>Datum</Text>
-                <Text style={styles.value}>{quote.issueDateLabel}</Text>
-              </View>
-              <View style={styles.infoRow}>
-                <Text style={styles.label}>Geldig tot</Text>
-                <Text style={styles.value}>{quote.validUntilLabel}</Text>
-              </View>
-            </View>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Offertegegevens</Text>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Offertenummer</Text>
+            <Text style={styles.infoValue}>{quote.quoteNumber}</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Datum</Text>
+            <Text style={styles.infoValue}>{quote.issueDateLabel}</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Geldig tot</Text>
+            <Text style={styles.infoValue}>{quote.validUntilLabel}</Text>
           </View>
         </View>
 
-        <View style={styles.block}>
-          <Text style={styles.blockTitle}>Aan</Text>
-          <Text style={styles.value}>{quote.customerName}</Text>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Aan</Text>
+          <Text style={styles.infoValue}>{quote.customerName}</Text>
           <Text>{quote.customerAddress}</Text>
-          {lead?.email ? <Text>{lead.email}</Text> : null}
-          {lead?.phone ? <Text>{lead.phone}</Text> : null}
+          {quote.customerEmail ? <Text>{quote.customerEmail}</Text> : null}
+          {quote.customerPhone ? <Text>{quote.customerPhone}</Text> : null}
         </View>
 
-        <View style={styles.block}>
-          <Text style={styles.blockTitle}>Betreft</Text>
-          <Text style={styles.value}>{quote.solution}</Text>
-          <Text style={styles.introText}>
-            Naar aanleiding van onze inspectie bieden wij u hieronder de werkzaamheden aan voor een
-            duurzame vochtoplossing.
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Betreft</Text>
+          <Text style={styles.infoValue}>{quote.solution}</Text>
+          <Text style={styles.intro}>
+            Naar aanleiding van onze inspectie bieden wij u onderstaande werkzaamheden aan voor een
+            duurzame oplossing tegen vochtproblemen.
           </Text>
         </View>
 
-        <View style={styles.summaryCard}>
-          <Text style={styles.summaryTitle}>Samenvatting</Text>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Diagnose</Text>
-            <Text style={styles.summaryValue}>{quote.diagnosis}</Text>
-          </View>
-          {quote.diagnosisDetails ? (
+        <View style={styles.summaryWrap}>
+          <View style={styles.summaryLeft}>
+            <Text style={styles.summaryHeading}>Samenvatting</Text>
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Details</Text>
-              <Text style={styles.summaryValue}>{quote.diagnosisDetails}</Text>
+              <Text style={styles.summaryLabel}>Diagnose</Text>
+              <Text style={styles.summaryValue}>{quote.diagnosis}</Text>
             </View>
-          ) : null}
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Oplossing</Text>
-            <Text style={styles.summaryValue}>{quote.solution}</Text>
-          </View>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Oppervlakte</Text>
-            <Text style={styles.summaryValue}>{quote.areaLabel}</Text>
-          </View>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Doorlooptijd</Text>
-            <Text style={styles.summaryValue}>{quote.timeline}</Text>
-          </View>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Garantie</Text>
-            <Text style={styles.summaryValue}>{quote.guarantee}</Text>
+            {quote.diagnosisDetails ? (
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Details</Text>
+                <Text style={styles.summaryValue}>{quote.diagnosisDetails}</Text>
+              </View>
+            ) : null}
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Oppervlakte</Text>
+              <Text style={styles.summaryValue}>{quote.areaLabel}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Doorlooptijd</Text>
+              <Text style={styles.summaryValue}>{quote.timeline}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Garantie</Text>
+              <Text style={styles.summaryValue}>{quote.guarantee}</Text>
+            </View>
           </View>
 
-          <View style={styles.totalBox}>
-            <Text style={styles.totalLabel}>Totaal incl. BTW</Text>
-            <Text style={styles.totalValue}>{formatCurrency(quote.totalIncl)}</Text>
+          <View style={styles.summaryRight}>
+            <Text style={styles.moneyMeta}>Totaal incl. BTW</Text>
+            <Text style={styles.moneyValue}>{formatCurrency(quote.totalIncl)}</Text>
           </View>
         </View>
 
@@ -503,13 +524,13 @@ export function QuoteDocument({ lead, logoDataUri = null }) {
         </Text>
       </Page>
 
-      <Page size="A4" style={styles.page}>
-        <View style={styles.topBar} />
+      <Page size="A4" style={[styles.page, { fontFamily }]}>
+        <View style={styles.topStripe} />
         <Text style={styles.sectionTitle}>Prijsopgave</Text>
 
-        <View style={styles.tableHead}>
+        <View style={styles.tableHeader}>
           <Text style={styles.colDescription}>Omschrijving</Text>
-          <Text style={styles.colQty}>Hvl</Text>
+          <Text style={styles.colQty}>Aantal</Text>
           <Text style={styles.colPrice}>Prijs</Text>
           <Text style={styles.colTotal}>Bedrag</Text>
         </View>
@@ -525,29 +546,31 @@ export function QuoteDocument({ lead, logoDataUri = null }) {
           </View>
         ))}
 
-        <View style={styles.totalsWrap}>
-          <View style={styles.totalsRow}>
+        <View style={styles.totalsBox}>
+          <View style={styles.totalRow}>
             <Text>Subtotaal</Text>
             <Text>{formatCurrency(quote.subtotal)}</Text>
           </View>
           {quote.discountAmount > 0 ? (
-            <View style={styles.totalsRow}>
-              <Text>Korting{quote.discountType === 'percentage' ? ` (${quote.discountValue}%)` : ''}</Text>
+            <View style={[styles.totalRow, styles.totalRowDiscount]}>
+              <Text>
+                Korting{quote.discountType === 'percentage' ? ` (${quote.discountValue}%)` : ''}
+              </Text>
               <Text>-{formatCurrency(quote.discountAmount)}</Text>
             </View>
           ) : null}
-          <View style={styles.totalsRow}>
+          <View style={styles.totalRow}>
             <Text>BTW ({quote.btwPercentage}%)</Text>
             <Text>{formatCurrency(quote.btwAmount)}</Text>
           </View>
-          <View style={[styles.totalsRow, styles.totalsFinal]}>
-            <Text style={styles.totalsFinalLabel}>Totaal incl. BTW</Text>
-            <Text style={styles.totalsFinalValue}>{formatCurrency(quote.totalIncl)}</Text>
+          <View style={styles.totalFinal}>
+            <Text style={styles.totalFinalLabel}>Totaal incl. BTW</Text>
+            <Text style={styles.totalFinalValue}>{formatCurrency(quote.totalIncl)}</Text>
           </View>
         </View>
 
         {quote.photos.length > 0 ? (
-          <View style={styles.photosWrap}>
+          <View style={styles.photosSection}>
             <Text style={styles.sectionTitle}>Inspectiefoto&apos;s</Text>
             <View style={styles.photosGrid}>
               {quote.photos.map((photo) => (
@@ -561,20 +584,20 @@ export function QuoteDocument({ lead, logoDataUri = null }) {
         ) : null}
 
         <Text style={styles.sectionTitle}>Voorwaarden</Text>
-        <View style={styles.termsWrap}>
-          <Text style={styles.termItem}>• Prijzen zijn vast en all-inclusive.</Text>
-          <Text style={styles.termItem}>• Geen meerwerk zonder voorafgaand overleg.</Text>
-          <Text style={styles.termItem}>• Betaling: {quote.paymentTerms}.</Text>
-          <Text style={styles.termItem}>• Start werkzaamheden in overleg, doorgaans binnen 2-4 weken.</Text>
-          <Text style={styles.termItem}>• Garantie: {quote.guarantee} op waterdichtheid.</Text>
+        <View style={styles.termsBox}>
+          <Text style={styles.term}>- Prijzen zijn vast en all-inclusive.</Text>
+          <Text style={styles.term}>- Geen meerwerk zonder voorafgaand overleg.</Text>
+          <Text style={styles.term}>- Betaling: {quote.paymentTerms}.</Text>
+          <Text style={styles.term}>- Start werkzaamheden in overleg, doorgaans binnen 2-4 weken.</Text>
+          <Text style={styles.term}>- Garantie: {quote.guarantee} op waterdichtheid.</Text>
         </View>
 
-        <Text style={styles.closingText}>
+        <Text style={styles.closing}>
           Wij hopen u een passend aanbod te hebben gedaan en lichten dit graag toe bij vragen.
         </Text>
-        <Text style={styles.closingText}>Met vriendelijke groet,</Text>
-        <Text style={styles.closingText}>Moonen Vochtwering</Text>
-        {quote.notes ? <Text style={[styles.closingText, { marginTop: 8 }]}>Notitie: {quote.notes}</Text> : null}
+        <Text style={styles.closing}>Met vriendelijke groet,</Text>
+        <Text style={styles.closing}>Moonen Vochtwering</Text>
+        {quote.notes ? <Text style={[styles.closing, { marginTop: 8 }]}>Notitie: {quote.notes}</Text> : null}
 
         <Text style={styles.footer}>
           {COMPANY.name} | {COMPANY.street}, {COMPANY.city} | {COMPANY.phone} | {COMPANY.email}

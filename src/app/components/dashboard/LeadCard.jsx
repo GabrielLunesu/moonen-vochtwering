@@ -41,6 +41,11 @@ export default function LeadCard({ lead, onStatusChange, provided }) {
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
+                  <Link href={`/dashboard/inspectie/${lead.id}`}>
+                    Open inspectie / offerte
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
                   <a href={`tel:${lead.phone}`}>
                     Bel {lead.name}
                   </a>

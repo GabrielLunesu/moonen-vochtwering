@@ -8,6 +8,7 @@ import { logLeadEvent } from '@/lib/utils/events';
 import { generateToken } from '@/lib/utils/tokens';
 import { QuoteDocument } from '@/lib/pdf/quote-template';
 import { getLogoDataUri } from '@/lib/pdf/assets';
+import { getQuoteFontFamily } from '@/lib/pdf/fonts';
 
 async function generateQuoteNumber({ supabase, lead }) {
   if (lead.quote_number) {
@@ -72,6 +73,7 @@ export async function POST(request, { params }) {
     const quoteNumber = await generateQuoteNumber({ supabase, lead });
     const pdfUrl = `${baseUrl}/api/pdf/quote/${leadId}?token=${quoteToken}`;
     const logoDataUri = await getLogoDataUri();
+    const fontFamily = await getQuoteFontFamily();
     const leadForPdf = {
       ...lead,
       quote_number: quoteNumber,
@@ -81,12 +83,13 @@ export async function POST(request, { params }) {
     };
     let pdfBuffer;
     try {
-      pdfBuffer = await renderToBuffer(QuoteDocument({ lead: leadForPdf, logoDataUri }));
+      pdfBuffer = await renderToBuffer(QuoteDocument({ lead: leadForPdf, logoDataUri, fontFamily }));
     } catch (renderError) {
       pdfBuffer = await renderToBuffer(
         QuoteDocument({
           lead: { ...leadForPdf, photos: [] },
           logoDataUri,
+          fontFamily,
         })
       );
       await notifyOpsAlert({

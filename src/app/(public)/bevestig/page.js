@@ -5,8 +5,9 @@ import { useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { Label } from '@/app/components/ui/label';
+import { Input } from '@/app/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
-import { CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { CheckCircle, AlertCircle, Loader2, MapPin, Calendar } from 'lucide-react';
 
 export default function BevestigPage() {
   return (
@@ -19,10 +20,16 @@ export default function BevestigPage() {
 function BevestigContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
-  const [step, setStep] = useState('select'); // select, submitting, success, error
+  const [step, setStep] = useState('address'); // address, select, submitting, success, error
   const [slots, setSlots] = useState([]);
   const [selectedSlotId, setSelectedSlotId] = useState('');
   const [selectedSlotLabel, setSelectedSlotLabel] = useState('');
+  const [addressErrors, setAddressErrors] = useState({});
+  const [address, setAddress] = useState({
+    straat: '',
+    postcode: '',
+    plaatsnaam: '',
+  });
 
   useEffect(() => {
     if (!token) return;
@@ -44,6 +51,29 @@ function BevestigContent() {
     })} om ${slot.slot_time}`,
   }));
 
+  const handleAddressChange = (e) => {
+    const { name, value } = e.target;
+    setAddress((prev) => ({ ...prev, [name]: value }));
+    if (addressErrors[name]) {
+      setAddressErrors((prev) => ({ ...prev, [name]: '' }));
+    }
+  };
+
+  const validateAddress = () => {
+    const errors = {};
+    if (!address.straat.trim()) errors.straat = 'Straat en huisnummer is verplicht';
+    if (!address.postcode.trim()) errors.postcode = 'Postcode is verplicht';
+    if (!address.plaatsnaam.trim()) errors.plaatsnaam = 'Plaatsnaam is verplicht';
+    setAddressErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleAddressSubmit = (e) => {
+    e.preventDefault();
+    if (!validateAddress()) return;
+    setStep('select');
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!selectedSlotId) return;
@@ -54,7 +84,13 @@ function BevestigContent() {
       const res = await fetch('/api/customer/confirm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, slot_id: selectedSlotId }),
+        body: JSON.stringify({
+          token,
+          slot_id: selectedSlotId,
+          plaatsnaam: address.plaatsnaam,
+          postcode: address.postcode,
+          straat: address.straat,
+        }),
       });
 
       if (!res.ok) {
@@ -125,10 +161,83 @@ function BevestigContent() {
     );
   }
 
+  if (step === 'address') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+        <Card className="max-w-md w-full">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-2">
+              <MapPin className="h-8 w-8" style={{ color: '#355b23' }} />
+            </div>
+            <CardTitle style={{ color: '#355b23' }}>Waar mogen wij langskomen?</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Vul uw adres in zodat onze specialist u kan bezoeken
+            </p>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleAddressSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="straat">Straat + huisnummer *</Label>
+                <Input
+                  id="straat"
+                  name="straat"
+                  value={address.straat}
+                  onChange={handleAddressChange}
+                  placeholder="Voorbeeldstraat 1"
+                  className={addressErrors.straat ? 'border-red-400' : ''}
+                />
+                {addressErrors.straat && <p className="text-red-500 text-xs">{addressErrors.straat}</p>}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="postcode">Postcode *</Label>
+                  <Input
+                    id="postcode"
+                    name="postcode"
+                    value={address.postcode}
+                    onChange={handleAddressChange}
+                    placeholder="1234 AB"
+                    className={addressErrors.postcode ? 'border-red-400' : ''}
+                  />
+                  {addressErrors.postcode && <p className="text-red-500 text-xs">{addressErrors.postcode}</p>}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="plaatsnaam">Plaatsnaam *</Label>
+                  <Input
+                    id="plaatsnaam"
+                    name="plaatsnaam"
+                    value={address.plaatsnaam}
+                    onChange={handleAddressChange}
+                    placeholder="Heerlen"
+                    className={addressErrors.plaatsnaam ? 'border-red-400' : ''}
+                  />
+                  {addressErrors.plaatsnaam && <p className="text-red-500 text-xs">{addressErrors.plaatsnaam}</p>}
+                </div>
+              </div>
+
+              <Button
+                type="submit"
+                className="w-full"
+                style={{ backgroundColor: '#355b23' }}
+              >
+                Verder
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // step === 'select'
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
       <Card className="max-w-md w-full">
         <CardHeader className="text-center">
+          <div className="mx-auto mb-2">
+            <Calendar className="h-8 w-8" style={{ color: '#355b23' }} />
+          </div>
           <CardTitle style={{ color: '#355b23' }}>Kies een moment</CardTitle>
           <p className="text-sm text-muted-foreground">
             Kies een datum en tijdstip voor uw gratis vochtinspectie
@@ -172,6 +281,14 @@ function BevestigContent() {
                 'Bevestig inspectie'
               )}
             </Button>
+
+            <button
+              type="button"
+              onClick={() => setStep('address')}
+              className="w-full text-sm text-muted-foreground hover:underline"
+            >
+              Terug naar adres
+            </button>
           </form>
         </CardContent>
       </Card>

@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { renderToBuffer } from '@react-pdf/renderer';
 import { QuoteDocument } from '@/lib/pdf/quote-template';
 import { getLogoDataUri } from '@/lib/pdf/assets';
+import { getQuoteFontFamily } from '@/lib/pdf/fonts';
 import { notifyOpsAlert } from '@/lib/ops/alerts';
 
 export async function GET(request, { params }) {
@@ -32,13 +33,14 @@ export async function GET(request, { params }) {
     }
 
     const logoDataUri = await getLogoDataUri();
+    const fontFamily = await getQuoteFontFamily();
     let buffer;
     try {
-      buffer = await renderToBuffer(QuoteDocument({ lead, logoDataUri }));
+      buffer = await renderToBuffer(QuoteDocument({ lead, logoDataUri, fontFamily }));
     } catch (renderError) {
       // If remote images fail to load, retry without embedded photos instead of failing the whole PDF.
       const fallbackLead = { ...lead, photos: [] };
-      buffer = await renderToBuffer(QuoteDocument({ lead: fallbackLead, logoDataUri }));
+      buffer = await renderToBuffer(QuoteDocument({ lead: fallbackLead, logoDataUri, fontFamily }));
       await notifyOpsAlert({
         source: '/api/pdf/quote/[id]',
         message: 'Quote PDF rendered without photos after image render failure',

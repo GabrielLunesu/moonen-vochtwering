@@ -7,9 +7,6 @@ export default function InspectionForm() {
     name: '',
     email: '',
     phone: '',
-    straat: '',
-    postcode: '',
-    plaats: '',
     type_probleem: '',
     message: '',
   });
@@ -28,7 +25,6 @@ export default function InspectionForm() {
       newErrors.email = 'E-mail is ongeldig';
     }
     if (!formData.phone.trim()) newErrors.phone = 'Telefoonnummer is verplicht';
-    if (!formData.plaats.trim()) newErrors.plaats = 'Plaats is verplicht';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -57,9 +53,8 @@ export default function InspectionForm() {
           name: formData.name,
           email: formData.email,
           phone: formData.phone,
-          plaatsnaam: formData.plaats,
           type_probleem: formData.type_probleem,
-          message: `Adres: ${formData.straat}, ${formData.postcode} ${formData.plaats}\n\n${formData.message}`,
+          message: formData.message,
         }),
       });
 
@@ -67,13 +62,13 @@ export default function InspectionForm() {
       if (!response.ok) throw new Error(data.error || 'Er is iets misgegaan');
 
       setSubmitSuccess(true);
-      setFormData({ name: '', email: '', phone: '', straat: '', postcode: '', plaats: '', type_probleem: '', message: '' });
+      setFormData({ name: '', email: '', phone: '', type_probleem: '', message: '' });
 
       if (typeof window !== 'undefined' && window.gtag_report_conversion) {
         window.gtag_report_conversion();
       }
 
-      setTimeout(() => setSubmitSuccess(false), 5000);
+      setTimeout(() => setSubmitSuccess(false), 8000);
     } catch (error) {
       setSubmitError(true);
       setErrorMessage(error.message);
@@ -95,7 +90,7 @@ export default function InspectionForm() {
           <svg className="w-5 h-5 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
-          <p className="font-medium">Bedankt! Wij nemen binnen 24 uur contact met u op om een afspraak in te plannen.</p>
+          <p className="font-medium">Bedankt! Check uw e-mail om direct een inspectie in te plannen.</p>
         </div>
       )}
 
@@ -126,22 +121,6 @@ export default function InspectionForm() {
           <label htmlFor="phone" className="block text-sm font-medium text-[#111827] mb-1.5">Telefoonnummer *</label>
           <input type="tel" id="phone" name="phone" value={formData.phone} onChange={handleChange} className={inputClasses('phone')} placeholder="06 1234 5678" />
           {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-          <div className="sm:col-span-1">
-            <label htmlFor="straat" className="block text-sm font-medium text-[#111827] mb-1.5">Straat + huisnummer</label>
-            <input type="text" id="straat" name="straat" value={formData.straat} onChange={handleChange} className={inputClasses('straat')} placeholder="Straatnaam 1" />
-          </div>
-          <div>
-            <label htmlFor="postcode" className="block text-sm font-medium text-[#111827] mb-1.5">Postcode</label>
-            <input type="text" id="postcode" name="postcode" value={formData.postcode} onChange={handleChange} className={inputClasses('postcode')} placeholder="1234 AB" />
-          </div>
-          <div>
-            <label htmlFor="plaats" className="block text-sm font-medium text-[#111827] mb-1.5">Plaats *</label>
-            <input type="text" id="plaats" name="plaats" value={formData.plaats} onChange={handleChange} className={inputClasses('plaats')} placeholder="Uw woonplaats" />
-            {errors.plaats && <p className="text-red-500 text-xs mt-1">{errors.plaats}</p>}
-          </div>
         </div>
 
         <div>
@@ -178,7 +157,7 @@ export default function InspectionForm() {
         </button>
 
         <p className="text-xs text-[#6B7280] text-center">
-          * Verplichte velden. Wij nemen binnen 24 uur contact met u op.
+          U ontvangt direct een e-mail om uw inspectie in te plannen.
         </p>
       </form>
     </div>

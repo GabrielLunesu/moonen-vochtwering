@@ -92,6 +92,15 @@ function lineTotal(item) {
   return toMoney(toNumber(item.quantity) * toNumber(item.unit_price));
 }
 
+function isSquareMeterUnit(unit) {
+  const normalized = String(unit || '')
+    .trim()
+    .toLowerCase()
+    .replaceAll('²', '2')
+    .replaceAll('^', '');
+  return normalized === 'm2';
+}
+
 function findTemplateKey(oplossing) {
   return OPLOSSING_OPTIONS.find((option) => option.value === oplossing)?.templateKey || null;
 }
@@ -158,7 +167,10 @@ export default function InspectionForm({ lead, onSave, mode = 'create' }) {
 
   const [discountType, setDiscountType] = useState(initialData.discount_type || 'percentage');
   const [discountValue, setDiscountValue] = useState(String(initialData.discount_value || ''));
+  const [m2UnitPrice, setM2UnitPrice] = useState(String(initialData.m2_unit_price || ''));
   const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
+  const [previewPdfUrl, setPreviewPdfUrl] = useState('');
+  const [generatingPreview, setGeneratingPreview] = useState(false);
 
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -176,6 +188,10 @@ export default function InspectionForm({ lead, onSave, mode = 'create' }) {
 
         if (settings.quote_defaults && typeof settings.quote_defaults === 'object') {
           setQuoteDefaults((prev) => ({ ...prev, ...settings.quote_defaults }));
+        }
+
+        if (settings.pricing?.base_rate) {
+          setM2UnitPrice((prev) => prev || String(settings.pricing.base_rate));
         }
       })
       .catch(() => {
@@ -200,9 +216,28 @@ export default function InspectionForm({ lead, onSave, mode = 'create' }) {
 
   useEffect(() => {
     if (!quoteTouched) {
-      setForm((prev) => ({ ...prev, quote_amount: subtotal > 0 ? String(subtotal) : '' }));
+      setForm((prev) => ({
+        ...prev,
+        quote_amount: discountedSubtotal > 0 ? String(discountedSubtotal) : '',
+      }));
     }
-  }, [quoteTouched, subtotal]);
+  }, [quoteTouched, discountedSubtotal]);
+
+  useEffect(() => {
+    if (m2UnitPrice) return;
+    const firstM2Item = lineItems.find((item) => isSquareMeterUnit(item.unit) && toNumber(item.unit_price, 0) > 0);
+    if (firstM2Item) {
+      setM2UnitPrice(String(firstM2Item.unit_price));
+    }
+  }, [lineItems, m2UnitPrice]);
+
+  useEffect(() => {
+    return () => {
+      if (previewPdfUrl) {
+        URL.revokeObjectURL(previewPdfUrl);
+      }
+    };
+  }, [previewPdfUrl]);
 
   const setLineItemsFromTemplate = (oplossing, m2 = oppervlakte) => {
     const templateKey = findTemplateKey(oplossing);
@@ -216,9 +251,14 @@ export default function InspectionForm({ lead, onSave, mode = 'create' }) {
         description: item.description,
         unit: item.unit,
         unit_price: item.unit_price,
-        quantity: item.unit === 'm²' ? Math.max(1, m2 || 1) : 1,
+        quantity: isSquareMeterUnit(item.unit) ? Math.max(1, m2 || 1) : 1,
       })
     );
+
+    const firstM2Price = hydrated.find((item) => isSquareMeterUnit(item.unit) && toNumber(item.unit_price, 0) > 0);
+    if (firstM2Price) {
+      setM2UnitPrice(String(firstM2Price.unit_price));
+    }
 
     setLineItems(hydrated);
   };
@@ -228,7 +268,7 @@ export default function InspectionForm({ lead, onSave, mode = 'create' }) {
 
     setLineItems((prev) =>
       prev.map((item) =>
-        item.unit === 'm²'
+        isSquareMeterUnit(item.unit)
           ? {
               ...item,
               quantity: areaValue,
@@ -236,6 +276,101 @@ export default function InspectionForm({ lead, onSave, mode = 'create' }) {
           : item
       )
     );
+  };
+
+  const applyM2PriceToLineItems = () => {
+    const parsed = toNumber(m2UnitPrice, 0);
+    if (parsed <= 0) {
+      toast.error('Vul eerst een geldige m²-prijs in');
+      return;
+    }
+
+    setLineItems((prev) =>
+      prev.map((item) =>
+        isSquareMeterUnit(item.unit)
+          ? {
+              ...item,
+              unit_price: parsed,
+            }
+          : item
+      )
+    );
+    toast.success('m²-prijs toegepast op alle m²-regels');
+  };
+
+  const buildDraftPayload = () => {
+    const normalizedLineItems = lineItems.map((item) => ({
+      description: item.description,
+      quantity: toNumber(item.quantity, 0),
+      unit: item.unit,
+      unit_price: toMoney(item.unit_price),
+      total: lineTotal(item),
+    }));
+
+    const quoteAmount = toMoney(form.quote_amount || discountedSubtotal);
+
+    const inspectionDataV2 = {
+      diagnose: form.diagnose || null,
+      diagnose_details: form.diagnose_details || null,
+      oplossing: form.oplossing || null,
+      oppervlakte_m2: oppervlakte || null,
+      line_items: normalizedLineItems,
+      subtotal: toMoney(subtotal),
+      discount_type: discountAmount > 0 ? discountType : null,
+      discount_value: discountAmount > 0 ? toNumber(discountValue, 0) : null,
+      discount_amount: discountAmount > 0 ? discountAmount : null,
+      m2_unit_price: toNumber(m2UnitPrice, 0) || null,
+      btw_percentage: btwPercentage,
+      btw_amount: btwAmount,
+      total_incl_btw: totalIncl,
+      garantie_jaren: toNumber(quoteDefaults.garantie_jaren, 5),
+      doorlooptijd: quoteDefaults.doorlooptijd || '3 werkdagen',
+      betaling: quoteDefaults.betaling || '40% bij opdracht, 60% na oplevering',
+      notes: form.inspection_notes || null,
+    };
+
+    return { inspectionDataV2, quoteAmount };
+  };
+
+  const generateDraftPreview = async () => {
+    setGeneratingPreview(true);
+
+    if (previewPdfUrl) {
+      URL.revokeObjectURL(previewPdfUrl);
+      setPreviewPdfUrl('');
+    }
+
+    try {
+      const { inspectionDataV2, quoteAmount } = buildDraftPayload();
+      const draftLead = {
+        ...lead,
+        diagnose: form.diagnose || null,
+        oplossing: form.oplossing || null,
+        oppervlakte_m2: oppervlakte || null,
+        inspection_notes: form.inspection_notes || null,
+        quote_amount: quoteAmount || null,
+        inspection_data_v2: inspectionDataV2,
+        photos,
+      };
+
+      const res = await fetch('/api/pdf/quote/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ draftLead }),
+      });
+
+      if (!res.ok) {
+        throw new Error('Kon PDF preview niet genereren');
+      }
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      setPreviewPdfUrl(url);
+    } catch (error) {
+      toast.error(error?.message || 'PDF preview genereren mislukt');
+    } finally {
+      setGeneratingPreview(false);
+    }
   };
 
   const handlePhotoCapture = async (e) => {
@@ -267,34 +402,7 @@ export default function InspectionForm({ lead, onSave, mode = 'create' }) {
     setSaving(true);
 
     try {
-      const normalizedLineItems = lineItems.map((item) => ({
-        description: item.description,
-        quantity: toNumber(item.quantity, 0),
-        unit: item.unit,
-        unit_price: toMoney(item.unit_price),
-        total: lineTotal(item),
-      }));
-
-      const quoteAmount = toMoney(form.quote_amount || subtotal);
-
-      const inspectionDataV2 = {
-        diagnose: form.diagnose || null,
-        diagnose_details: form.diagnose_details || null,
-        oplossing: form.oplossing || null,
-        oppervlakte_m2: oppervlakte || null,
-        line_items: normalizedLineItems,
-        subtotal: toMoney(subtotal),
-        discount_type: discountAmount > 0 ? discountType : null,
-        discount_value: discountAmount > 0 ? toNumber(discountValue, 0) : null,
-        discount_amount: discountAmount > 0 ? discountAmount : null,
-        btw_percentage: btwPercentage,
-        btw_amount: btwAmount,
-        total_incl_btw: totalIncl,
-        garantie_jaren: toNumber(quoteDefaults.garantie_jaren, 5),
-        doorlooptijd: quoteDefaults.doorlooptijd || '3 werkdagen',
-        betaling: quoteDefaults.betaling || '40% bij opdracht, 60% na oplevering',
-        notes: form.inspection_notes || null,
-      };
+      const { inspectionDataV2, quoteAmount } = buildDraftPayload();
 
       // In edit mode, don't regress status if lead is already further in pipeline
       const STAGE_ORDER = ['nieuw', 'uitgenodigd', 'bevestigd', 'bezocht', 'offerte_verzonden', 'akkoord', 'verloren'];
@@ -551,6 +659,42 @@ export default function InspectionForm({ lead, onSave, mode = 'create' }) {
                 </div>
               )}
 
+              <div className="rounded-md border p-3 space-y-3">
+                <p className="text-sm font-medium">Snelinstellingen</p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-end">
+                  <div className="space-y-1 sm:col-span-1">
+                    <Label className="text-xs">Standaard m²-prijs (€)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={m2UnitPrice}
+                      onChange={(e) => setM2UnitPrice(e.target.value)}
+                    />
+                  </div>
+                  <Button type="button" variant="outline" onClick={applyM2PriceToLineItems}>
+                    Pas toe op m²-regels
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() =>
+                      setLineItems((prev) => [
+                        ...prev,
+                        newLineItem({
+                          description: 'Werkzaamheden op oppervlak',
+                          quantity: Math.max(1, oppervlakte || 1),
+                          unit: 'm²',
+                          unit_price: toNumber(m2UnitPrice, 0),
+                        }),
+                      ])
+                    }
+                  >
+                    Voeg m²-regel toe
+                  </Button>
+                </div>
+              </div>
+
               {lineItems.map((item) => (
                 <div key={item.id} className="grid grid-cols-12 gap-2 items-end rounded-md border p-3">
                   <div className="col-span-12 sm:col-span-5 space-y-1">
@@ -714,8 +858,19 @@ export default function InspectionForm({ lead, onSave, mode = 'create' }) {
 
           {step === 4 && (
             <>
-              {lead.id && lead.quote_amount > 0 && (
-                <Dialog open={pdfPreviewOpen} onOpenChange={setPdfPreviewOpen}>
+              {lead.id && (
+                <Dialog
+                  open={pdfPreviewOpen}
+                  onOpenChange={(open) => {
+                    setPdfPreviewOpen(open);
+                    if (open) {
+                      generateDraftPreview();
+                    } else if (previewPdfUrl) {
+                      URL.revokeObjectURL(previewPdfUrl);
+                      setPreviewPdfUrl('');
+                    }
+                  }}
+                >
                   <DialogTrigger asChild>
                     <Button variant="outline" className="gap-2">
                       <Eye className="h-4 w-4" />
@@ -724,13 +879,24 @@ export default function InspectionForm({ lead, onSave, mode = 'create' }) {
                   </DialogTrigger>
                   <DialogContent className="max-w-4xl h-[80vh]">
                     <DialogHeader>
-                      <DialogTitle>Offerte preview</DialogTitle>
+                      <DialogTitle>Offerte preview (huidige concept)</DialogTitle>
                     </DialogHeader>
-                    <iframe
-                      src={`/api/pdf/quote/${lead.id}`}
-                      className="w-full h-full rounded-md border"
-                      title="Offerte PDF"
-                    />
+                    {generatingPreview ? (
+                      <div className="w-full h-full rounded-md border flex items-center justify-center text-sm text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        PDF genereren...
+                      </div>
+                    ) : previewPdfUrl ? (
+                      <iframe
+                        src={previewPdfUrl}
+                        className="w-full h-full rounded-md border"
+                        title="Offerte PDF"
+                      />
+                    ) : (
+                      <div className="w-full h-full rounded-md border flex items-center justify-center text-sm text-muted-foreground">
+                        Preview niet beschikbaar
+                      </div>
+                    )}
                   </DialogContent>
                 </Dialog>
               )}

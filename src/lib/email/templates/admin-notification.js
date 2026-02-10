@@ -1,5 +1,7 @@
 export function adminNotificationEmail({ lead }) {
-  const subject = `Nieuwe lead: ${lead.name} uit ${lead.plaatsnaam}`;
+  const subject = lead.plaatsnaam
+    ? `Nieuwe lead: ${lead.name} uit ${lead.plaatsnaam}`
+    : `Nieuwe lead: ${lead.name}`;
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -20,18 +22,18 @@ export function adminNotificationEmail({ lead }) {
             <td style="padding: 8px 0; font-weight: 600; color: #333;">Telefoon:</td>
             <td style="padding: 8px 0;"><a href="tel:${lead.phone}" style="color: #355b23;">${lead.phone}</a></td>
           </tr>
-          <tr>
+          ${lead.plaatsnaam ? `<tr>
             <td style="padding: 8px 0; font-weight: 600; color: #333;">Plaatsnaam:</td>
             <td style="padding: 8px 0; color: #333;">${lead.plaatsnaam}</td>
-          </tr>
+          </tr>` : ""}
           ${lead.type_probleem ? `<tr>
             <td style="padding: 8px 0; font-weight: 600; color: #333;">Probleem:</td>
             <td style="padding: 8px 0; color: #333;">${lead.type_probleem}</td>
           </tr>` : ""}
-          <tr>
+          ${lead.message ? `<tr>
             <td style="padding: 8px 0; font-weight: 600; color: #333; vertical-align: top;">Bericht:</td>
             <td style="padding: 8px 0; color: #333;">${lead.message}</td>
-          </tr>
+          </tr>` : ""}
         </table>
       </div>
     </div>
@@ -41,9 +43,9 @@ export function adminNotificationEmail({ lead }) {
 Naam: ${lead.name}
 E-mail: ${lead.email}
 Telefoon: ${lead.phone}
-Plaatsnaam: ${lead.plaatsnaam}
+${lead.plaatsnaam ? `Plaatsnaam: ${lead.plaatsnaam}` : ""}
 ${lead.type_probleem ? `Probleem: ${lead.type_probleem}` : ""}
-Bericht: ${lead.message}`;
+${lead.message ? `Bericht: ${lead.message}` : ""}`;
 
   return { subject, html, text };
 }

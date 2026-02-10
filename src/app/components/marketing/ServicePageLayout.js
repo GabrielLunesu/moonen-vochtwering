@@ -26,7 +26,7 @@ export default function ServicePageLayout({ service }) {
             </div>
             <div className="hidden lg:block">
               <img
-                src={`/images/kelderafdichting-hero.jpeg`}
+                src={service.heroImage}
                 alt={service.title}
                 className="rounded-xl shadow-lg w-full"
               />

@@ -238,6 +238,9 @@ export default function LeadDetailPanel({ lead: initialLead, initialEvents = [],
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">{lead.name}</h1>
+          <p className="text-xs text-muted-foreground mt-1">
+            Lead ID: {lead.id}
+          </p>
           <div className="flex items-center gap-2 mt-1 flex-wrap">
             <Badge className={stage.color}>{stage.label}</Badge>
             {lead.type_probleem && (

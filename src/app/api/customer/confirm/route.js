@@ -7,7 +7,7 @@ import { logLeadEvent } from '@/lib/utils/events';
 
 export async function POST(request) {
   try {
-    const { token, slot_id, date, time } = await request.json();
+    const { token, slot_id, date, time, plaatsnaam, postcode, straat } = await request.json();
 
     if (!token || (!slot_id && (!date || !time))) {
       return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
@@ -73,6 +73,22 @@ export async function POST(request) {
       leadUpdates.availability_slot_id = slot_id;
     }
 
+    // Save address fields from the /bevestig form
+    if (plaatsnaam) {
+      leadUpdates.plaatsnaam = plaatsnaam;
+    }
+    if (postcode) {
+      leadUpdates.postcode = postcode;
+    }
+    if (straat) {
+      // Prepend street to existing message, or set as message
+      const existingMessage = lead.message || '';
+      const addressLine = `Adres: ${straat}, ${postcode || ''} ${plaatsnaam || ''}`.trim();
+      leadUpdates.message = existingMessage
+        ? `${addressLine}\n\n${existingMessage}`
+        : addressLine;
+    }
+
     const { error: leadUpdateError } = await supabase
       .from('leads')
       .update(leadUpdates)
@@ -112,6 +128,8 @@ export async function POST(request) {
       });
     }
 
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://moonenvochtwering.nl';
+
     // Load email template overrides
     const { data: templateSetting } = await supabase
       .from('settings')
@@ -120,11 +138,13 @@ export async function POST(request) {
       .single();
     const overrides = templateSetting?.value || {};
 
-    // Send confirmation email to customer
+    // Send confirmation email to customer (with manage link)
     const emailContent = confirmationEmail({
       name: lead.name,
       date: selectedDate,
       time: selectedTime,
+      siteUrl,
+      token,
       overrides,
     });
 
@@ -155,17 +175,19 @@ export async function POST(request) {
     });
 
     // Notify admin
+    const displayPlaats = plaatsnaam || lead.plaatsnaam || 'onbekend';
     await sendEmail({
       to: 'info@moonenvochtwering.nl',
       subject: `Inspectie bevestigd: ${lead.name} - ${new Date(selectedDate).toLocaleDateString('nl-NL')} ${selectedTime}`,
-      html: `<p><strong>${lead.name}</strong> uit ${lead.plaatsnaam} heeft een inspectie bevestigd op <strong>${new Date(selectedDate).toLocaleDateString('nl-NL')}</strong> om <strong>${selectedTime}</strong>.</p>
-             <p>Telefoon: ${lead.phone}</p>`,
-      text: `${lead.name} uit ${lead.plaatsnaam} heeft een inspectie bevestigd op ${new Date(selectedDate).toLocaleDateString('nl-NL')} om ${selectedTime}. Tel: ${lead.phone}`,
+      html: `<p><strong>${lead.name}</strong> uit ${displayPlaats} heeft een inspectie bevestigd op <strong>${new Date(selectedDate).toLocaleDateString('nl-NL')}</strong> om <strong>${selectedTime}</strong>.</p>
+             <p>Telefoon: ${lead.phone}</p>
+             ${straat ? `<p>Adres: ${straat}, ${postcode || ''} ${displayPlaats}</p>` : ''}`,
+      text: `${lead.name} uit ${displayPlaats} heeft een inspectie bevestigd op ${new Date(selectedDate).toLocaleDateString('nl-NL')} om ${selectedTime}. Tel: ${lead.phone}${straat ? `\nAdres: ${straat}, ${postcode || ''} ${displayPlaats}` : ''}`,
     });
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Confirmation error:', error);
+    console.error('[API_ERROR] /api/customer/confirm:', error);
     await notifyOpsAlert({
       source: '/api/customer/confirm',
       message: 'Customer confirmation flow failed',

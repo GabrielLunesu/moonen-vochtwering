@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/ca
 import { Badge } from '@/app/components/ui/badge';
 import { Input } from '@/app/components/ui/input';
 import { createWhatsAppLink, createRouteMessage } from '@/lib/utils/whatsapp';
-import { MessageSquare, RefreshCw, Route, Save, Clock, GripVertical } from 'lucide-react';
+import { MessageSquare, Route, Save, Clock, GripVertical } from 'lucide-react';
 
 function todayString() {
   return new Date().toISOString().split('T')[0];
@@ -60,9 +60,6 @@ export default function PlanningPage() {
   const [leads, setLeads] = useState([]);
   const [slots, setSlots] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [generating, setGenerating] = useState(false);
-  const [updatingSlotId, setUpdatingSlotId] = useState(null);
-
   const [selectedDate, setSelectedDate] = useState(todayString());
   const [routeLeads, setRouteLeads] = useState([]);
   const [routePath, setRoutePath] = useState([]);
@@ -289,42 +286,6 @@ export default function PlanningPage() {
     }
   };
 
-  const generateSlots = async () => {
-    setGenerating(true);
-    try {
-      const res = await fetch('/api/availability/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ weeks: 4, max_visits: 1 }),
-      });
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      await fetchSlots();
-      toast.success(`${data.inserted || 0} momenten toegevoegd`);
-    } catch {
-      toast.error('Kon beschikbaarheid niet genereren');
-    } finally {
-      setGenerating(false);
-    }
-  };
-
-  const toggleSlot = async (slot) => {
-    setUpdatingSlotId(slot.id);
-    try {
-      const res = await fetch(`/api/availability/${slot.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_open: !slot.is_open }),
-      });
-      if (!res.ok) throw new Error();
-      await fetchSlots();
-    } catch {
-      toast.error('Kon moment niet bijwerken');
-    } finally {
-      setUpdatingSlotId(null);
-    }
-  };
-
   return (
     <div>
       <div className="border-b px-6 py-4 flex items-center justify-between">
@@ -443,72 +404,13 @@ export default function PlanningPage() {
           </CardContent>
         </Card>
 
-        <WeekCalendar leads={leads} slots={slots} />
+        <WeekCalendar leads={leads} slots={slots} onSlotsChange={fetchSlots} />
 
         <div className="grid grid-cols-1 gap-6">
           <MapView leads={routeLeads} routePath={routePath} routeStats={routeStats} />
         </div>
       </div>
 
-      <div className="px-6 pb-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle className="text-base">Beschikbaarheid</CardTitle>
-              <p className="text-sm text-muted-foreground">Email gebruikt automatisch de eerste 4 open momenten.</p>
-            </div>
-            <Button onClick={generateSlots} disabled={generating} variant="outline" className="gap-2">
-              <RefreshCw className={`h-4 w-4 ${generating ? 'animate-spin' : ''}`} />
-              Genereer 4 weken
-            </Button>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <p className="text-sm text-muted-foreground">Laden...</p>
-            ) : slots.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Geen momenten gevonden. Klik op &quot;Genereer 4 weken&quot; om te starten.
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {slots.slice(0, 40).map((slot) => {
-                  const remaining = slot.max_visits - slot.booked_count;
-                  return (
-                    <div key={slot.id} className="flex items-center justify-between rounded-md border px-3 py-2">
-                      <div className="text-sm">
-                        <span className="font-medium">
-                          {new Date(`${slot.slot_date}T12:00:00`).toLocaleDateString('nl-NL', {
-                            weekday: 'short',
-                            day: 'numeric',
-                            month: 'short',
-                          })}
-                        </span>
-                        <span className="ml-2">{slot.slot_time}</span>
-                        <span className="ml-3 text-muted-foreground">
-                          {slot.booked_count}/{slot.max_visits} bezet
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant={slot.is_open && remaining > 0 ? 'default' : 'secondary'}>
-                          {slot.is_open ? (remaining > 0 ? 'Open' : 'Vol') : 'Gesloten'}
-                        </Badge>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={updatingSlotId === slot.id}
-                          onClick={() => toggleSlot(slot)}
-                        >
-                          {slot.is_open ? 'Sluit' : 'Open'}
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
     </div>
   );
 }

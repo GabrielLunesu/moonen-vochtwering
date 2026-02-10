@@ -1,4 +1,4 @@
-export function confirmationEmail({ name, date, time, overrides = {} }) {
+export function confirmationEmail({ name, date, time, siteUrl, token, overrides = {} }) {
   const subject = overrides.subject || "Bevestiging vochtinspectie | Moonen Vochtwering";
 
   const formattedDate = new Date(date).toLocaleDateString("nl-NL", {
@@ -10,8 +10,25 @@ export function confirmationEmail({ name, date, time, overrides = {} }) {
 
   const greeting = overrides.greeting || "Uw vochtinspectie is bevestigd!";
   const body = overrides.body || "Onze specialist komt bij u langs om de situatie te beoordelen. De inspectie is geheel gratis en vrijblijvend.";
-  const closing = overrides.closing || 'Heeft u vragen of wilt u de afspraak wijzigen? Bel ons op <a href="tel:+31618162515" style="color: #355b23;">06 18 16 25 15</a>.';
-  const closingText = overrides.closing || "Heeft u vragen of wilt u de afspraak wijzigen? Bel ons op 06 18 16 25 15.";
+
+  const manageUrl = siteUrl && token ? `${siteUrl}/afspraak?token=${token}` : null;
+
+  const manageLinkHtml = manageUrl
+    ? `<div style="text-align: center; margin: 24px 0;">
+        <a href="${manageUrl}"
+           style="color: #355b23; font-size: 14px; text-decoration: underline;">
+          Afspraak verzetten of annuleren
+        </a>
+      </div>
+      <p style="font-size: 14px; color: #666;">Of bel ons op <a href="tel:+31618162515" style="color: #355b23;">06 18 16 25 15</a>.</p>`
+    : `<p style="font-size: 14px; color: #666;">Heeft u vragen of wilt u de afspraak wijzigen? Bel ons op <a href="tel:+31618162515" style="color: #355b23;">06 18 16 25 15</a>.</p>`;
+
+  const manageLinkText = manageUrl
+    ? `Afspraak verzetten of annuleren: ${manageUrl}\nOf bel ons op 06 18 16 25 15.`
+    : "Heeft u vragen of wilt u de afspraak wijzigen? Bel ons op 06 18 16 25 15.";
+
+  const closing = overrides.closing ? `<p style="font-size: 14px; color: #666;">${overrides.closing}</p>` : manageLinkHtml;
+  const closingText = overrides.closing || manageLinkText;
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
@@ -26,7 +43,7 @@ export function confirmationEmail({ name, date, time, overrides = {} }) {
           <p style="margin: 0; font-weight: 600; color: #333;">Tijd: ${time}</p>
         </div>
         <p style="font-size: 16px; color: #333;">${body}</p>
-        <p style="font-size: 14px; color: #666;">${closing}</p>
+        ${closing}
       </div>
       <div style="background: #f5f5f5; padding: 20px 24px; font-size: 13px; color: #666;">
         <p style="margin: 0;">Moonen Vochtwering | Grasbroekerweg 141, 6412BD Heerlen | 06 18 16 25 15</p>

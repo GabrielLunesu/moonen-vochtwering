@@ -2,6 +2,7 @@ export const services = [
   {
     slug: "kelderafdichting",
     title: "Kelderafdichting",
+    heroImage: "/images/kelderafdichting-hero.jpeg",
     heroHeading: "Uw kelder: van vochtprobleem naar waardevolle ruimte",
     heroSub:
       "Een vochtige kelder is meer dan een ongemak — het tast uw woning aan en kost u bruikbare ruimte. Moonen Vochtwering maakt van uw kelder weer een droge, gezonde en bruikbare ruimte.",
@@ -93,6 +94,7 @@ export const services = [
   {
     slug: "opstijgend-vocht",
     title: "Opstijgend vocht",
+    heroImage: "/images/diensten/opstijgend vocht.jpeg",
     heroHeading: "Opstijgend vocht: de onzichtbare vijand in uw muren",
     heroSub:
       "Opstijgend vocht vreet langzaam aan uw muren, uw gezondheid en uw energierekening. Met professionele muurinjectie stoppen we het probleem bij de bron.",
@@ -184,6 +186,7 @@ export const services = [
   {
     slug: "schimmelbestrijding",
     title: "Schimmelbestrijding",
+    heroImage: "/images/diensten/Schimmelbestrijding.jpeg",
     heroHeading: "Schimmel in huis? Uw gezondheid staat op het spel",
     heroSub:
       "Schimmel is meer dan een cosmetisch probleem — het vormt een direct risico voor uw gezondheid. Wij pakken niet alleen de schimmel aan, maar ook de oorzaak.",
@@ -275,6 +278,7 @@ export const services = [
   {
     slug: "gevelimpregnatie",
     title: "Gevelimpregnatie",
+    heroImage: "/images/diensten/gevelimpregnatie.jpeg",
     heroHeading: "Bescherm uw gevel tegen vocht en verwering",
     heroSub:
       "Uw gevel is de eerste verdedigingslinie van uw woning. Met professionele gevelimpregnatie houden we vocht buiten en verlengen we de levensduur van uw gevel.",
@@ -350,6 +354,7 @@ export const services = [
   {
     slug: "vochtwerend-stucwerk",
     title: "Vochtwerend stucwerk",
+    heroImage: "/images/diensten/vochtwerend-stucwerk.jpeg",
     heroHeading: "Vochtwerend stucwerk: de definitieve oplossing voor vochtige muren",
     heroSub:
       "Gewoon stucwerk op een vochtige muur is dweilen met de kraan open. Vochtwerend stucwerk is speciaal ontwikkeld om vocht te beheersen en uw muren blijvend droog en mooi te houden.",

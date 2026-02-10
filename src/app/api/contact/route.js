@@ -2,18 +2,19 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendEmail } from '@/lib/email/resend';
 import { adminNotificationEmail } from '@/lib/email/templates/admin-notification';
+import { planInspectionEmail } from '@/lib/email/templates/plan-inspection';
 import { generateToken } from '@/lib/utils/tokens';
 import { notifyOpsAlert } from '@/lib/ops/alerts';
 import { logLeadEvent } from '@/lib/utils/events';
 
 export async function POST(request) {
   try {
-    const { name, email, phone, plaatsnaam, message, type_probleem } = await request.json();
+    const { name, email, phone, message, type_probleem } = await request.json();
 
     // Validate required fields
-    if (!name || !email || !message || !phone || !plaatsnaam) {
+    if (!name || !email || !phone) {
       return NextResponse.json(
-        { error: 'Naam, e-mail, telefoonnummer, plaatsnaam en bericht zijn verplicht' },
+        { error: 'Naam, e-mail en telefoonnummer zijn verplicht' },
         { status: 400 }
       );
     }
@@ -30,8 +31,8 @@ export async function POST(request) {
         name,
         email,
         phone,
-        plaatsnaam,
-        message,
+        plaatsnaam: null,
+        message: message || null,
         type_probleem: type_probleem || null,
         availability_token,
         quote_token,
@@ -41,7 +42,7 @@ export async function POST(request) {
       .single();
 
     if (dbError) {
-      console.error('Supabase insert error:', dbError);
+      console.error('[DB_FAIL] /api/contact insert:', dbError);
       throw new Error('Database error');
     }
 
@@ -55,6 +56,8 @@ export async function POST(request) {
       },
     });
 
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://moonenvochtwering.nl';
+
     // Send admin notification email
     const adminEmail = adminNotificationEmail({ lead });
     const adminEmailPromise = sendEmail({
@@ -64,52 +67,75 @@ export async function POST(request) {
       text: adminEmail.text,
     });
 
-    // Send auto-reply to customer
+    // Load email template overrides for plan-inspection
+    const { data: templateSetting } = await supabase
+      .from('settings')
+      .select('value')
+      .eq('key', 'email_template_plan_inspection')
+      .single();
+    const overrides = templateSetting?.value || {};
+
+    // Send planning CTA email to customer (replaces generic auto-reply)
+    const planEmail = planInspectionEmail({
+      name,
+      siteUrl,
+      token: availability_token,
+      overrides,
+    });
     const customerEmailPromise = sendEmail({
       to: email,
-      subject: 'Bedankt voor uw bericht - Moonen Vochtwering',
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background: #355b23; padding: 24px; text-align: center;">
-            <h1 style="color: #ffffff; margin: 0; font-size: 22px;">Moonen Vochtwering</h1>
-          </div>
-          <div style="padding: 32px 24px;">
-            <p style="font-size: 16px; color: #333;">Beste ${name},</p>
-            <p style="font-size: 16px; color: #333;">
-              Bedankt voor uw bericht. We hebben uw aanvraag ontvangen en zullen zo spoedig mogelijk contact met u opnemen.
-            </p>
-            <div style="background: #f5f5f5; padding: 16px; border-radius: 4px; margin: 20px 0;">
-              <p style="margin: 0 0 8px 0;"><strong>Samenvatting aanvraag:</strong></p>
-              <p style="margin: 4px 0;">Naam: ${name}</p>
-              <p style="margin: 4px 0;">E-mail: ${email}</p>
-              <p style="margin: 4px 0;">Telefoon: ${phone}</p>
-              <p style="margin: 4px 0;">Plaatsnaam: ${plaatsnaam}</p>
-            </div>
-          </div>
-          <div style="background: #f5f5f5; padding: 20px 24px; font-size: 13px; color: #666;">
-            <p style="margin: 0;">Moonen Vochtwering | Grasbroekerweg 141, 6412BD Heerlen | <a href="tel:+31618162515" style="color: #355b23;">06 18 16 25 15</a></p>
-          </div>
-        </div>
-      `,
-      text: `Beste ${name},
-
-Bedankt voor uw bericht. We hebben uw aanvraag ontvangen en zullen zo spoedig mogelijk contact met u opnemen.
-
-Samenvatting aanvraag:
-Naam: ${name}
-E-mail: ${email}
-Telefoon: ${phone}
-Plaatsnaam: ${plaatsnaam}
-
-Met vriendelijke groet,
-Moonen Vochtwering
-Grasbroekerweg 141, 6412BD Heerlen
-Tel: 06 18 16 25 15`,
+      subject: planEmail.subject,
+      html: planEmail.html,
+      text: planEmail.text,
     });
 
     const emailResults = await Promise.allSettled([adminEmailPromise, customerEmailPromise]);
-    const failedEmails = emailResults.filter((result) => result.status === 'rejected');
+    const [adminResult, customerResult] = emailResults;
 
+    // If the planning email was sent successfully, update status to uitgenodigd
+    if (customerResult.status === 'fulfilled') {
+      const { error: updateError } = await supabase
+        .from('leads')
+        .update({
+          status: 'uitgenodigd',
+          ...(Object.prototype.hasOwnProperty.call(lead, 'stage_changed_at')
+            ? { stage_changed_at: new Date().toISOString() }
+            : {}),
+        })
+        .eq('id', lead.id);
+
+      if (!updateError) {
+        await logLeadEvent({
+          leadId: lead.id,
+          eventType: 'status_change',
+          oldValue: 'nieuw',
+          newValue: 'uitgenodigd',
+          actor: 'system',
+        });
+
+        await logLeadEvent({
+          leadId: lead.id,
+          eventType: 'email_sent',
+          actor: 'system',
+          metadata: {
+            type: 'plan_inspection',
+            to_email: email,
+            subject: planEmail.subject,
+          },
+        });
+      }
+
+      // Log to email_log
+      await supabase.from('email_log').insert({
+        lead_id: lead.id,
+        type: 'plan_inspection',
+        to_email: email,
+        subject: planEmail.subject,
+      });
+    }
+
+    // Check for failures and notify ops
+    const failedEmails = emailResults.filter((result) => result.status === 'rejected');
     if (failedEmails.length > 0) {
       await notifyOpsAlert({
         source: '/api/contact',
@@ -119,13 +145,14 @@ Tel: 06 18 16 25 15`,
           lead_id: lead.id,
           lead_email: lead.email,
           failed_count: failedEmails.length,
+          planning_email_sent: customerResult.status === 'fulfilled',
         },
       });
     }
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error processing contact form:', error);
+    console.error('[API_ERROR] /api/contact:', error);
     await notifyOpsAlert({
       source: '/api/contact',
       message: 'Contact form request failed',
