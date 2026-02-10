@@ -1,9 +1,14 @@
 import { NextResponse } from 'next/server';
-import nodemailer from 'nodemailer';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { sendEmail } from '@/lib/email/resend';
+import { adminNotificationEmail } from '@/lib/email/templates/admin-notification';
+import { generateToken } from '@/lib/utils/tokens';
+import { notifyOpsAlert } from '@/lib/ops/alerts';
+import { logLeadEvent } from '@/lib/utils/events';
 
 export async function POST(request) {
   try {
-    const { name, email, phone, plaatsnaam, message } = await request.json();
+    const { name, email, phone, plaatsnaam, message, type_probleem } = await request.json();
 
     // Validate required fields
     if (!name || !email || !message || !phone || !plaatsnaam) {
@@ -13,56 +18,79 @@ export async function POST(request) {
       );
     }
 
-    // Configure mail transporter
-    const transporter = nodemailer.createTransport({
-      service: 'Gmail',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_APP_PASSWORD,
+    // Generate tokens for customer action links
+    const availability_token = generateToken();
+    const quote_token = generateToken();
+
+    // Insert lead into Supabase
+    const supabase = createAdminClient();
+    const { data: lead, error: dbError } = await supabase
+      .from('leads')
+      .insert({
+        name,
+        email,
+        phone,
+        plaatsnaam,
+        message,
+        type_probleem: type_probleem || null,
+        availability_token,
+        quote_token,
+        source: 'website',
+      })
+      .select()
+      .single();
+
+    if (dbError) {
+      console.error('Supabase insert error:', dbError);
+      throw new Error('Database error');
+    }
+
+    await logLeadEvent({
+      leadId: lead.id,
+      eventType: 'lead_received',
+      actor: 'customer',
+      metadata: {
+        source: 'website',
+        type_probleem: lead.type_probleem || null,
       },
     });
 
-    // Current date formatted in Dutch
-    const date = new Date().toLocaleDateString('nl-NL', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
+    // Send admin notification email
+    const adminEmail = adminNotificationEmail({ lead });
+    const adminEmailPromise = sendEmail({
+      to: 'info@moonenvochtwering.nl',
+      subject: adminEmail.subject,
+      html: adminEmail.html,
+      text: adminEmail.text,
     });
 
-    // Email content - Using a different "from" address to make it appear in inbox
-    const mailOptions = {
-      from: `${name} <${email}>`, // This makes it appear as from the customer
-      to: process.env.EMAIL_USER || 'info@moonenvochtwering.nl',
-      replyTo: email,
-      subject: `Nieuw contactformulier bericht - ${name}`,
-      text: `Nieuw bericht van contactformulier website:
-      
-Naam: ${name}
-E-mail: ${email}
-Telefoonnummer: ${phone}
-Plaatsnaam: ${plaatsnaam}
-Bericht: ${message}
-
-Verzonden op: ${date}`,
-      html: `
-        <h2>Nieuw bericht van contactformulier website</h2>
-        <p><strong>Naam:</strong> ${name}</p>
-        <p><strong>E-mail:</strong> ${email}</p>
-        <p><strong>Telefoonnummer:</strong> ${phone}</p>
-        <p><strong>Plaatsnaam:</strong> ${plaatsnaam}</p>
-        <p><strong>Bericht:</strong></p>
-        <p>${message.replace(/\n/g, '<br>')}</p>
-        <p><small>Verzonden op: ${date}</small></p>
-      `,
-    };
-
-    // Auto-reply to user
-    const autoReplyOptions = {
-      from: `Moonen Vochtwering <${process.env.EMAIL_USER || 'info@moonenvochtwering.nl'}>`,
+    // Send auto-reply to customer
+    const customerEmailPromise = sendEmail({
       to: email,
       subject: 'Bedankt voor uw bericht - Moonen Vochtwering',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: #355b23; padding: 24px; text-align: center;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 22px;">Moonen Vochtwering</h1>
+          </div>
+          <div style="padding: 32px 24px;">
+            <p style="font-size: 16px; color: #333;">Beste ${name},</p>
+            <p style="font-size: 16px; color: #333;">
+              Bedankt voor uw bericht. We hebben uw aanvraag ontvangen en zullen zo spoedig mogelijk contact met u opnemen.
+            </p>
+            <div style="background: #f5f5f5; padding: 16px; border-radius: 4px; margin: 20px 0;">
+              <p style="margin: 0 0 8px 0;"><strong>Samenvatting aanvraag:</strong></p>
+              <p style="margin: 4px 0;">Naam: ${name}</p>
+              <p style="margin: 4px 0;">E-mail: ${email}</p>
+              <p style="margin: 4px 0;">Telefoon: ${phone}</p>
+              <p style="margin: 4px 0;">Plaatsnaam: ${plaatsnaam}</p>
+            </div>
+          </div>
+          <div style="background: #f5f5f5; padding: 20px 24px; font-size: 13px; color: #666;">
+            <p style="margin: 0;">Moonen Vochtwering | Grasbroekerweg 141, 6412BD Heerlen | <a href="tel:+31618162515" style="color: #355b23;">06 18 16 25 15</a></p>
+          </div>
+        </div>
+      `,
       text: `Beste ${name},
 
 Bedankt voor uw bericht. We hebben uw aanvraag ontvangen en zullen zo spoedig mogelijk contact met u opnemen.
@@ -70,53 +98,42 @@ Bedankt voor uw bericht. We hebben uw aanvraag ontvangen en zullen zo spoedig mo
 Samenvatting aanvraag:
 Naam: ${name}
 E-mail: ${email}
-Telefoonnummer: ${phone}
+Telefoon: ${phone}
 Plaatsnaam: ${plaatsnaam}
 
 Met vriendelijke groet,
-
 Moonen Vochtwering
-Grasbroekerweg 141
-6412BD Heerlen
-Tel: 06 18 16 25 15
-KVK: 14090765
-www.moonenvochtwering.nl`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <p>Beste ${name},</p>
-          
-          <p>Bedankt voor uw bericht. We hebben uw aanvraag ontvangen en zullen zo spoedig mogelijk contact met u opnemen.</p>
+Grasbroekerweg 141, 6412BD Heerlen
+Tel: 06 18 16 25 15`,
+    });
 
-          <p><strong>Samenvatting aanvraag</strong><br/>
-          Naam: ${name}<br/>
-          E-mail: ${email}<br/>
-          Telefoonnummer: ${phone}<br/>
-          Plaatsnaam: ${plaatsnaam}</p>
-          
-          <p>Met vriendelijke groet,</p>
-          
-          <p style="margin-bottom: 0;">Moonen Vochtwering</p>
-          <p style="margin-top: 0; color: #666;">
-            Grasbroekerweg 141<br>
-            6412BD Heerlen<br>
-            Tel: <a href="tel:+31618162515">06 18 16 25 15</a><br>
-            KVK: 14090765<br>
-            <a href="https://www.moonenvochtwering.nl">www.moonenvochtwering.nl</a>
-          </p>
-        </div>
-      `,
-    };
+    const emailResults = await Promise.allSettled([adminEmailPromise, customerEmailPromise]);
+    const failedEmails = emailResults.filter((result) => result.status === 'rejected');
 
-    // Send emails
-    await transporter.sendMail(mailOptions);
-    await transporter.sendMail(autoReplyOptions);
+    if (failedEmails.length > 0) {
+      await notifyOpsAlert({
+        source: '/api/contact',
+        message: 'Lead saved but one or more emails failed',
+        error: failedEmails.map((result) => result.reason?.message || String(result.reason)).join(' | '),
+        context: {
+          lead_id: lead.id,
+          lead_email: lead.email,
+          failed_count: failedEmails.length,
+        },
+      });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error sending email:', error);
+    console.error('Error processing contact form:', error);
+    await notifyOpsAlert({
+      source: '/api/contact',
+      message: 'Contact form request failed',
+      error,
+    });
     return NextResponse.json(
       { error: 'Er is een fout opgetreden bij het versturen van uw bericht' },
       { status: 500 }
     );
   }
-} 
+}
