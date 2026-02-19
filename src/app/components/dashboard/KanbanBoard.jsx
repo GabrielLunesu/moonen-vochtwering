@@ -4,12 +4,14 @@ import { useState, useEffect, useCallback } from 'react';
 import { DragDropContext } from '@hello-pangea/dnd';
 import { createClient } from '@/lib/supabase/client';
 import { STAGE_ORDER } from '@/lib/utils/pipeline';
-import { isNeedsActionToday } from '@/lib/utils/lead-workflow';
+import { getLeadPriorityScore, isNeedsActionToday } from '@/lib/utils/lead-workflow';
 import { toast } from 'sonner';
 import KanbanColumn from './KanbanColumn';
 import PipelineStats from './PipelineStats';
+import NewLeadDialog from './NewLeadDialog';
 import { Skeleton } from '@/app/components/ui/skeleton';
 import { Button } from '@/app/components/ui/button';
+import { Plus } from 'lucide-react';
 
 const FILTER_STORAGE_KEY = 'crm.dashboard.filter.v1';
 
@@ -23,6 +25,7 @@ export default function KanbanBoard() {
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState('all');
+  const [newLeadOpen, setNewLeadOpen] = useState(false);
 
   const fetchLeads = useCallback(async () => {
     try {
@@ -142,7 +145,15 @@ export default function KanbanBoard() {
   });
 
   const leadsByStage = STAGE_ORDER.reduce((acc, stage) => {
-    acc[stage] = visibleLeads.filter(l => l.status === stage);
+    acc[stage] = visibleLeads
+      .filter((lead) => lead.status === stage)
+      .sort((a, b) => {
+        const scoreDiff = getLeadPriorityScore(b) - getLeadPriorityScore(a);
+        if (scoreDiff !== 0) return scoreDiff;
+        const aTouch = new Date(a.stage_changed_at || a.updated_at || a.created_at || 0).getTime();
+        const bTouch = new Date(b.stage_changed_at || b.updated_at || b.created_at || 0).getTime();
+        return aTouch - bTouch;
+      });
     return acc;
   }, {});
 
@@ -169,6 +180,15 @@ export default function KanbanBoard() {
 
       <div className="flex items-center gap-2 flex-wrap">
         <Button
+          size="sm"
+          style={{ backgroundColor: '#355b23' }}
+          onClick={() => setNewLeadOpen(true)}
+        >
+          <Plus className="h-4 w-4 mr-1" />
+          Nieuwe aanvraag
+        </Button>
+        <div className="w-px h-6 bg-border mx-1" />
+        <Button
           variant={activeFilter === 'all' ? 'default' : 'outline'}
           size="sm"
           onClick={() => setActiveFilter('all')}
@@ -180,7 +200,7 @@ export default function KanbanBoard() {
           size="sm"
           onClick={() => setActiveFilter('needs_action')}
         >
-          Needs action vandaag
+          Actie nodig
         </Button>
         <Button
           variant={activeFilter === 'no_response_3d' ? 'default' : 'outline'}
@@ -210,6 +230,8 @@ export default function KanbanBoard() {
           ))}
         </div>
       </DragDropContext>
+
+      <NewLeadDialog open={newLeadOpen} onOpenChange={setNewLeadOpen} />
     </div>
   );
 }

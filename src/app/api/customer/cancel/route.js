@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { sendEmail } from '@/lib/email/resend';
 import { notifyOpsAlert } from '@/lib/ops/alerts';
 import { logLeadEvent } from '@/lib/utils/events';
+import { syncLeadToGoogleCalendar } from '@/lib/google/calendar';
 
 export async function POST(request) {
   try {
@@ -70,6 +71,9 @@ export async function POST(request) {
       });
       return NextResponse.json({ error: 'Kon afspraak niet annuleren' }, { status: 500 });
     }
+
+    // Delete from Google Calendar (best-effort)
+    syncLeadToGoogleCalendar(lead, 'delete');
 
     await logLeadEvent({
       leadId: lead.id,

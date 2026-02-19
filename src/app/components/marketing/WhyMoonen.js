@@ -37,7 +37,7 @@ export default function WhyMoonen() {
 
           <div className="relative">
             <img
-              src="https://placehold.co/600x500/111827/F9FAFB?text=Moonen+Team"
+              src="/images/owner-moonen.jpeg"
               alt="Het team van Moonen Vochtwering aan het werk"
               className="rounded-xl shadow-lg w-full object-cover"
             />

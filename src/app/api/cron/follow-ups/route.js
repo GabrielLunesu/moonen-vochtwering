@@ -18,6 +18,12 @@ export async function GET(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Automatic follow-ups disabled — use manual send from lead detail panel instead
+    return NextResponse.json({
+      message: 'Automatic follow-ups disabled. Use manual send from CRM.',
+      count: 0,
+    });
+
     const supabase = createAdminClient();
 
     // Get follow-up schedule

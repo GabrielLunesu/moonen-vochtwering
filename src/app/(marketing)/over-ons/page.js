@@ -60,9 +60,9 @@ export default function OverOnsPage() {
             </div>
             <div className="hidden lg:block">
               <img
-                src="https://placehold.co/600x400/0B1120/F9FAFB?text=Familie+Moonen"
+                src="/images/owner-moonen.jpeg"
                 alt="Het team van Moonen Vochtwering"
-                className="rounded-xl shadow-lg w-full"
+                className="rounded-xl shadow-lg w-full object-cover"
               />
             </div>
           </div>

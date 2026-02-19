@@ -4,6 +4,7 @@ import { sendEmail } from '@/lib/email/resend';
 import { confirmationEmail } from '@/lib/email/templates/confirmation';
 import { notifyOpsAlert } from '@/lib/ops/alerts';
 import { logLeadEvent } from '@/lib/utils/events';
+import { syncLeadToGoogleCalendar } from '@/lib/google/calendar';
 
 export async function POST(request) {
   try {
@@ -108,6 +109,13 @@ export async function POST(request) {
       newValue: `${newDate} ${newTime}`,
       actor: 'customer',
     });
+
+    // Sync to Google Calendar (best-effort)
+    syncLeadToGoogleCalendar(
+      { ...lead, google_event_id: lead.google_event_id },
+      lead.google_event_id ? 'update' : 'create',
+      { date: newDate, time: newTime }
+    );
 
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://moonenvochtwering.nl';
 

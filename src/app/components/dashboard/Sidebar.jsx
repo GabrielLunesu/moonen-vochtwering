@@ -1,17 +1,19 @@
 'use client';
 
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
 import { Button } from '@/app/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/app/components/ui/sheet';
 import { Separator } from '@/app/components/ui/separator';
-import { LayoutDashboard, CalendarDays, Settings, LogOut, Menu, Droplets } from 'lucide-react';
+import { LayoutDashboard, CalendarDays, FileText, Settings, LogOut, Menu } from 'lucide-react';
 import { useState } from 'react';
 
 const navItems = [
   { href: '/dashboard', label: 'Pipeline', icon: LayoutDashboard },
   { href: '/dashboard/planning', label: 'Planning', icon: CalendarDays },
+  { href: '/dashboard/offerte', label: 'Offertes', icon: FileText },
   { href: '/dashboard/instellingen', label: 'Instellingen', icon: Settings },
 ];
 
@@ -19,7 +21,7 @@ function NavContent({ pathname, onLogout }) {
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-2 px-4 py-5">
-        <Droplets className="h-6 w-6" style={{ color: '#355b23' }} />
+        <Image src="/logo/logo.png" alt="Moonen" width={28} height={28} className="rounded" />
         <span className="font-bold text-lg">Moonen CRM</span>
       </div>
       <Separator />
@@ -88,7 +90,7 @@ export default function Sidebar() {
           </SheetContent>
         </Sheet>
         <div className="flex items-center gap-2">
-          <Droplets className="h-5 w-5" style={{ color: '#355b23' }} />
+          <Image src="/logo/logo.png" alt="Moonen" width={24} height={24} className="rounded" />
           <span className="font-semibold">Moonen CRM</span>
         </div>
       </div>

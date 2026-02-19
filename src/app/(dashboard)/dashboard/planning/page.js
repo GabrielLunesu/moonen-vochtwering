@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/ca
 import { Badge } from '@/app/components/ui/badge';
 import { Input } from '@/app/components/ui/input';
 import { createWhatsAppLink, createRouteMessage } from '@/lib/utils/whatsapp';
-import { MessageSquare, Route, Save, Clock, GripVertical } from 'lucide-react';
+import { MessageSquare, Route, Save, Clock, GripVertical, RefreshCw, Loader2 } from 'lucide-react';
 
 function todayString() {
   return new Date().toISOString().split('T')[0];
@@ -59,7 +59,9 @@ function reorder(list, startIndex, endIndex) {
 export default function PlanningPage() {
   const [leads, setLeads] = useState([]);
   const [slots, setSlots] = useState([]);
+  const [googleEvents, setGoogleEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [gcalSyncing, setGcalSyncing] = useState(false);
   const [selectedDate, setSelectedDate] = useState(todayString());
   const [routeLeads, setRouteLeads] = useState([]);
   const [routePath, setRoutePath] = useState([]);
@@ -85,11 +87,45 @@ export default function PlanningPage() {
     setLeads(data.filter((lead) => lead.inspection_date && ['bevestigd', 'bezocht', 'offerte_verzonden'].includes(lead.status)));
   }, []);
 
+  const fetchGoogleEvents = useCallback(async () => {
+    try {
+      const today = new Date();
+      const from = new Date(today);
+      from.setDate(from.getDate() - 7);
+      const to = new Date(today);
+      to.setDate(to.getDate() + 60);
+      const fromStr = from.toISOString().split('T')[0];
+      const toStr = to.toISOString().split('T')[0];
+      const res = await fetch(`/api/gcal/events?from=${fromStr}&to=${toStr}`);
+      if (res.ok) {
+        const data = await res.json();
+        setGoogleEvents(data);
+      }
+    } catch {
+      // Google Calendar is optional — fail silently
+    }
+  }, []);
+
+  const handleGcalSync = async () => {
+    setGcalSyncing(true);
+    try {
+      const res = await fetch('/api/gcal/sync?full=true', { method: 'POST' });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      await fetchGoogleEvents();
+      toast.success(`${data.synced} items gesynchroniseerd`);
+    } catch {
+      toast.error('Synchronisatie mislukt');
+    } finally {
+      setGcalSyncing(false);
+    }
+  };
+
   useEffect(() => {
-    Promise.all([fetchLeads(), fetchSlots()])
+    Promise.all([fetchLeads(), fetchSlots(), fetchGoogleEvents()])
       .catch(() => toast.error('Kon planning niet laden'))
       .finally(() => setLoading(false));
-  }, [fetchLeads, fetchSlots]);
+  }, [fetchLeads, fetchSlots, fetchGoogleEvents]);
 
   useEffect(() => {
     const dayLeads = sortRouteLeads(leads.filter((lead) => lead.inspection_date === selectedDate));
@@ -287,130 +323,39 @@ export default function PlanningPage() {
   };
 
   return (
-    <div>
-      <div className="border-b px-6 py-4 flex items-center justify-between">
+    <div className="flex flex-col h-[calc(100vh-4rem)]">
+      <div className="border-b px-4 py-3 flex items-center justify-between shrink-0">
         <div>
-          <h1 className="text-xl font-bold">Planning</h1>
-          <p className="text-sm text-muted-foreground">Inspecties, routes en beschikbaarheid</p>
+          <h1 className="text-lg font-bold">Planning</h1>
+          <p className="text-xs text-muted-foreground">Inspecties, routes en beschikbaarheid</p>
         </div>
-        {routeLeads.length > 0 && (
-          <Button onClick={sendRouteToWhatsApp} variant="outline" className="gap-2">
-            <MessageSquare className="h-4 w-4" />
-            Stuur dagroute naar papa
-          </Button>
-        )}
-      </div>
-
-      <div className="p-6 grid grid-cols-1 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Routeplanner</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Datum</p>
-                <Input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Starttijd</p>
-                <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
-              </div>
-              <Button variant="outline" onClick={optimizeRoute} disabled={optimizingRoute || geocodedRouteLeads.length < 2}>
-                <Route className="h-4 w-4 mr-2" />
-                {optimizingRoute ? 'Optimaliseren...' : 'Optimaliseer route'}
-              </Button>
-              <Button variant="outline" onClick={assignHourlyTimes} disabled={routeLeads.length === 0}>
-                <Clock className="h-4 w-4 mr-2" />
-                1 per uur plannen
-              </Button>
-            </div>
-
-            {routeStats && (
-              <div className="rounded-md border px-3 py-2 text-sm">
-                <span className="font-medium">Route:</span>{' '}
-                {routeStats.totalDistanceKm} km, circa {routeStats.totalDurationMin} min rijden ({routeStats.provider})
-              </div>
-            )}
-
-            {routeLeads.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Geen inspecties op deze dag.</p>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleGcalSync}
+            disabled={gcalSyncing}
+            className="gap-2"
+          >
+            {gcalSyncing ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <DragDropContext onDragEnd={handleRouteDragEnd}>
-                <Droppable droppableId="day-route">
-                  {(provided) => (
-                    <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-2">
-                      {routeLeads.map((lead, index) => {
-                        const hasGeo = Number.isFinite(Number(lead.lat)) && Number.isFinite(Number(lead.lng));
-                        return (
-                          <Draggable key={lead.id} draggableId={lead.id} index={index}>
-                            {(dragProvided) => (
-                              <div
-                                ref={dragProvided.innerRef}
-                                {...dragProvided.draggableProps}
-                                className="flex items-center justify-between gap-3 rounded-md border p-3 bg-background"
-                              >
-                                <div className="flex items-center gap-2 text-sm">
-                                  <button
-                                    type="button"
-                                    aria-label="Versleep volgorde"
-                                    className="cursor-grab active:cursor-grabbing text-muted-foreground"
-                                    {...dragProvided.dragHandleProps}
-                                  >
-                                    <GripVertical className="h-4 w-4" />
-                                  </button>
-                                  <div>
-                                    <p className="font-medium">{index + 1}. {lead.name}</p>
-                                    <p className="text-muted-foreground">{lead.plaatsnaam}</p>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  {!hasGeo && <Badge variant="secondary">Geen locatie</Badge>}
-                                  <Input
-                                    type="time"
-                                    className="w-28"
-                                    value={lead.inspection_time || ''}
-                                    onChange={(e) => {
-                                      const value = e.target.value;
-                                      setRouteLeads((prev) =>
-                                        prev.map((item) =>
-                                          item.id === lead.id ? { ...item, inspection_time: value } : item
-                                        )
-                                      );
-                                    }}
-                                  />
-                                </div>
-                              </div>
-                            )}
-                          </Draggable>
-                        );
-                      })}
-                      {provided.placeholder}
-                    </div>
-                  )}
-                </Droppable>
-              </DragDropContext>
+              <RefreshCw className="h-4 w-4" />
             )}
-
-            <div className="flex justify-end">
-              <Button onClick={saveRoutePlan} disabled={savingRoute || savingRouteOrder || routeLeads.length === 0}>
-                <Save className="h-4 w-4 mr-2" />
-                {savingRoute ? 'Opslaan...' : 'Route opslaan'}
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Sleep regels om de routevolgorde te wijzigen. Volgorde wordt direct opgeslagen.
-            </p>
-          </CardContent>
-        </Card>
-
-        <WeekCalendar leads={leads} slots={slots} onSlotsChange={fetchSlots} />
-
-        <div className="grid grid-cols-1 gap-6">
-          <MapView leads={routeLeads} routePath={routePath} routeStats={routeStats} />
+            <span className="hidden sm:inline">Synchroniseer</span>
+          </Button>
+          {routeLeads.length > 0 && (
+            <Button onClick={sendRouteToWhatsApp} variant="outline" size="sm" className="gap-2">
+              <MessageSquare className="h-4 w-4" />
+              <span className="hidden sm:inline">Stuur naar papa</span>
+            </Button>
+          )}
         </div>
       </div>
 
+      <div className="flex-1 min-h-0 p-2 sm:p-4">
+        <WeekCalendar leads={leads} slots={slots} googleEvents={googleEvents} onSlotsChange={fetchSlots} onLeadsChange={fetchLeads} />
+      </div>
     </div>
   );
 }

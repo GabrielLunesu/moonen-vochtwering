@@ -1,23 +1,37 @@
 'use client';
 
-import { useMemo, useState, useCallback, useRef } from 'react';
+import { useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { startOfWeek, endOfWeek, addWeeks, addDays, format, isToday } from 'date-fns';
 import { nl } from 'date-fns/locale';
 import { Button } from '@/app/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
-import { Popover, PopoverContent, PopoverTrigger } from '@/app/components/ui/popover';
+import { Popover, PopoverContent, PopoverAnchor } from '@/app/components/ui/popover';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/app/components/ui/alert-dialog';
 import { Badge } from '@/app/components/ui/badge';
-import { ChevronLeft, ChevronRight, Loader2, Trash2, Lock, Unlock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, Trash2, Lock, Unlock, MoveRight, ExternalLink, Plus, X, Copy } from 'lucide-react';
 import { toast } from 'sonner';
+import QuickLeadDialog from './QuickLeadDialog';
+import GoogleEventBlock from './GoogleEventBlock';
 
-const HOURS = [9, 10, 11, 12, 13, 14, 15, 16];
+const HOURS = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19];
+const FIRST_HOUR = HOURS[0];
+const DRAG_THRESHOLD = 3;
 
 function timeToRow(timeStr) {
   if (!timeStr) return null;
   const [h, m] = timeStr.split(':').map(Number);
-  if (h < 9 || h > 16) return null;
-  return (h - 9) * 2 + (m >= 30 ? 1 : 0);
+  if (h < FIRST_HOUR || h > HOURS[HOURS.length - 1]) return null;
+  return (h - FIRST_HOUR) * 2 + (m >= 30 ? 1 : 0);
 }
 
 function formatTime(timeStr) {
@@ -25,22 +39,40 @@ function formatTime(timeStr) {
 }
 
 function hourFromRow(rowIdx) {
-  return 9 + Math.floor(rowIdx / 2);
+  return FIRST_HOUR + Math.floor(rowIdx / 2);
 }
 
 function formatHour(hour) {
   return `${String(hour).padStart(2, '0')}:00`;
 }
 
-export default function WeekCalendar({ leads = [], slots = [], onSlotsChange, interactive = true }) {
+export default function WeekCalendar({ leads = [], slots = [], googleEvents = [], onSlotsChange, onLeadsChange, interactive = true }) {
   const [weekOffset, setWeekOffset] = useState(0);
   const [creating, setCreating] = useState(false);
   const [actionLoading, setActionLoading] = useState(null);
 
   // Drag-to-create state
-  const [dragStart, setDragStart] = useState(null); // { dayIdx, rowIdx }
-  const [dragEnd, setDragEnd] = useState(null); // { dayIdx, rowIdx }
+  const [dragStart, setDragStart] = useState(null);
+  const [dragEnd, setDragEnd] = useState(null);
   const isDragging = useRef(false);
+
+  // Reschedule mode state (click-based flow)
+  const [rescheduleMode, setRescheduleMode] = useState(null);
+  const [rescheduleConfirm, setRescheduleConfirm] = useState(null);
+  const [rescheduleLoading, setRescheduleLoading] = useState(false);
+
+  // Lead drag-to-reschedule state
+  const [leadDrag, setLeadDrag] = useState(null);           // { lead } when actively dragging
+  const [leadDragTarget, setLeadDragTarget] = useState(null); // { dayIdx, rowIdx, dateStr, hour, slot }
+  const leadDragStartPos = useRef(null);  // { x, y, lead }
+  const leadDragActive = useRef(false);
+  const leadDragJustEnded = useRef(false);
+  const ghostRef = useRef(null);
+  const gridRef = useRef(null);
+
+  // Quick lead dialog state
+  const [quickLeadSlot, setQuickLeadSlot] = useState(null);
+  const [quickLeadOpen, setQuickLeadOpen] = useState(false);
 
   const weekStart = useMemo(
     () => startOfWeek(addWeeks(new Date(), weekOffset), { weekStartsOn: 1 }),
@@ -56,7 +88,6 @@ export default function WeekCalendar({ leads = [], slots = [], onSlotsChange, in
     return result;
   }, [weekStart]);
 
-  // Per-cell slot map: key = "yyyy-MM-dd|HH:00" → slot object
   const slotMap = useMemo(() => {
     const map = {};
     for (const slot of slots) {
@@ -77,7 +108,24 @@ export default function WeekCalendar({ leads = [], slots = [], onSlotsChange, in
     return map;
   }, [leads]);
 
-  // Summary for header dots
+  // Map Google Calendar events by day and half-hour row
+  const googleEventsByDayRow = useMemo(() => {
+    const map = {};
+    for (const ev of googleEvents) {
+      if (!ev.start_time) continue;
+      const start = new Date(ev.start_time);
+      const dateStr = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`;
+      const h = start.getHours();
+      const m = start.getMinutes();
+      if (h < FIRST_HOUR || h > HOURS[HOURS.length - 1]) continue;
+      const rowIdx = (h - FIRST_HOUR) * 2 + (m >= 30 ? 1 : 0);
+      const key = `${dateStr}|${rowIdx}`;
+      if (!map[key]) map[key] = [];
+      map[key].push(ev);
+    }
+    return map;
+  }, [googleEvents]);
+
   const getDayStatus = useCallback((day) => {
     const dateStr = format(day, 'yyyy-MM-dd');
     const daySlots = slots.filter(s => s.slot_date === dateStr);
@@ -195,20 +243,252 @@ export default function WeekCalendar({ leads = [], slots = [], onSlotsChange, in
     }
   }, [interactive, onSlotsChange]);
 
+  // --- Click-based reschedule ---
+
+  const startReschedule = useCallback((lead) => {
+    const oldSlot = lead.availability_slot_id
+      ? slots.find((s) => s.id === lead.availability_slot_id)
+      : null;
+    setRescheduleMode({ lead, oldSlot });
+  }, [slots]);
+
+  const cancelReschedule = useCallback(() => {
+    setRescheduleMode(null);
+    setRescheduleConfirm(null);
+  }, []);
+
+  const handleRescheduleTargetClick = useCallback((slot) => {
+    if (!rescheduleMode) return;
+    const isOpen = slot.is_open && slot.booked_count < slot.max_visits;
+    if (!isOpen) return;
+    setRescheduleConfirm({
+      lead: rescheduleMode.lead,
+      oldSlot: rescheduleMode.oldSlot,
+      newSlot: slot,
+    });
+  }, [rescheduleMode]);
+
+  const confirmReschedule = useCallback(async () => {
+    if (!rescheduleConfirm) return;
+    const { lead, newSlot, targetDateStr, targetHour } = rescheduleConfirm;
+
+    setRescheduleLoading(true);
+    try {
+      let slotId = newSlot?.id;
+
+      // Auto-create slot if dropping on empty cell
+      if (!slotId && targetDateStr && targetHour !== undefined) {
+        const createRes = await fetch('/api/availability', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ slot_date: targetDateStr, slot_time: formatHour(targetHour), max_visits: 1 }),
+        });
+        if (!createRes.ok) throw new Error('Kon moment niet aanmaken');
+        const created = await createRes.json();
+        slotId = Array.isArray(created) ? created[0]?.id : created?.id;
+        if (onSlotsChange) await onSlotsChange();
+      }
+
+      if (!slotId) throw new Error('Geen geldig moment');
+
+      const res = await fetch(`/api/leads/${lead.id}/reschedule`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ new_slot_id: slotId }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        toast.error(body?.error || 'Kon niet verplaatsen');
+        return;
+      }
+
+      toast.success(`${lead.name} verplaatst`);
+      setRescheduleMode(null);
+      setRescheduleConfirm(null);
+
+      if (onLeadsChange) await onLeadsChange();
+      if (onSlotsChange) await onSlotsChange();
+    } catch (err) {
+      toast.error(err?.message || 'Er ging iets mis bij het verplaatsen');
+    } finally {
+      setRescheduleLoading(false);
+    }
+  }, [rescheduleConfirm, onLeadsChange, onSlotsChange]);
+
+  // --- Lead drag-to-reschedule ---
+
+  const initLeadDrag = useCallback((e, lead) => {
+    if (!interactive || rescheduleMode) return;
+    leadDragStartPos.current = { x: e.clientX, y: e.clientY, lead };
+    leadDragActive.current = false;
+  }, [interactive, rescheduleMode]);
+
+  const handleLeadDrop = useCallback(() => {
+    const target = leadDragTarget;
+    const dragInfo = leadDragStartPos.current;
+    if (!target || !dragInfo) return;
+
+    const { lead } = dragInfo;
+    const { dateStr, hour, slot } = target;
+
+    const oldSlot = lead.availability_slot_id
+      ? slots.find(s => s.id === lead.availability_slot_id)
+      : null;
+
+    // Same slot — no-op
+    if (oldSlot && slot && oldSlot.id === slot.id) return;
+
+    if (slot) {
+      const status = getCellSlotStatus(slot);
+      if (status === 'open') {
+        setRescheduleConfirm({ lead, oldSlot, newSlot: slot });
+      } else {
+        toast.info('Dit moment is niet beschikbaar');
+      }
+    } else {
+      // Empty cell — will auto-create slot on confirm
+      setRescheduleConfirm({ lead, oldSlot, newSlot: null, targetDateStr: dateStr, targetHour: hour });
+    }
+  }, [leadDragTarget, slots]);
+
+  const clearLeadDrag = useCallback(() => {
+    leadDragStartPos.current = null;
+    leadDragActive.current = false;
+    setLeadDrag(null);
+    setLeadDragTarget(null);
+    // Prevent popover from opening right after drag
+    leadDragJustEnded.current = true;
+    requestAnimationFrame(() => { leadDragJustEnded.current = false; });
+  }, []);
+
+  // Document-level mousemove/mouseup for lead drag (needed when cursor leaves grid)
+  useEffect(() => {
+    function onMouseMove(e) {
+      if (!leadDragStartPos.current) return;
+
+      const { x, y } = leadDragStartPos.current;
+      const dx = e.clientX - x;
+      const dy = e.clientY - y;
+
+      // Update ghost position
+      if (ghostRef.current) {
+        ghostRef.current.style.left = `${e.clientX + 12}px`;
+        ghostRef.current.style.top = `${e.clientY - 10}px`;
+      }
+
+      // Check threshold to activate drag
+      if (!leadDragActive.current && Math.sqrt(dx * dx + dy * dy) >= DRAG_THRESHOLD) {
+        leadDragActive.current = true;
+        setLeadDrag({ lead: leadDragStartPos.current.lead });
+      }
+
+      // During touch/mouse drag, find cell under pointer via data attributes
+      if (leadDragActive.current) {
+        const el = document.elementFromPoint(e.clientX, e.clientY);
+        const cell = el?.closest?.('[data-cal-cell]');
+        if (cell) {
+          const dayIdx = parseInt(cell.dataset.dayIdx, 10);
+          const rowIdx = parseInt(cell.dataset.rowIdx, 10);
+          const dateStr = cell.dataset.dateStr;
+          const hour = parseInt(cell.dataset.hour, 10);
+          const slot = getSlotForCell(dateStr, hour);
+          setLeadDragTarget({ dayIdx, rowIdx, dateStr, hour, slot });
+        } else {
+          setLeadDragTarget(null);
+        }
+      }
+    }
+
+    function onMouseUp() {
+      if (!leadDragStartPos.current) return;
+      if (leadDragActive.current) {
+        handleLeadDrop();
+      }
+      clearLeadDrag();
+    }
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
+  }, [handleLeadDrop, clearLeadDrag]);
+
+  // Touch handlers for lead drag
+  const handleLeadTouchStart = useCallback((e, lead) => {
+    if (!interactive || rescheduleMode) return;
+    const touch = e.touches[0];
+    leadDragStartPos.current = { x: touch.clientX, y: touch.clientY, lead };
+    leadDragActive.current = false;
+  }, [interactive, rescheduleMode]);
+
+  useEffect(() => {
+    function onTouchMove(e) {
+      if (!leadDragStartPos.current) return;
+      const touch = e.touches[0];
+      const { x, y } = leadDragStartPos.current;
+      const dx = touch.clientX - x;
+      const dy = touch.clientY - y;
+
+      if (!leadDragActive.current && Math.sqrt(dx * dx + dy * dy) >= DRAG_THRESHOLD) {
+        leadDragActive.current = true;
+        setLeadDrag({ lead: leadDragStartPos.current.lead });
+      }
+
+      if (leadDragActive.current) {
+        e.preventDefault(); // Prevent scroll during drag
+
+        if (ghostRef.current) {
+          ghostRef.current.style.left = `${touch.clientX + 12}px`;
+          ghostRef.current.style.top = `${touch.clientY - 10}px`;
+        }
+
+        const el = document.elementFromPoint(touch.clientX, touch.clientY);
+        const cell = el?.closest?.('[data-cal-cell]');
+        if (cell) {
+          const dayIdx = parseInt(cell.dataset.dayIdx, 10);
+          const rowIdx = parseInt(cell.dataset.rowIdx, 10);
+          const dateStr = cell.dataset.dateStr;
+          const hour = parseInt(cell.dataset.hour, 10);
+          const slot = getSlotForCell(dateStr, hour);
+          setLeadDragTarget({ dayIdx, rowIdx, dateStr, hour, slot });
+        } else {
+          setLeadDragTarget(null);
+        }
+      }
+    }
+
+    function onTouchEnd() {
+      if (!leadDragStartPos.current) return;
+      if (leadDragActive.current) {
+        handleLeadDrop();
+      }
+      clearLeadDrag();
+    }
+
+    document.addEventListener('touchmove', onTouchMove, { passive: false });
+    document.addEventListener('touchend', onTouchEnd);
+    return () => {
+      document.removeEventListener('touchmove', onTouchMove);
+      document.removeEventListener('touchend', onTouchEnd);
+    };
+  }, [handleLeadDrop, clearLeadDrag]);
+
   // --- Drag-to-create handlers ---
 
   const handleMouseDown = useCallback((dayIdx, rowIdx, dateStr, hour) => {
-    if (!interactive || creating) return;
+    if (!interactive || creating || rescheduleMode || leadDragStartPos.current) return;
     const slot = getSlotForCell(dateStr, hour);
-    if (slot) return; // Don't start drag on existing slots
+    if (slot) return;
     isDragging.current = true;
     setDragStart({ dayIdx, rowIdx: Math.floor(rowIdx / 2) });
     setDragEnd({ dayIdx, rowIdx: Math.floor(rowIdx / 2) });
-  }, [interactive, creating, slotMap]);
+  }, [interactive, creating, slotMap, rescheduleMode]);
 
   const handleMouseEnter = useCallback((dayIdx, rowIdx) => {
     if (!isDragging.current || !dragStart) return;
-    // Clamp to same day column
     if (dayIdx !== dragStart.dayIdx) return;
     setDragEnd({ dayIdx, rowIdx: Math.floor(rowIdx / 2) });
   }, [dragStart]);
@@ -237,7 +517,6 @@ export default function WeekCalendar({ leads = [], slots = [], onSlotsChange, in
     }
   }, [dragStart, dragEnd, days, createSlot, createSlotRange]);
 
-  // Check if a cell is in the current drag selection
   function isCellInDragSelection(dayIdx, rowIdx) {
     if (!dragStart || !dragEnd) return false;
     if (dayIdx !== dragStart.dayIdx) return false;
@@ -247,174 +526,432 @@ export default function WeekCalendar({ leads = [], slots = [], onSlotsChange, in
     return hourIdx >= minRow && hourIdx <= maxRow;
   }
 
-  // Global mouseup listener for drag
-  // We rely on the grid's onMouseUp, but also catch mouseup outside
-  // by using onMouseLeave on the grid container
+  // Check if a slot is a valid reschedule target (click-based mode)
+  function isRescheduleTarget(slot) {
+    if (!rescheduleMode || !slot) return false;
+    return slot.is_open && slot.booked_count < slot.max_visits;
+  }
+
+  // Check lead drag target validity
+  function getLeadDragCellHighlight(dayIdx, rowIdx, dateStr, hour) {
+    if (!leadDrag || !leadDragTarget) return '';
+    if (leadDragTarget.dayIdx !== dayIdx || leadDragTarget.rowIdx !== rowIdx) return '';
+
+    const slot = getSlotForCell(dateStr, hour);
+    if (!slot) return 'ring-2 ring-inset ring-blue-400'; // Empty cell — valid (will auto-create)
+    const status = getCellSlotStatus(slot);
+    if (status === 'open') return 'ring-2 ring-inset ring-blue-400';
+    return 'ring-2 ring-inset ring-red-300 bg-red-50/50';
+  }
+
+  // Format reschedule confirmation strings
+  const oldLabel = rescheduleConfirm?.oldSlot
+    ? `${new Date(`${rescheduleConfirm.oldSlot.slot_date}T12:00:00`).toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' })} ${rescheduleConfirm.oldSlot.slot_time.slice(0, 5)}`
+    : rescheduleConfirm?.lead?.inspection_date
+      ? `${new Date(`${rescheduleConfirm.lead.inspection_date}T12:00:00`).toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' })} ${rescheduleConfirm.lead.inspection_time?.slice(0, 5) || ''}`
+      : 'onbekend';
+
+  const newLabel = rescheduleConfirm?.newSlot
+    ? `${new Date(`${rescheduleConfirm.newSlot.slot_date}T12:00:00`).toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' })} ${rescheduleConfirm.newSlot.slot_time.slice(0, 5)}`
+    : rescheduleConfirm?.targetDateStr
+      ? `${new Date(`${rescheduleConfirm.targetDateStr}T12:00:00`).toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' })} ${formatHour(rescheduleConfirm.targetHour)}`
+      : '';
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base">Weekoverzicht</CardTitle>
-          <div className="flex items-center gap-2">
-            {creating && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
-            <Button variant="outline" size="sm" onClick={() => setWeekOffset((p) => p - 1)}>
-              <ChevronLeft className="h-4 w-4" />
+    <>
+      <Card className="flex flex-col h-full overflow-hidden">
+        <CardHeader className="pb-2 pt-3 px-3 shrink-0">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-sm">Weekoverzicht</CardTitle>
+              <span className="text-xs text-muted-foreground">
+                {format(weekStart, 'd MMM', { locale: nl })} – {format(weekEnd, 'd MMM yyyy', { locale: nl })}
+              </span>
+            </div>
+            <div className="flex items-center gap-1">
+              {creating && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+              <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => setWeekOffset((p) => p - 1)}>
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setWeekOffset(0)}
+                className="text-xs h-7 px-2"
+              >
+                Vandaag
+              </Button>
+              <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => setWeekOffset((p) => p + 1)}>
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 text-[11px] flex-wrap">
+            <span className="flex items-center gap-1"><span className={`inline-block w-1.5 h-1.5 rounded-full ${statusDot.open}`} /> Open</span>
+            <span className="flex items-center gap-1"><span className={`inline-block w-1.5 h-1.5 rounded-full ${statusDot.full}`} /> Vol</span>
+            <span className="flex items-center gap-1"><span className={`inline-block w-1.5 h-1.5 rounded-full ${statusDot.closed}`} /> Gesloten</span>
+            {googleEvents.length > 0 && <span className="flex items-center gap-1"><span className="inline-block w-1.5 h-1.5 rounded-full bg-purple-400" /> Google Agenda</span>}
+          </div>
+
+          {/* Reschedule mode banner */}
+          {rescheduleMode && (
+            <div className="mt-1 flex items-center gap-2 rounded-md border border-blue-300 bg-blue-50 px-2 py-1.5 text-xs">
+              <MoveRight className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+              <span className="text-blue-800">
+                Klik op een open moment om <strong>{rescheduleMode.lead.name}</strong> te verplaatsen
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="ml-auto h-6 px-2 text-xs text-blue-600 hover:text-blue-800"
+                onClick={cancelReschedule}
+              >
+                <X className="h-3 w-3 mr-1" />
+                Annuleren
+              </Button>
+            </div>
+          )}
+        </CardHeader>
+        <CardContent className="p-0 flex-1 min-h-0 overflow-auto overscroll-contain scroll-smooth touch-pan-y [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div
+            ref={gridRef}
+            className={`grid min-w-[600px] select-none ${leadDrag ? 'cursor-grabbing' : ''}`}
+            style={{
+              gridTemplateColumns: '40px repeat(7, 1fr)',
+              gridTemplateRows: `auto repeat(${HOURS.length * 2}, minmax(12px, 1fr))`,
+            }}
+            onMouseUp={() => {
+              // Handle slot-creation drag release (lead drag handled by document listener)
+              if (isDragging.current) {
+                handleMouseUp();
+              }
+            }}
+            onMouseLeave={() => {
+              if (isDragging.current) {
+                isDragging.current = false;
+                setDragStart(null);
+                setDragEnd(null);
+              }
+            }}
+          >
+            {/* Header row — sticky */}
+            <div className="border-b border-r p-1 sticky top-0 bg-background z-20" />
+            {days.map((day) => {
+              const today = isToday(day);
+              const status = getDayStatus(day);
+              return (
+                <div
+                  key={day.toISOString()}
+                  className={`border-b border-r px-1 py-1 text-center text-[11px] font-medium sticky top-0 z-20 ${today ? 'bg-blue-50' : 'bg-background'}`}
+                >
+                  <div className={today ? 'text-blue-700 font-bold' : 'text-muted-foreground'}>
+                    {format(day, 'EEE', { locale: nl })}
+                  </div>
+                  <div className={`text-xs ${today ? 'text-blue-700 font-bold' : ''}`}>
+                    {format(day, 'd')}
+                  </div>
+                  <span className={`inline-block w-1.5 h-1.5 rounded-full ${statusDot[status]}`} />
+                </div>
+              );
+            })}
+
+            {/* Time slots grid */}
+            {HOURS.map((hour) => [0, 30].map((min, halfIdx) => {
+              const rowIdx = (hour - FIRST_HOUR) * 2 + halfIdx;
+              const label = min === 0 ? `${String(hour).padStart(2, '0')}:00` : '';
+
+              return [
+                // Time label column
+                <div
+                  key={`label-${hour}-${min}`}
+                  className="border-r px-1 py-0 flex items-start justify-end text-[10px] text-muted-foreground"
+                  style={{ gridRow: rowIdx + 2, gridColumn: 1 }}
+                >
+                  {label}
+                </div>,
+
+                // Day columns
+                ...days.map((day, dayIdx) => {
+                  const dateStr = format(day, 'yyyy-MM-dd');
+                  const today = isToday(day);
+                  const isTopHalf = min === 0;
+                  const slot = getSlotForCell(dateStr, hour);
+                  const slotStatus = getCellSlotStatus(slot);
+                  const inDragSelection = isCellInDragSelection(dayIdx, rowIdx);
+                  const isTarget = rescheduleMode && isRescheduleTarget(slot);
+                  const leadDragHighlight = getLeadDragCellHighlight(dayIdx, rowIdx, dateStr, hour);
+
+                  // Find leads booked at this exact half-hour
+                  const dayLeads = leadsByDay[dateStr] || [];
+                  const cellLeads = dayLeads.filter((lead) => {
+                    const leadRow = timeToRow(lead.inspection_time);
+                    return leadRow === rowIdx;
+                  });
+
+                  const showSlotContent = isTopHalf && slot;
+                  const isEmpty = slotStatus === 'empty';
+                  const canClick = interactive && !creating;
+
+                  return (
+                    <div
+                      key={`cell-${dateStr}-${hour}-${min}`}
+                      data-cal-cell=""
+                      data-day-idx={dayIdx}
+                      data-row-idx={rowIdx}
+                      data-date-str={dateStr}
+                      data-hour={hour}
+                      className={`
+                        border-r border-b relative px-0.5
+                        ${today ? 'bg-blue-50/30' : ''}
+                        ${isTopHalf ? 'border-t border-t-gray-200' : ''}
+                        ${!isEmpty ? cellBg[slotStatus] : ''}
+                        ${inDragSelection && isEmpty ? 'bg-green-200/50' : ''}
+                        ${canClick && isEmpty && !inDragSelection && !rescheduleMode && !leadDrag ? 'hover:bg-green-100/40 cursor-pointer' : ''}
+                        ${canClick && !isEmpty && !rescheduleMode && !leadDrag ? 'cursor-pointer' : ''}
+                        ${isTarget ? 'ring-2 ring-inset ring-blue-400 cursor-pointer animate-pulse' : ''}
+                        ${leadDragHighlight}
+                      `}
+                      style={{ gridRow: rowIdx + 2, gridColumn: dayIdx + 2 }}
+                      onMouseDown={() => {
+                        if (canClick && isEmpty && !rescheduleMode && !leadDragStartPos.current) {
+                          handleMouseDown(dayIdx, rowIdx, dateStr, hour);
+                        }
+                      }}
+                      onMouseEnter={() => handleMouseEnter(dayIdx, rowIdx)}
+                      onClick={() => {
+                        // In reschedule mode, clicking an open slot triggers reschedule
+                        if (rescheduleMode && isTarget && isTopHalf) {
+                          handleRescheduleTargetClick(slot);
+                        }
+                      }}
+                    >
+                      {/* Slot content in top half */}
+                      {showSlotContent && (
+                        <SlotCell
+                          slot={slot}
+                          interactive={interactive && !rescheduleMode && !leadDrag}
+                          loading={actionLoading === slot.id}
+                          onToggle={() => toggleSlot(slot)}
+                          onDelete={() => deleteSlot(slot)}
+                          onNewLead={() => {
+                            setQuickLeadSlot(slot);
+                            setQuickLeadOpen(true);
+                          }}
+                          rescheduleMode={!!rescheduleMode || !!leadDrag}
+                        />
+                      )}
+
+                      {/* Lead blocks */}
+                      {cellLeads.map((lead) => (
+                        <LeadBlock
+                          key={lead.id}
+                          lead={lead}
+                          interactive={interactive}
+                          rescheduleMode={!!rescheduleMode}
+                          onReschedule={() => startReschedule(lead)}
+                          onDragInit={initLeadDrag}
+                          onTouchDragInit={handleLeadTouchStart}
+                          isDragging={leadDrag?.lead?.id === lead.id}
+                          leadDragJustEnded={leadDragJustEnded}
+                        />
+                      ))}
+
+                      {/* Google Calendar events */}
+                      {(googleEventsByDayRow[`${dateStr}|${rowIdx}`] || []).map((ev) => (
+                        <GoogleEventBlock key={ev.google_event_id} event={ev} />
+                      ))}
+                    </div>
+                  );
+                }),
+              ];
+            })).flat(2)}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Drag ghost */}
+      {leadDrag && (
+        <div
+          ref={ghostRef}
+          className="fixed pointer-events-none z-50 rounded px-2 py-1 text-xs font-medium bg-blue-600 text-white shadow-lg opacity-90 whitespace-nowrap"
+          style={{ left: -9999, top: -9999 }}
+        >
+          {leadDrag.lead.name}
+        </div>
+      )}
+
+      {/* Reschedule confirmation dialog */}
+      <AlertDialog open={!!rescheduleConfirm} onOpenChange={(open) => { if (!open) setRescheduleConfirm(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Inspectie verplaatsen</AlertDialogTitle>
+            <AlertDialogDescription>
+              Verplaats <strong>{rescheduleConfirm?.lead?.name}</strong> van{' '}
+              <strong>{oldLabel}</strong> naar <strong>{newLabel}</strong>?
+              <br /><br />
+              Er wordt automatisch een bevestigingsmail verstuurd naar de klant.
+              {rescheduleConfirm && !rescheduleConfirm.newSlot && rescheduleConfirm.targetDateStr && (
+                <>
+                  <br />
+                  <span className="text-muted-foreground text-xs">Er wordt automatisch een nieuw moment aangemaakt.</span>
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={rescheduleLoading} onClick={() => setRescheduleConfirm(null)}>
+              Annuleren
+            </AlertDialogCancel>
+            <AlertDialogAction disabled={rescheduleLoading} onClick={confirmReschedule}>
+              {rescheduleLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Verplaatsen...
+                </>
+              ) : (
+                'Verplaatsen'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Quick lead dialog */}
+      <QuickLeadDialog
+        open={quickLeadOpen}
+        onOpenChange={setQuickLeadOpen}
+        slot={quickLeadSlot}
+        onCreated={async () => {
+          if (onLeadsChange) await onLeadsChange();
+          if (onSlotsChange) await onSlotsChange();
+        }}
+      />
+    </>
+  );
+}
+
+// Lead block with popover for reschedule + drag support
+function LeadBlock({ lead, interactive, rescheduleMode, onReschedule, onDragInit, onTouchDragInit, isDragging, leadDragJustEnded }) {
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const mouseDownPos = useRef(null);
+
+  const address = [lead.plaatsnaam, lead.postcode].filter(Boolean).join(' ');
+
+  const copyAddress = async () => {
+    if (!address) return;
+    try {
+      await navigator.clipboard.writeText(address);
+      setCopied(true);
+      toast.success('Adres gekopieerd');
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error('Kon adres niet kopiëren');
+    }
+  };
+
+  if (!interactive || rescheduleMode) {
+    return (
+      <div
+        className="block rounded px-1 py-0.5 text-[10px] leading-tight truncate bg-blue-600 text-white mb-0.5 relative z-10"
+        title={`${lead.name} - ${address} (${formatTime(lead.inspection_time)})`}
+      >
+        {formatTime(lead.inspection_time)} {lead.name}
+      </div>
+    );
+  }
+
+  return (
+    <Popover open={open} onOpenChange={(v) => { setOpen(v); if (!v) setCopied(false); }}>
+      <PopoverAnchor asChild>
+        <button
+          type="button"
+          className={`block w-full text-left rounded px-1 py-0.5 text-[10px] leading-tight truncate bg-blue-600 text-white hover:bg-blue-700 transition-colors mb-0.5 relative z-10 cursor-grab active:cursor-grabbing touch-none ${isDragging ? 'opacity-40' : ''}`}
+          title={`${lead.name} - ${address} (${formatTime(lead.inspection_time)})`}
+          onMouseDown={(e) => {
+            if (e.button !== 0) return;
+            e.stopPropagation();
+            mouseDownPos.current = { x: e.clientX, y: e.clientY };
+            onDragInit?.(e, lead);
+          }}
+          onTouchStart={(e) => {
+            const touch = e.touches[0];
+            mouseDownPos.current = { x: touch.clientX, y: touch.clientY };
+            onTouchDragInit?.(e, lead);
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            // Don't open popover if this was a drag or just ended one
+            if (leadDragJustEnded?.current) return;
+            if (mouseDownPos.current) {
+              const dx = e.clientX - mouseDownPos.current.x;
+              const dy = e.clientY - mouseDownPos.current.y;
+              mouseDownPos.current = null;
+              if (Math.sqrt(dx * dx + dy * dy) >= DRAG_THRESHOLD) return;
+            }
+            setOpen(true);
+          }}
+        >
+          {formatTime(lead.inspection_time)} {lead.name}
+        </button>
+      </PopoverAnchor>
+      <PopoverContent className="w-64 p-3" side="right" align="start">
+        <div className="space-y-3">
+          <div>
+            <p className="font-medium text-sm">{lead.name}</p>
+            <p className="text-xs text-muted-foreground">
+              {formatTime(lead.inspection_time)}
+            </p>
+            {address && (
+              <div className="flex items-center gap-1.5 mt-1">
+                <p className="text-xs text-muted-foreground truncate">{address}</p>
+                <button
+                  type="button"
+                  onClick={copyAddress}
+                  className="shrink-0 rounded p-0.5 hover:bg-muted transition-colors"
+                  title="Kopieer adres"
+                >
+                  <Copy className={`h-3 w-3 ${copied ? 'text-green-600' : 'text-muted-foreground'}`} />
+                </button>
+              </div>
+            )}
+            {lead.phone && (
+              <p className="text-xs text-muted-foreground mt-0.5">{lead.phone}</p>
+            )}
+          </div>
+          <div className="flex flex-col gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full justify-start gap-2"
+              asChild
+            >
+              <Link href={`/dashboard/lead/${lead.id}`}>
+                <ExternalLink className="h-3.5 w-3.5" />
+                Open lead
+              </Link>
             </Button>
             <Button
-              variant="outline"
               size="sm"
-              onClick={() => setWeekOffset(0)}
-              className="text-xs"
+              variant="outline"
+              className="w-full justify-start gap-2"
+              onClick={() => {
+                setOpen(false);
+                onReschedule();
+              }}
             >
-              Vandaag
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setWeekOffset((p) => p + 1)}>
-              <ChevronRight className="h-4 w-4" />
+              <MoveRight className="h-3.5 w-3.5" />
+              Verplaatsen
             </Button>
           </div>
         </div>
-        <p className="text-sm text-muted-foreground">
-          {format(weekStart, 'd MMM', { locale: nl })} – {format(weekEnd, 'd MMM yyyy', { locale: nl })}
-        </p>
-        <div className="flex items-center gap-4 mt-2 text-xs">
-          <span className="flex items-center gap-1"><span className={`inline-block w-2 h-2 rounded-full ${statusDot.open}`} /> Open</span>
-          <span className="flex items-center gap-1"><span className={`inline-block w-2 h-2 rounded-full ${statusDot.full}`} /> Vol</span>
-          <span className="flex items-center gap-1"><span className={`inline-block w-2 h-2 rounded-full ${statusDot.closed}`} /> Gesloten</span>
-          {interactive && <span className="text-muted-foreground ml-2">Klik om moment toe te voegen · Sleep om meerdere aan te maken</span>}
-        </div>
-      </CardHeader>
-      <CardContent className="p-0 overflow-x-auto">
-        <div
-          className="grid min-w-[700px] select-none"
-          style={{
-            gridTemplateColumns: '60px repeat(7, 1fr)',
-            gridTemplateRows: `auto repeat(${HOURS.length * 2}, minmax(28px, 1fr))`,
-          }}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={() => {
-            if (isDragging.current) {
-              isDragging.current = false;
-              setDragStart(null);
-              setDragEnd(null);
-            }
-          }}
-        >
-          {/* Header row */}
-          <div className="border-b border-r p-2" />
-          {days.map((day) => {
-            const today = isToday(day);
-            const status = getDayStatus(day);
-            return (
-              <div
-                key={day.toISOString()}
-                className={`border-b border-r p-2 text-center text-xs font-medium ${today ? 'bg-blue-50' : ''}`}
-              >
-                <div className={today ? 'text-blue-700 font-bold' : 'text-muted-foreground'}>
-                  {format(day, 'EEE', { locale: nl })}
-                </div>
-                <div className={`text-sm ${today ? 'text-blue-700 font-bold' : ''}`}>
-                  {format(day, 'd')}
-                </div>
-                <span className={`inline-block w-2 h-2 rounded-full mt-1 ${statusDot[status]}`} />
-              </div>
-            );
-          })}
-
-          {/* Time slots grid */}
-          {HOURS.map((hour) => [0, 30].map((min, halfIdx) => {
-            const rowIdx = (hour - 9) * 2 + halfIdx;
-            const label = min === 0 ? `${String(hour).padStart(2, '0')}:00` : '';
-
-            return [
-              // Time label column
-              <div
-                key={`label-${hour}-${min}`}
-                className="border-r px-1 py-0 flex items-start justify-end text-[10px] text-muted-foreground"
-                style={{ gridRow: rowIdx + 2, gridColumn: 1 }}
-              >
-                {label}
-              </div>,
-
-              // Day columns
-              ...days.map((day, dayIdx) => {
-                const dateStr = format(day, 'yyyy-MM-dd');
-                const today = isToday(day);
-                const isTopHalf = min === 0;
-                const slot = isTopHalf ? getSlotForCell(dateStr, hour) : getSlotForCell(dateStr, hour);
-                const slotStatus = getCellSlotStatus(slot);
-                const inDragSelection = isCellInDragSelection(dayIdx, rowIdx);
-
-                // Find leads booked at this exact half-hour
-                const dayLeads = leadsByDay[dateStr] || [];
-                const cellLeads = dayLeads.filter((lead) => {
-                  const leadRow = timeToRow(lead.inspection_time);
-                  return leadRow === rowIdx;
-                });
-
-                // For top-half of hour: show slot block content
-                const showSlotContent = isTopHalf && slot;
-                // For bottom-half: slot continues but no content
-                const isSlotBottomHalf = !isTopHalf && getSlotForCell(dateStr, hour);
-
-                const isEmpty = slotStatus === 'empty';
-                const canClick = interactive && !creating;
-
-                return (
-                  <div
-                    key={`cell-${dateStr}-${hour}-${min}`}
-                    className={`
-                      border-r border-b relative px-0.5
-                      ${today ? 'bg-blue-50/30' : ''}
-                      ${isTopHalf ? 'border-t border-t-gray-200' : ''}
-                      ${!isEmpty ? cellBg[slotStatus] : ''}
-                      ${inDragSelection && isEmpty ? 'bg-green-200/50' : ''}
-                      ${canClick && isEmpty && !inDragSelection ? 'hover:bg-green-100/40 cursor-pointer' : ''}
-                      ${canClick && !isEmpty ? 'cursor-pointer' : ''}
-                    `}
-                    style={{ gridRow: rowIdx + 2, gridColumn: dayIdx + 2 }}
-                    onMouseDown={() => {
-                      if (canClick && isEmpty) {
-                        handleMouseDown(dayIdx, rowIdx, dateStr, hour);
-                      }
-                    }}
-                    onMouseEnter={() => handleMouseEnter(dayIdx, rowIdx)}
-                  >
-                    {/* Slot content in top half */}
-                    {showSlotContent && (
-                      <SlotCell
-                        slot={slot}
-                        interactive={interactive}
-                        loading={actionLoading === slot.id}
-                        onToggle={() => toggleSlot(slot)}
-                        onDelete={() => deleteSlot(slot)}
-                      />
-                    )}
-
-                    {/* Lead blocks */}
-                    {cellLeads.map((lead) => (
-                      <Link
-                        key={lead.id}
-                        href={`/dashboard/lead/${lead.id}`}
-                        className="block rounded px-1 py-0.5 text-[10px] leading-tight truncate bg-blue-600 text-white hover:bg-blue-700 transition-colors mb-0.5 relative z-10"
-                        title={`${lead.name} - ${lead.plaatsnaam} (${formatTime(lead.inspection_time)})`}
-                      >
-                        {formatTime(lead.inspection_time)} {lead.name}
-                      </Link>
-                    ))}
-                  </div>
-                );
-              }),
-            ];
-          })).flat(2)}
-        </div>
-      </CardContent>
-    </Card>
+      </PopoverContent>
+    </Popover>
   );
 }
 
 // Slot cell with popover for managing
-function SlotCell({ slot, interactive, loading, onToggle, onDelete }) {
+function SlotCell({ slot, interactive, loading, onToggle, onDelete, onNewLead, rescheduleMode }) {
   const [open, setOpen] = useState(false);
   const remaining = slot.max_visits - slot.booked_count;
   const status = !slot.is_open ? 'closed' : remaining > 0 ? 'open' : 'full';
@@ -431,7 +968,7 @@ function SlotCell({ slot, interactive, loading, onToggle, onDelete }) {
     closed: 'destructive',
   };
 
-  if (!interactive) {
+  if (!interactive || rescheduleMode) {
     return (
       <div className="text-[10px] leading-tight px-0.5 py-0.5">
         <span className="font-medium">{formatTime(slot.slot_time)}</span>
@@ -444,7 +981,7 @@ function SlotCell({ slot, interactive, loading, onToggle, onDelete }) {
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
+      <PopoverAnchor asChild>
         <button
           type="button"
           className="w-full text-left text-[10px] leading-tight px-0.5 py-0.5 rounded hover:ring-1 hover:ring-primary/30"
@@ -458,7 +995,7 @@ function SlotCell({ slot, interactive, loading, onToggle, onDelete }) {
             {statusLabel[status]}
           </Badge>
         </button>
-      </PopoverTrigger>
+      </PopoverAnchor>
       <PopoverContent className="w-56 p-3" side="right" align="start">
         <div className="space-y-3">
           <div>
@@ -468,6 +1005,20 @@ function SlotCell({ slot, interactive, loading, onToggle, onDelete }) {
             </p>
           </div>
           <div className="flex flex-col gap-2">
+            {status === 'open' && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full justify-start gap-2"
+                onClick={() => {
+                  setOpen(false);
+                  onNewLead();
+                }}
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Nieuwe aanvraag
+              </Button>
+            )}
             <Button
               size="sm"
               variant="outline"

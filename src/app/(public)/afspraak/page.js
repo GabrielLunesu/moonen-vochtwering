@@ -4,9 +4,8 @@ import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
-import { Label } from '@/app/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
 import { CheckCircle, AlertCircle, Loader2, Calendar, XCircle } from 'lucide-react';
+import SlotCalendar from '@/app/components/public/SlotCalendar';
 
 export default function AfspraakPage() {
   return (
@@ -22,7 +21,7 @@ function AfspraakContent() {
   const [step, setStep] = useState('loading'); // loading, view, reschedule, cancel-confirm, submitting, success, error, no-appointment
   const [appointment, setAppointment] = useState(null);
   const [slots, setSlots] = useState([]);
-  const [selectedSlotId, setSelectedSlotId] = useState('');
+  const [selectedSlotId, setSelectedSlotId] = useState(null);
   const [actionType, setActionType] = useState(''); // 'reschedule' or 'cancel'
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -73,15 +72,6 @@ function AfspraakContent() {
       })()
     : false;
 
-  const slotOptions = slots.map((slot) => ({
-    id: slot.id,
-    label: `${new Date(`${slot.slot_date}T12:00:00`).toLocaleDateString('nl-NL', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-    })} om ${slot.slot_time}`,
-  }));
-
   const handleReschedule = async () => {
     if (!selectedSlotId) return;
     setStep('submitting');
@@ -98,7 +88,7 @@ function AfspraakContent() {
         const errorBody = await res.json().catch(() => ({}));
         if (res.status === 409 && errorBody?.code === 'SLOT_FULL') {
           setSlots((prev) => prev.filter((slot) => slot.id !== selectedSlotId));
-          setSelectedSlotId('');
+          setSelectedSlotId(null);
           setStep('reschedule');
           setErrorMessage('Dit moment is helaas niet meer beschikbaar. Kies een ander moment.');
           return;
@@ -286,27 +276,17 @@ function AfspraakContent() {
                 {errorMessage}
               </div>
             )}
-            {slotOptions.length === 0 ? (
+            {slots.length === 0 ? (
               <div className="rounded-md border p-3 text-sm text-muted-foreground">
                 Er zijn momenteel geen beschikbare momenten. Bel ons op 06 18 16 25 15, dan plannen we direct met u in.
               </div>
             ) : (
               <>
-                <div className="space-y-2">
-                  <Label>Nieuw moment</Label>
-                  <Select value={selectedSlotId} onValueChange={(val) => { setSelectedSlotId(val); setErrorMessage(''); }}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Kies een moment" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {slotOptions.map((slot) => (
-                        <SelectItem key={slot.id} value={slot.id}>
-                          {slot.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <SlotCalendar
+                  slots={slots}
+                  selectedSlotId={selectedSlotId}
+                  onSelectSlot={(id) => { setSelectedSlotId(id); setErrorMessage(''); }}
+                />
                 <Button
                   className="w-full"
                   style={{ backgroundColor: '#355b23' }}

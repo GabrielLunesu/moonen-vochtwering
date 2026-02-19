@@ -3,13 +3,14 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { sendEmail } from '@/lib/email/resend';
 import { adminNotificationEmail } from '@/lib/email/templates/admin-notification';
 import { planInspectionEmail } from '@/lib/email/templates/plan-inspection';
+import { contactReceivedEmail } from '@/lib/email/templates/contact-received';
 import { generateToken } from '@/lib/utils/tokens';
 import { notifyOpsAlert } from '@/lib/ops/alerts';
 import { logLeadEvent } from '@/lib/utils/events';
 
 export async function POST(request) {
   try {
-    const { name, email, phone, message, type_probleem } = await request.json();
+    const { name, email, phone, message, type_probleem, mode } = await request.json();
 
     // Validate required fields
     if (!name || !email || !phone) {
@@ -67,70 +68,86 @@ export async function POST(request) {
       text: adminEmail.text,
     });
 
-    // Load email template overrides for plan-inspection
-    const { data: templateSetting } = await supabase
-      .from('settings')
-      .select('value')
-      .eq('key', 'email_template_plan_inspection')
-      .single();
-    const overrides = templateSetting?.value || {};
+    let customerEmailPromise;
+    let customerEmailType;
 
-    // Send planning CTA email to customer (replaces generic auto-reply)
-    const planEmail = planInspectionEmail({
-      name,
-      siteUrl,
-      token: availability_token,
-      overrides,
-    });
-    const customerEmailPromise = sendEmail({
-      to: email,
-      subject: planEmail.subject,
-      html: planEmail.html,
-      text: planEmail.text,
-    });
+    if (mode === 'contact_only') {
+      // Contact-only: send simple acknowledgment (no booking link)
+      const receivedEmail = contactReceivedEmail({ name });
+      customerEmailPromise = sendEmail({
+        to: email,
+        subject: receivedEmail.subject,
+        html: receivedEmail.html,
+        text: receivedEmail.text,
+      });
+      customerEmailType = 'contact_received';
+    } else {
+      // Default: send planning CTA email with booking link
+      const { data: templateSetting } = await supabase
+        .from('settings')
+        .select('value')
+        .eq('key', 'email_template_plan_inspection')
+        .single();
+      const overrides = templateSetting?.value || {};
+
+      const planEmail = planInspectionEmail({
+        name,
+        siteUrl,
+        token: availability_token,
+        overrides,
+      });
+      customerEmailPromise = sendEmail({
+        to: email,
+        subject: planEmail.subject,
+        html: planEmail.html,
+        text: planEmail.text,
+      });
+      customerEmailType = 'plan_inspection';
+    }
 
     const emailResults = await Promise.allSettled([adminEmailPromise, customerEmailPromise]);
     const [adminResult, customerResult] = emailResults;
 
-    // If the planning email was sent successfully, update status to uitgenodigd
+    // If the customer email was sent, update status and log
     if (customerResult.status === 'fulfilled') {
-      const { error: updateError } = await supabase
-        .from('leads')
-        .update({
-          status: 'uitgenodigd',
-          ...(Object.prototype.hasOwnProperty.call(lead, 'stage_changed_at')
-            ? { stage_changed_at: new Date().toISOString() }
-            : {}),
-        })
-        .eq('id', lead.id);
+      // Only move to uitgenodigd when sending booking link (not contact-only)
+      if (mode !== 'contact_only') {
+        const { error: updateError } = await supabase
+          .from('leads')
+          .update({
+            status: 'uitgenodigd',
+            ...(Object.prototype.hasOwnProperty.call(lead, 'stage_changed_at')
+              ? { stage_changed_at: new Date().toISOString() }
+              : {}),
+          })
+          .eq('id', lead.id);
 
-      if (!updateError) {
-        await logLeadEvent({
-          leadId: lead.id,
-          eventType: 'status_change',
-          oldValue: 'nieuw',
-          newValue: 'uitgenodigd',
-          actor: 'system',
-        });
-
-        await logLeadEvent({
-          leadId: lead.id,
-          eventType: 'email_sent',
-          actor: 'system',
-          metadata: {
-            type: 'plan_inspection',
-            to_email: email,
-            subject: planEmail.subject,
-          },
-        });
+        if (!updateError) {
+          await logLeadEvent({
+            leadId: lead.id,
+            eventType: 'status_change',
+            oldValue: 'nieuw',
+            newValue: 'uitgenodigd',
+            actor: 'system',
+          });
+        }
       }
+
+      await logLeadEvent({
+        leadId: lead.id,
+        eventType: 'email_sent',
+        actor: 'system',
+        metadata: {
+          type: customerEmailType,
+          to_email: email,
+        },
+      });
 
       // Log to email_log
       await supabase.from('email_log').insert({
         lead_id: lead.id,
-        type: 'plan_inspection',
+        type: customerEmailType,
         to_email: email,
-        subject: planEmail.subject,
       });
     }
 
@@ -145,7 +162,7 @@ export async function POST(request) {
           lead_id: lead.id,
           lead_email: lead.email,
           failed_count: failedEmails.length,
-          planning_email_sent: customerResult.status === 'fulfilled',
+          customer_email_sent: customerResult.status === 'fulfilled',
         },
       });
     }

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Document, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer';
+import { normalizeDiagnose, normalizeOplossing } from '@/lib/utils/inspection-constants';
 
 const COLORS = {
   primary: '#8AAB4C',
@@ -48,8 +49,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   logoImage: {
-    width: 210,
-    height: 48,
+    width: 52,
+    height: 52,
     objectFit: 'contain',
   },
   logoFallback: {
@@ -100,9 +101,10 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 10,
     fontWeight: 500,
+    lineHeight: 1.4,
   },
   intro: {
-    marginTop: 2,
+    marginTop: 8,
     fontSize: 10,
     lineHeight: 1.45,
   },
@@ -360,7 +362,7 @@ function buildLineItems(lead, inspectionData, subtotal) {
       id: 'fallback',
       description: lead?.oplossing || 'Vochtwering werkzaamheden',
       quantity: toNumber(lead?.oppervlakte_m2, 1),
-      unit: lead?.oppervlakte_m2 ? 'm²' : 'stuk',
+      unit: lead?.oppervlakte_m2 ? 'm\u00b2' : 'stuk',
       unitPrice: roundMoney(subtotal / Math.max(1, toNumber(lead?.oppervlakte_m2, 1))),
       total: roundMoney(subtotal),
     },
@@ -378,6 +380,57 @@ function buildPhotoRows(lead, inspectionData) {
       url,
       caption: captions[index] || `Inspectiefoto ${index + 1}`,
     }));
+}
+
+function getDefaultIntroText(oplossing) {
+  // Handle both string and array
+  const solutions = Array.isArray(oplossing)
+    ? oplossing
+    : normalizeOplossing(oplossing);
+
+  // Multiple solutions → combined intro
+  if (solutions.length > 1) {
+    return 'Naar aanleiding van onze inspectie bieden wij u graag onderstaande werkzaamheden aan voor een gecombineerde aanpak om uw vochtproblemen duurzaam op te lossen.';
+  }
+
+  const single = (solutions[0] || '').toLowerCase();
+  if (single.includes('kelderafdichting')) {
+    return 'Naar aanleiding van onze inspectie bieden wij u graag onderstaande werkzaamheden aan om uw kelderwanden duurzaam waterdicht te maken.';
+  }
+  if (single.includes('injectie') || single.includes('dpc')) {
+    return 'Naar aanleiding van onze inspectie bieden wij u graag onderstaande werkzaamheden aan voor een definitieve oplossing tegen opstijgend vocht middels muurinjectie.';
+  }
+  if (single.includes('gevelimpregnatie') || single.includes('gevel')) {
+    return 'Naar aanleiding van onze inspectie bieden wij u graag onderstaande werkzaamheden aan om uw gevel blijvend te beschermen tegen vochtdoorslag.';
+  }
+  return 'Naar aanleiding van onze inspectie bieden wij u graag onderstaande werkzaamheden aan voor een duurzame oplossing van uw vochtprobleem.';
+}
+
+function resolveDiagnosis(inspectionData, lead) {
+  const raw = inspectionData?.diagnose || lead?.diagnose;
+  if (Array.isArray(raw)) return raw.join(', ');
+  if (typeof raw === 'string' && raw) return raw;
+  return 'n.v.t.';
+}
+
+function resolveSolution(inspectionData, lead) {
+  // Try new array field first
+  const oplossingen = inspectionData?.oplossingen;
+  if (Array.isArray(oplossingen) && oplossingen.length > 0) return oplossingen.join(', ');
+  // Fall back to old string field
+  const old = inspectionData?.oplossing || lead?.oplossing;
+  if (typeof old === 'string' && old) return old;
+  return 'n.v.t.';
+}
+
+function resolveIntroText(inspectionData, lead) {
+  if (inspectionData?.offerte_inleiding) return inspectionData.offerte_inleiding;
+  // Use oplossingen array if available, else fall back to string
+  const oplossingen = inspectionData?.oplossingen;
+  if (Array.isArray(oplossingen) && oplossingen.length > 0) {
+    return getDefaultIntroText(oplossingen);
+  }
+  return getDefaultIntroText(inspectionData?.oplossing || lead?.oplossing);
 }
 
 function buildQuoteData(lead) {
@@ -401,19 +454,21 @@ function buildQuoteData(lead) {
     issueDateLabel: formatDate(issueDate),
     validUntilLabel: formatDate(validUntil),
     customerName: lead?.name || 'Klant',
-    customerAddress: `${lead?.plaatsnaam || ''} ${lead?.postcode || ''}`.trim(),
+    customerStreet: lead?.straat || null,
+    customerCity: `${lead?.postcode || ''} ${lead?.plaatsnaam || ''}`.trim(),
     customerEmail: lead?.email || null,
     customerPhone: lead?.phone || null,
-    diagnosis: inspectionData?.diagnose || lead?.diagnose || 'n.v.t.',
+    introText: resolveIntroText(inspectionData, lead),
+    diagnosis: resolveDiagnosis(inspectionData, lead),
     diagnosisDetails: inspectionData?.diagnose_details || null,
-    solution: inspectionData?.oplossing || lead?.oplossing || 'n.v.t.',
+    solution: resolveSolution(inspectionData, lead),
     areaLabel:
       lead?.oppervlakte_m2 || inspectionData?.oppervlakte_m2
-        ? `${toNumber(lead?.oppervlakte_m2 ?? inspectionData?.oppervlakte_m2, 0)} m²`
+        ? `${toNumber(lead?.oppervlakte_m2 ?? inspectionData?.oppervlakte_m2, 0)} m\u00b2`
         : 'n.v.t.',
     timeline: inspectionData?.doorlooptijd || '3 werkdagen',
     guarantee: `${toNumber(inspectionData?.garantie_jaren, 5)} jaar`,
-    paymentTerms: inspectionData?.betaling || '40% bij opdracht, 60% na oplevering',
+    paymentTerms: inspectionData?.betaling || 'Op de eerste werkdag bij aanvang, restant binnen 2 weken na oplevering',
     subtotal,
     discountAmount,
     discountType,
@@ -432,6 +487,7 @@ export function QuoteDocument({ lead, logoDataUri = null, fontFamily = 'Helvetic
 
   return (
     <Document>
+      {/* Page 1: Header, customer info, summary */}
       <Page size="A4" style={[styles.page, { fontFamily }]}>
         <View style={styles.topStripe} />
 
@@ -471,19 +527,17 @@ export function QuoteDocument({ lead, logoDataUri = null, fontFamily = 'Helvetic
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Aan</Text>
-          <Text style={styles.infoValue}>{quote.customerName}</Text>
-          <Text>{quote.customerAddress}</Text>
-          {quote.customerEmail ? <Text>{quote.customerEmail}</Text> : null}
-          {quote.customerPhone ? <Text>{quote.customerPhone}</Text> : null}
+          <Text style={{ fontSize: 10, fontWeight: 700, lineHeight: 1.4, marginBottom: 2 }}>{quote.customerName}</Text>
+          {quote.customerStreet ? <Text style={{ fontSize: 10, lineHeight: 1.4, marginBottom: 2 }}>{quote.customerStreet}</Text> : null}
+          {quote.customerCity ? <Text style={{ fontSize: 10, lineHeight: 1.4, marginBottom: 2 }}>{quote.customerCity}</Text> : null}
+          {quote.customerEmail ? <Text style={{ fontSize: 10, lineHeight: 1.4, marginBottom: 2 }}>{quote.customerEmail}</Text> : null}
+          {quote.customerPhone ? <Text style={{ fontSize: 10, lineHeight: 1.4 }}>{quote.customerPhone}</Text> : null}
         </View>
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Betreft</Text>
-          <Text style={styles.infoValue}>{quote.solution}</Text>
-          <Text style={styles.intro}>
-            Naar aanleiding van onze inspectie bieden wij u onderstaande werkzaamheden aan voor een
-            duurzame oplossing tegen vochtproblemen.
-          </Text>
+          <Text style={[styles.infoValue, { marginBottom: 6 }]}>{quote.solution}</Text>
+          <Text style={styles.intro}>{quote.introText}</Text>
         </View>
 
         <View style={styles.summaryWrap}>
@@ -524,11 +578,12 @@ export function QuoteDocument({ lead, logoDataUri = null, fontFamily = 'Helvetic
         </Text>
       </Page>
 
-      <Page size="A4" style={[styles.page, { fontFamily }]}>
+      {/* Page 2+: Line items, totals, photos, terms — content wraps to new pages automatically */}
+      <Page size="A4" style={[styles.page, { fontFamily }]} wrap>
         <View style={styles.topStripe} />
         <Text style={styles.sectionTitle}>Prijsopgave</Text>
 
-        <View style={styles.tableHeader}>
+        <View style={styles.tableHeader} wrap={false}>
           <Text style={styles.colDescription}>Omschrijving</Text>
           <Text style={styles.colQty}>Aantal</Text>
           <Text style={styles.colPrice}>Prijs</Text>
@@ -536,7 +591,7 @@ export function QuoteDocument({ lead, logoDataUri = null, fontFamily = 'Helvetic
         </View>
 
         {quote.lineItems.map((item) => (
-          <View key={item.id} style={styles.tableRow}>
+          <View key={item.id} style={styles.tableRow} wrap={false}>
             <Text style={styles.colDescription}>{item.description}</Text>
             <Text style={styles.colQty}>
               {item.quantity} {item.unit}
@@ -546,7 +601,7 @@ export function QuoteDocument({ lead, logoDataUri = null, fontFamily = 'Helvetic
           </View>
         ))}
 
-        <View style={styles.totalsBox}>
+        <View style={styles.totalsBox} wrap={false}>
           <View style={styles.totalRow}>
             <Text>Subtotaal</Text>
             <Text>{formatCurrency(quote.subtotal)}</Text>
@@ -570,7 +625,7 @@ export function QuoteDocument({ lead, logoDataUri = null, fontFamily = 'Helvetic
         </View>
 
         {quote.photos.length > 0 ? (
-          <View style={styles.photosSection}>
+          <View style={styles.photosSection} wrap={false} break={quote.lineItems.length > 6}>
             <Text style={styles.sectionTitle}>Inspectiefoto&apos;s</Text>
             <View style={styles.photosGrid}>
               {quote.photos.map((photo) => (
@@ -584,7 +639,7 @@ export function QuoteDocument({ lead, logoDataUri = null, fontFamily = 'Helvetic
         ) : null}
 
         <Text style={styles.sectionTitle}>Voorwaarden</Text>
-        <View style={styles.termsBox}>
+        <View style={styles.termsBox} wrap={false}>
           <Text style={styles.term}>- Prijzen zijn vast en all-inclusive.</Text>
           <Text style={styles.term}>- Geen meerwerk zonder voorafgaand overleg.</Text>
           <Text style={styles.term}>- Betaling: {quote.paymentTerms}.</Text>

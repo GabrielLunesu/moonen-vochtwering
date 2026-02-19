@@ -6,8 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/ca
 import { Button } from '@/app/components/ui/button';
 import { Label } from '@/app/components/ui/label';
 import { Input } from '@/app/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
 import { CheckCircle, AlertCircle, Loader2, MapPin, Calendar } from 'lucide-react';
+import SlotCalendar from '@/app/components/public/SlotCalendar';
 
 export default function BevestigPage() {
   return (
@@ -22,7 +22,7 @@ function BevestigContent() {
   const token = searchParams.get('token');
   const [step, setStep] = useState('address'); // address, select, submitting, success, error
   const [slots, setSlots] = useState([]);
-  const [selectedSlotId, setSelectedSlotId] = useState('');
+  const [selectedSlotId, setSelectedSlotId] = useState(null);
   const [selectedSlotLabel, setSelectedSlotLabel] = useState('');
   const [addressErrors, setAddressErrors] = useState({});
   const [address, setAddress] = useState({
@@ -41,15 +41,6 @@ function BevestigContent() {
       .then((data) => setSlots(data))
       .catch(() => setSlots([]));
   }, [token]);
-
-  const slotOptions = slots.map((slot) => ({
-    id: slot.id,
-    label: `${new Date(`${slot.slot_date}T12:00:00`).toLocaleDateString('nl-NL', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-    })} om ${slot.slot_time}`,
-  }));
 
   const handleAddressChange = (e) => {
     const { name, value } = e.target;
@@ -97,13 +88,21 @@ function BevestigContent() {
         const errorBody = await res.json().catch(() => ({}));
         if (res.status === 409 && errorBody?.code === 'SLOT_FULL') {
           setSlots((prev) => prev.filter((slot) => slot.id !== selectedSlotId));
-          setSelectedSlotId('');
+          setSelectedSlotId(null);
         }
         throw new Error(errorBody?.error || 'Kon inspectie niet bevestigen');
       }
 
-      const selectedSlot = slotOptions.find((slot) => slot.id === selectedSlotId);
-      setSelectedSlotLabel(selectedSlot?.label || '');
+      // Build label for confirmation
+      const slot = slots.find((s) => s.id === selectedSlotId);
+      if (slot) {
+        const dateLabel = new Date(`${slot.slot_date}T12:00:00`).toLocaleDateString('nl-NL', {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+        });
+        setSelectedSlotLabel(`${dateLabel} om ${slot.slot_time.slice(0, 5)}`);
+      }
       setStep('success');
     } catch {
       setStep('error');
@@ -230,7 +229,7 @@ function BevestigContent() {
     );
   }
 
-  // step === 'select'
+  // step === 'select' or 'submitting'
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
       <Card className="max-w-md w-full">
@@ -244,32 +243,24 @@ function BevestigContent() {
           </p>
         </CardHeader>
         <CardContent>
-          {slotOptions.length === 0 && (
+          {slots.length === 0 && (
             <div className="rounded-md border p-3 text-sm text-muted-foreground mb-4">
               Er zijn momenteel geen beschikbare momenten. Bel ons op 06 18 16 25 15, dan plannen we direct met u in.
             </div>
           )}
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label>Beschikbaar moment</Label>
-              <Select value={selectedSlotId} onValueChange={setSelectedSlotId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Kies een moment" />
-                </SelectTrigger>
-                <SelectContent>
-                  {slotOptions.map((slot) => (
-                    <SelectItem key={slot.id} value={slot.id}>
-                      {slot.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {slots.length > 0 && (
+              <SlotCalendar
+                slots={slots}
+                selectedSlotId={selectedSlotId}
+                onSelectSlot={setSelectedSlotId}
+              />
+            )}
 
             <Button
               type="submit"
               className="w-full"
-              disabled={!selectedSlotId || step === 'submitting' || slotOptions.length === 0}
+              disabled={!selectedSlotId || step === 'submitting' || slots.length === 0}
               style={{ backgroundColor: '#355b23' }}
             >
               {step === 'submitting' ? (

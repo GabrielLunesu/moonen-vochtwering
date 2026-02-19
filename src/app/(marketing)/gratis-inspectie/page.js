@@ -1,22 +1,22 @@
-import InspectionForm from '@/app/components/marketing/InspectionForm';
+import InspectionWizard from '@/app/components/marketing/InspectionWizard';
 import TestimonialBlock from '@/app/components/marketing/TestimonialBlock';
 
 export const metadata = {
   title: 'Gratis Inspectie Aanvragen',
   description:
-    'Vraag een gratis vochtinspectie aan. Wij komen binnen een week bij u thuis voor een grondige analyse. Vrijblijvend en zonder kosten.',
+    'Vraag een gratis vochtinspectie aan. Plan direct online of laat ons contact opnemen. Vrijblijvend en zonder kosten.',
 };
 
 const steps = [
   {
     number: '1',
-    title: 'U vult het formulier in',
-    description: 'Geef uw gegevens door en beschrijf kort uw situatie.',
+    title: 'Vul uw gegevens in',
+    description: 'Naam, e-mail en telefoonnummer. Snel en eenvoudig.',
   },
   {
     number: '2',
-    title: 'Wij nemen contact op',
-    description: 'Binnen 24 uur bellen wij u om een afspraak in te plannen.',
+    title: 'Plan direct online',
+    description: 'Kies zelf een datum en tijdstip, of laat ons contact opnemen.',
   },
   {
     number: '3',
@@ -72,7 +72,7 @@ export default function GratisInspectiePage() {
               <h2 className="text-xl font-semibold text-[#111827] mb-6">
                 Vraag uw gratis inspectie aan
               </h2>
-              <InspectionForm />
+              <InspectionWizard />
             </div>
           </div>
         </div>

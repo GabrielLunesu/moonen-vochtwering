@@ -4,6 +4,7 @@ import { sendEmail } from '@/lib/email/resend';
 import { confirmationEmail } from '@/lib/email/templates/confirmation';
 import { notifyOpsAlert } from '@/lib/ops/alerts';
 import { logLeadEvent } from '@/lib/utils/events';
+import { syncLeadToGoogleCalendar } from '@/lib/google/calendar';
 
 export async function POST(request) {
   try {
@@ -173,6 +174,12 @@ export async function POST(request) {
         subject: emailContent.subject,
       },
     });
+
+    // Sync to Google Calendar (best-effort)
+    syncLeadToGoogleCalendar(
+      { ...lead, ...leadUpdates, id: lead.id },
+      'create'
+    );
 
     // Notify admin
     const displayPlaats = plaatsnaam || lead.plaatsnaam || 'onbekend';
