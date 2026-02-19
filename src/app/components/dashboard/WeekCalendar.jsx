@@ -1042,7 +1042,7 @@ function SlotCell({ slot, interactive, loading, onToggle, onDelete, onNewLead, r
               size="sm"
               variant="outline"
               className="w-full justify-start gap-2 text-destructive hover:text-destructive"
-              disabled={loading || slot.booked_count > 0}
+              disabled={loading}
               onClick={() => {
                 onDelete();
                 setOpen(false);
@@ -1055,11 +1055,6 @@ function SlotCell({ slot, interactive, loading, onToggle, onDelete, onNewLead, r
               )}
               Verwijderen
             </Button>
-            {slot.booked_count > 0 && (
-              <p className="text-[10px] text-muted-foreground">
-                Kan niet verwijderen: er zijn boekingen
-              </p>
-            )}
           </div>
         </div>
       </PopoverContent>
