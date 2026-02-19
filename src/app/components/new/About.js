@@ -62,11 +62,10 @@ export default function About() {
         <div className="flex flex-col md:flex-row items-center gap-8 md:gap-12">
           <div ref={imageRef} className="w-full md:w-1/2 opacity-0">
             <div className="relative h-[300px] md:h-[450px] rounded-lg overflow-hidden bg-primary/5 border border-primary/20 p-4">
-              {/* Replace SVG with about.png image */}
               <div className="absolute inset-0">
                 <Image
-                  src="/images/about.png"
-                  alt="Moonen Vochtwering kelder renovatie"
+                  src="/images/owner-moonen.jpeg"
+                  alt="Eigenaar Moonen Vochtwering"
                   fill
                   className="object-cover rounded-lg"
                   sizes="(max-width: 768px) 100vw, 50vw"

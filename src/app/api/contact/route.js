@@ -1,122 +1,183 @@
 import { NextResponse } from 'next/server';
-import nodemailer from 'nodemailer';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { sendEmail } from '@/lib/email/resend';
+import { adminNotificationEmail } from '@/lib/email/templates/admin-notification';
+import { planInspectionEmail } from '@/lib/email/templates/plan-inspection';
+import { contactReceivedEmail } from '@/lib/email/templates/contact-received';
+import { generateToken } from '@/lib/utils/tokens';
+import { notifyOpsAlert } from '@/lib/ops/alerts';
+import { logLeadEvent } from '@/lib/utils/events';
 
 export async function POST(request) {
   try {
-    const { name, email, phone, plaatsnaam, message } = await request.json();
+    const { name, email, phone, message, type_probleem, mode } = await request.json();
 
     // Validate required fields
-    if (!name || !email || !message || !phone || !plaatsnaam) {
+    if (!name || !email || !phone) {
       return NextResponse.json(
-        { error: 'Naam, e-mail, telefoonnummer, plaatsnaam en bericht zijn verplicht' },
+        { error: 'Naam, e-mail en telefoonnummer zijn verplicht' },
         { status: 400 }
       );
     }
 
-    // Configure mail transporter
-    const transporter = nodemailer.createTransport({
-      service: 'Gmail',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_APP_PASSWORD,
+    // Generate tokens for customer action links
+    const availability_token = generateToken();
+    const quote_token = generateToken();
+
+    // Insert lead into Supabase
+    const supabase = createAdminClient();
+    const { data: lead, error: dbError } = await supabase
+      .from('leads')
+      .insert({
+        name,
+        email,
+        phone,
+        plaatsnaam: null,
+        message: message || null,
+        type_probleem: type_probleem || null,
+        availability_token,
+        quote_token,
+        source: 'website',
+      })
+      .select()
+      .single();
+
+    if (dbError) {
+      console.error('[DB_FAIL] /api/contact insert:', dbError);
+      throw new Error('Database error');
+    }
+
+    await logLeadEvent({
+      leadId: lead.id,
+      eventType: 'lead_received',
+      actor: 'customer',
+      metadata: {
+        source: 'website',
+        type_probleem: lead.type_probleem || null,
       },
     });
 
-    // Current date formatted in Dutch
-    const date = new Date().toLocaleDateString('nl-NL', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://moonenvochtwering.nl';
+
+    // Send admin notification email
+    const adminEmail = adminNotificationEmail({ lead });
+    const adminEmailPromise = sendEmail({
+      to: 'info@moonenvochtwering.nl',
+      subject: adminEmail.subject,
+      html: adminEmail.html,
+      text: adminEmail.text,
     });
 
-    // Email content - Using a different "from" address to make it appear in inbox
-    const mailOptions = {
-      from: `${name} <${email}>`, // This makes it appear as from the customer
-      to: process.env.EMAIL_USER || 'info@moonenvochtwering.nl',
-      replyTo: email,
-      subject: `Nieuw contactformulier bericht - ${name}`,
-      text: `Nieuw bericht van contactformulier website:
-      
-Naam: ${name}
-E-mail: ${email}
-Telefoonnummer: ${phone}
-Plaatsnaam: ${plaatsnaam}
-Bericht: ${message}
+    let customerEmailPromise;
+    let customerEmailType;
 
-Verzonden op: ${date}`,
-      html: `
-        <h2>Nieuw bericht van contactformulier website</h2>
-        <p><strong>Naam:</strong> ${name}</p>
-        <p><strong>E-mail:</strong> ${email}</p>
-        <p><strong>Telefoonnummer:</strong> ${phone}</p>
-        <p><strong>Plaatsnaam:</strong> ${plaatsnaam}</p>
-        <p><strong>Bericht:</strong></p>
-        <p>${message.replace(/\n/g, '<br>')}</p>
-        <p><small>Verzonden op: ${date}</small></p>
-      `,
-    };
+    if (mode === 'contact_only') {
+      // Contact-only: send simple acknowledgment (no booking link)
+      const receivedEmail = contactReceivedEmail({ name });
+      customerEmailPromise = sendEmail({
+        to: email,
+        subject: receivedEmail.subject,
+        html: receivedEmail.html,
+        text: receivedEmail.text,
+      });
+      customerEmailType = 'contact_received';
+    } else {
+      // Default: send planning CTA email with booking link
+      const { data: templateSetting } = await supabase
+        .from('settings')
+        .select('value')
+        .eq('key', 'email_template_plan_inspection')
+        .single();
+      const overrides = templateSetting?.value || {};
 
-    // Auto-reply to user
-    const autoReplyOptions = {
-      from: `Moonen Vochtwering <${process.env.EMAIL_USER || 'info@moonenvochtwering.nl'}>`,
-      to: email,
-      subject: 'Bedankt voor uw bericht - Moonen Vochtwering',
-      text: `Beste ${name},
+      const planEmail = planInspectionEmail({
+        name,
+        siteUrl,
+        token: availability_token,
+        overrides,
+      });
+      customerEmailPromise = sendEmail({
+        to: email,
+        subject: planEmail.subject,
+        html: planEmail.html,
+        text: planEmail.text,
+      });
+      customerEmailType = 'plan_inspection';
+    }
 
-Bedankt voor uw bericht. We hebben uw aanvraag ontvangen en zullen zo spoedig mogelijk contact met u opnemen.
+    const emailResults = await Promise.allSettled([adminEmailPromise, customerEmailPromise]);
+    const [adminResult, customerResult] = emailResults;
 
-Samenvatting aanvraag:
-Naam: ${name}
-E-mail: ${email}
-Telefoonnummer: ${phone}
-Plaatsnaam: ${plaatsnaam}
+    // If the customer email was sent, update status and log
+    if (customerResult.status === 'fulfilled') {
+      // Only move to uitgenodigd when sending booking link (not contact-only)
+      if (mode !== 'contact_only') {
+        const { error: updateError } = await supabase
+          .from('leads')
+          .update({
+            status: 'uitgenodigd',
+            ...(Object.prototype.hasOwnProperty.call(lead, 'stage_changed_at')
+              ? { stage_changed_at: new Date().toISOString() }
+              : {}),
+          })
+          .eq('id', lead.id);
 
-Met vriendelijke groet,
+        if (!updateError) {
+          await logLeadEvent({
+            leadId: lead.id,
+            eventType: 'status_change',
+            oldValue: 'nieuw',
+            newValue: 'uitgenodigd',
+            actor: 'system',
+          });
+        }
+      }
 
-Moonen Vochtwering
-Grasbroekerweg 141
-6412BD Heerlen
-Tel: 06 18 16 25 15
-KVK: 14090765
-www.moonenvochtwering.nl`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <p>Beste ${name},</p>
-          
-          <p>Bedankt voor uw bericht. We hebben uw aanvraag ontvangen en zullen zo spoedig mogelijk contact met u opnemen.</p>
+      await logLeadEvent({
+        leadId: lead.id,
+        eventType: 'email_sent',
+        actor: 'system',
+        metadata: {
+          type: customerEmailType,
+          to_email: email,
+        },
+      });
 
-          <p><strong>Samenvatting aanvraag</strong><br/>
-          Naam: ${name}<br/>
-          E-mail: ${email}<br/>
-          Telefoonnummer: ${phone}<br/>
-          Plaatsnaam: ${plaatsnaam}</p>
-          
-          <p>Met vriendelijke groet,</p>
-          
-          <p style="margin-bottom: 0;">Moonen Vochtwering</p>
-          <p style="margin-top: 0; color: #666;">
-            Grasbroekerweg 141<br>
-            6412BD Heerlen<br>
-            Tel: <a href="tel:+31618162515">06 18 16 25 15</a><br>
-            KVK: 14090765<br>
-            <a href="https://www.moonenvochtwering.nl">www.moonenvochtwering.nl</a>
-          </p>
-        </div>
-      `,
-    };
+      // Log to email_log
+      await supabase.from('email_log').insert({
+        lead_id: lead.id,
+        type: customerEmailType,
+        to_email: email,
+      });
+    }
 
-    // Send emails
-    await transporter.sendMail(mailOptions);
-    await transporter.sendMail(autoReplyOptions);
+    // Check for failures and notify ops
+    const failedEmails = emailResults.filter((result) => result.status === 'rejected');
+    if (failedEmails.length > 0) {
+      await notifyOpsAlert({
+        source: '/api/contact',
+        message: 'Lead saved but one or more emails failed',
+        error: failedEmails.map((result) => result.reason?.message || String(result.reason)).join(' | '),
+        context: {
+          lead_id: lead.id,
+          lead_email: lead.email,
+          failed_count: failedEmails.length,
+          customer_email_sent: customerResult.status === 'fulfilled',
+        },
+      });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error sending email:', error);
+    console.error('[API_ERROR] /api/contact:', error);
+    await notifyOpsAlert({
+      source: '/api/contact',
+      message: 'Contact form request failed',
+      error,
+    });
     return NextResponse.json(
       { error: 'Er is een fout opgetreden bij het versturen van uw bericht' },
       { status: 500 }
     );
   }
-} 
+}

@@ -9,6 +9,7 @@ export default function Contact() {
     email: '',
     phone: '',
     plaatsnaam: '',
+    type_probleem: '',
     message: ''
   });
   const [errors, setErrors] = useState({});
@@ -127,6 +128,7 @@ export default function Contact() {
         email: '',
         phone: '',
         plaatsnaam: '',
+        type_probleem: '',
         message: ''
       });
 
@@ -253,6 +255,24 @@ export default function Contact() {
                     placeholder="Uw telefoonnummer"
                   />
                   {errors.phone && <p className="text-red-500 text-xs md:text-sm mt-1">{errors.phone}</p>}
+                </div>
+
+                <div className="mb-4 md:mb-6">
+                  <label htmlFor="type_probleem" className="block text-black font-medium mb-2 text-sm md:text-base">Type probleem</label>
+                  <select
+                    id="type_probleem"
+                    name="type_probleem"
+                    value={formData.type_probleem}
+                    onChange={handleChange}
+                    className="w-full px-3 md:px-4 py-2 md:py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary transition-colors text-black border-gray-300 bg-white"
+                  >
+                    <option value="">Selecteer een optie (optioneel)</option>
+                    <option value="opstijgend_vocht">Opstijgend vocht</option>
+                    <option value="lekkage">Lekkage</option>
+                    <option value="condensatie">Condensatie</option>
+                    <option value="schimmel">Schimmel</option>
+                    <option value="anders">Anders</option>
+                  </select>
                 </div>
 
                 <div className="mb-4 md:mb-6">
