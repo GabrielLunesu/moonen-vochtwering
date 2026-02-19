@@ -53,7 +53,7 @@ function LoginContent() {
           <CardTitle className="text-2xl font-bold" style={{ color: '#355b23' }}>
             Moonen CRM
           </CardTitle>
-          <CardDescription>Log in om door te gaan</CardDescription>
+          <CardDescription>Log in om door te gaan.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
