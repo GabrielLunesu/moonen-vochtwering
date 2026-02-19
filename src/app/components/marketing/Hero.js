@@ -76,9 +76,9 @@ export default function Hero() {
                   </div>
                 ))}
               </div>
-              <div className="text-sm text-[#6B7280]">
+              {/* <div className="text-sm text-[#6B7280]">
                 <span className="font-semibold text-[#111827]">1000+ klanten</span> gingen u voor
-              </div>
+              </div> */}
             </div>
           </div>
 
