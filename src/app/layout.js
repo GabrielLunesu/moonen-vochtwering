@@ -9,6 +9,7 @@ const inter = Inter({
 });
 
 export const metadata = {
+  metadataBase: new URL('https://moonenvochtwering.nl'),
   icons: {
     icon: [
       { url: '/favicon.svg', type: 'image/svg+xml' },

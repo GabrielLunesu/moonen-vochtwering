@@ -1,4 +1,9 @@
 User-agent: *
 Allow: /
+Disallow: /dashboard/
+Disallow: /login
+Disallow: /api/
+Disallow: /bevestig/
+Disallow: /reactie/
 
-Sitemap: https://moonenvochtwering.nl/sitemap.xml 
+Sitemap: https://moonenvochtwering.nl/sitemap.xml
