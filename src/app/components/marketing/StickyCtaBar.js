@@ -30,12 +30,13 @@ export default function StickyCtaBar() {
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
-        <p className="text-white/80 text-sm hidden sm:block">
-          Gratis inspectie aanvragen — Binnen een week bij u aan huis
+        <p className="text-white/80 text-sm">
+          <span className="sm:hidden">Gratis inspectie aanvragen</span>
+          <span className="hidden sm:inline">Gratis inspectie aanvragen — Binnen een week bij u aan huis</span>
         </p>
         <Link
           href="/gratis-inspectie"
-          className="bg-[#8aab4c] hover:bg-[#769B3D] text-white px-5 py-2 rounded-md text-sm font-semibold transition-colors whitespace-nowrap sm:ml-auto"
+          className="bg-[#8aab4c] hover:bg-[#769B3D] text-white px-5 py-2 rounded-md text-sm font-semibold transition-colors whitespace-nowrap shrink-0"
         >
           Plan nu in →
         </Link>

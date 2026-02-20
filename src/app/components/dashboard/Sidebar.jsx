@@ -7,13 +7,14 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/app/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/app/components/ui/sheet';
 import { Separator } from '@/app/components/ui/separator';
-import { LayoutDashboard, CalendarDays, FileText, Settings, LogOut, Menu } from 'lucide-react';
+import { LayoutDashboard, CalendarDays, FileText, Settings, LogOut, Menu, Bot } from 'lucide-react';
 import { useState } from 'react';
 
 const navItems = [
   { href: '/dashboard', label: 'Pipeline', icon: LayoutDashboard },
   { href: '/dashboard/planning', label: 'Planning', icon: CalendarDays },
   { href: '/dashboard/offerte', label: 'Offertes', icon: FileText },
+  { href: '/dashboard/ai-assistent', label: 'AI Assistent', icon: Bot },
   { href: '/dashboard/instellingen', label: 'Instellingen', icon: Settings },
 ];
 

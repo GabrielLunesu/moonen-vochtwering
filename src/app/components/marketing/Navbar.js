@@ -44,11 +44,19 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
         <Link href="/" className="flex items-center">
           <Image
+            src="/logo/logo.png"
+            alt="Moonen Vochtwering"
+            width={40}
+            height={40}
+            className={`object-contain transition-all duration-300 lg:hidden ${scrolled ? 'h-9 w-9' : 'h-10 w-10'}`}
+            priority
+          />
+          <Image
             src="/logo/logo.svg"
             alt="Moonen Vochtwering"
             width={220}
             height={56}
-            className={`object-contain transition-all duration-300 ${scrolled ? 'h-12' : 'h-14'}`}
+            className={`object-contain transition-all duration-300 hidden lg:block ${scrolled ? 'h-12' : 'h-14'}`}
             priority
           />
         </Link>

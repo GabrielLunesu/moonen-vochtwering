@@ -66,7 +66,7 @@ export default function Hero() {
             </div>
 
             {/* Social proof line */}
-            <div className="flex items-center gap-3">
+            {/* <div className="flex items-center gap-3">
               <div className="flex -space-x-2">
                 {[1, 2, 3, 4].map((i) => (
                   <div key={i} className="w-8 h-8 rounded-full bg-[#8aab4c]/20 border-2 border-white flex items-center justify-center">
@@ -76,10 +76,10 @@ export default function Hero() {
                   </div>
                 ))}
               </div>
-              {/* <div className="text-sm text-[#6B7280]">
+              <div className="text-sm text-[#6B7280]">
                 <span className="font-semibold text-[#111827]">1000+ klanten</span> gingen u voor
-              </div> */}
-            </div>
+              </div>
+            </div> */}
           </div>
 
           {/* Right — Visual */}

@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.40",
+    "@ai-sdk/react": "^3.0.96",
+    "@anthropic-ai/sdk": "^0.78.0",
     "@hello-pangea/dnd": "^18.0.1",
     "@react-pdf/renderer": "^4.3.2",
     "@supabase/ssr": "^0.8.0",
@@ -28,6 +30,7 @@
     "react-day-picker": "^9.13.1",
     "react-dom": "^19.0.0",
     "react-leaflet": "^5.0.0",
+    "react-markdown": "^10.1.0",
     "resend": "^6.9.1",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0",
