@@ -1,6 +1,6 @@
 # Moonen Vochtwering — CRM & Quoting Webapp
 
-> **Living document** — last updated: 18 Feb 2026
+> **Living document** — last updated: 20 Feb 2026
 
 ---
 
@@ -205,6 +205,7 @@
 ```
 src/app/
 ├── (marketing)/                 # Public website
+│   └── vochtbestrijding/[city]/[service]/page.js  # 40 city×service SEO landing pages
 ├── (dashboard)/dashboard/       # Authenticated CRM
 │   ├── page.js                  # Kanban
 │   ├── lead/[id]/page.js        # Lead detail + event timeline
@@ -236,6 +237,8 @@ src/app/components/
 │   ├── GoogleEventBlock.jsx       # Purple event block for Google Calendar events in WeekCalendar
 │   ├── GoogleCalendarSettings.jsx # Settings UI: connection status, manual sync, watch renewal
 │   └── ...
+├── marketing/
+│   └── CityServicePageLayout.js   # City×service SEO landing page layout (8 sections, JSON-LD, reuses FAQAccordion + CTASection)
 ├── public/
 │   └── SlotCalendar.jsx           # Month-view calendar for customer slot selection (used on /bevestig, /afspraak, and InspectionWizard)
 └── ui/                            # shadcn/ui primitives (dialog, alert-dialog, popover, checkbox, sheet, etc.)
@@ -248,6 +251,7 @@ src/lib/
 ├── supabase/{client,server,admin}.js
 ├── email/{resend.js,templates/*}    # Templates: plan-inspection, availability, confirmation, quote, follow-up, admin-notification, contact-received
 ├── pdf/{quote-template.js,assets.js,fonts.js}
+├── data/city-services.js        # 40 city×service entries (8 cities × 5 services) with E5 framework copy for SEO landing pages
 ├── google/calendar.js           # Google Calendar API client (JWT auth, event CRUD, watch, sync, lead sync helper)
 ├── ops/alerts.js                # Ops notifications (email/webhook)
 └── utils/
@@ -259,6 +263,59 @@ src/lib/
     ├── pricing.js               # Staffel pricing: getStaffelPrijs(), getStaffelLabel(), applyMinimum()
     └── whatsapp.js
 ```
+
+---
+
+## City-Service Landing Pages (Marketing SEO)
+
+40 statically generated landing pages covering 8 cities x 5 services for local SEO targeting. Each page has unique Dutch copy following the E5 framework (Empathize, Educate, Excite, Evidence, Enable).
+
+### URL Pattern
+
+```
+/vochtbestrijding/{city}/{service}
+```
+
+### Cities (8)
+
+`maastricht`, `heerlen`, `sittard-geleen`, `kerkrade`, `valkenburg`, `meerssen`, `brunssum`, `echt-susteren`
+
+### Services (5)
+
+`kelderafdichting`, `opstijgend-vocht`, `schimmelbestrijding`, `gevelimpregnatie`, `vochtwerend-stucwerk`
+
+### Files
+
+| File | Purpose |
+|------|---------|
+| `src/lib/data/city-services.js` | Data file with 40 city x service entries. Each entry contains: meta tags, hero copy, local problems, solution steps, testimonial, FAQ, CTA. Exports: `cityServices`, `getCityService(city, service)`, `getAllCityServiceParams()`, `getSiblingServices(city, service)`, `getSameCities(city, service)` |
+| `src/app/components/marketing/CityServicePageLayout.js` | Client component rendering 8 sections: Hero, Local Problems, Solution Approach (Educate), Transformation (Excite), Evidence (testimonial), FAQ (reuses `FAQAccordion`), CTA (reuses `CTASection`), Internal Links (siblings + same-city). Includes JSON-LD structured data: `FAQPage`, `Service`, `BreadcrumbList` |
+| `src/app/(marketing)/vochtbestrijding/[city]/[service]/page.js` | Dynamic route with `generateStaticParams()` (40 routes), `generateMetadata()` for per-page SEO, `notFound()` guard for invalid slugs |
+
+### Modified Files
+
+| File | Change |
+|------|--------|
+| `src/app/sitemap.js` | Added 40 city-service URLs via `getAllCityServiceParams()` (priority 0.7, monthly) |
+| `src/app/components/marketing/CityPageLayout.js` | Service card links now route to `/vochtbestrijding/{city}/{service}` instead of `/diensten/{service}` |
+
+### Page Sections (CityServicePageLayout)
+
+1. **Hero** — city + service specific heading and subtext
+2. **Local Problems** — 3 locally relevant problems with title + description
+3. **Solution Approach** — educate section explaining the technique
+4. **Transformation** — excite section describing the outcome
+5. **Evidence** — testimonial with author, city, and project description
+6. **FAQ** — 4 city-specific questions using existing `FAQAccordion` component
+7. **CTA** — call-to-action using existing `CTASection` component
+8. **Internal Links** — cross-links to sibling services in same city + same service in other cities
+
+### Structured Data (JSON-LD)
+
+Each page outputs three JSON-LD schemas:
+- `FAQPage` — all FAQ questions/answers for rich snippet eligibility
+- `Service` — service name, description, provider (LocalBusiness), areaServed (City)
+- `BreadcrumbList` — Home > Vochtbestrijding > {City} > {Service}
 
 ---
 
@@ -593,6 +650,16 @@ Run in Supabase SQL editor in this order:
 ---
 
 ## Changelog
+
+### 2026-02-20 — City-Service SEO Landing Pages
+- New data file `src/lib/data/city-services.js`: 40 city x service combinations (8 cities x 5 services) with unique E5 framework copy in Dutch
+- Exports: `cityServices`, `getCityService()`, `getAllCityServiceParams()`, `getSiblingServices()`, `getSameCities()`
+- New component `CityServicePageLayout.js`: client component with 8 sections (Hero, Local Problems, Solution Approach, Transformation, Evidence, FAQ, CTA, Internal Links)
+- JSON-LD structured data on each page: `FAQPage`, `Service`, `BreadcrumbList`
+- Reuses existing `FAQAccordion` and `CTASection` marketing components
+- New dynamic route: `src/app/(marketing)/vochtbestrijding/[city]/[service]/page.js` with `generateStaticParams()` (40 routes), `generateMetadata()`, `notFound()` guard
+- Updated `sitemap.js`: added 40 city-service URLs (priority 0.7, monthly frequency)
+- Updated `CityPageLayout.js`: service card links now route to `/vochtbestrijding/{city}/{service}` instead of `/diensten/{service}`
 
 ### 2026-02-18 — Bidirectional Google Calendar Sync
 - Added `google-auth-library` for Service Account JWT authentication (avoids 200MB `googleapis` package)

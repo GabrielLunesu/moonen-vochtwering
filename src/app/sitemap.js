@@ -1,5 +1,6 @@
 import { cities } from '@/lib/data/cities';
 import { services } from '@/lib/data/services';
+import { getAllCityServiceParams } from '@/lib/data/city-services';
 
 const baseUrl = 'https://moonenvochtwering.nl';
 
@@ -26,5 +27,12 @@ export default function sitemap() {
     priority: 0.7,
   }));
 
-  return [...staticPages, ...servicePages, ...cityPages];
+  const cityServicePages = getAllCityServiceParams().map(({ city, service }) => ({
+    url: `${baseUrl}/vochtbestrijding/${city}/${service}`,
+    lastModified: new Date(),
+    changeFrequency: 'monthly',
+    priority: 0.7,
+  }));
+
+  return [...staticPages, ...servicePages, ...cityPages, ...cityServicePages];
 }

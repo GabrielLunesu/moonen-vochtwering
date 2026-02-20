@@ -1,12 +1,12 @@
 import Link from 'next/link';
 import CTASection from './CTASection';
 
-const serviceCards = [
-  { title: 'Kelderafdichting', href: '/diensten/kelderafdichting', desc: 'Uw kelder structureel waterdicht maken' },
-  { title: 'Opstijgend vocht', href: '/diensten/opstijgend-vocht', desc: 'Muurinjectie tegen opstijgend vocht' },
-  { title: 'Schimmelbestrijding', href: '/diensten/schimmelbestrijding', desc: 'Professionele schimmelverwijdering' },
-  { title: 'Gevelimpregnatie', href: '/diensten/gevelimpregnatie', desc: 'Gevel beschermen tegen vocht' },
-  { title: 'Vochtwerend stucwerk', href: '/diensten/vochtwerend-stucwerk', desc: 'Vochtbestendige afwerking' },
+const getServiceCards = (citySlug) => [
+  { title: 'Kelderafdichting', href: `/vochtbestrijding/${citySlug}/kelderafdichting`, desc: 'Uw kelder structureel waterdicht maken' },
+  { title: 'Opstijgend vocht', href: `/vochtbestrijding/${citySlug}/opstijgend-vocht`, desc: 'Muurinjectie tegen opstijgend vocht' },
+  { title: 'Schimmelbestrijding', href: `/vochtbestrijding/${citySlug}/schimmelbestrijding`, desc: 'Professionele schimmelverwijdering' },
+  { title: 'Gevelimpregnatie', href: `/vochtbestrijding/${citySlug}/gevelimpregnatie`, desc: 'Gevel beschermen tegen vocht' },
+  { title: 'Vochtwerend stucwerk', href: `/vochtbestrijding/${citySlug}/vochtwerend-stucwerk`, desc: 'Vochtbestendige afwerking' },
   { title: 'Gratis inspectie', href: '/gratis-inspectie', desc: 'Gratis vochtmeting aan huis' },
 ];
 
@@ -92,7 +92,7 @@ export default function CityPageLayout({ city }) {
             Wij bieden alle vochtoplossingen aan in {city.name} en omgeving.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {serviceCards.map((card) => (
+            {getServiceCards(city.slug).map((card) => (
               <Link
                 key={card.href}
                 href={card.href}
