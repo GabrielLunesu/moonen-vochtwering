@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef } from 'react';
 import SlotCalendar from '@/app/components/public/SlotCalendar';
+import posthog from 'posthog-js';
 
 export default function InspectionWizard() {
   // --- State ---
@@ -94,11 +95,15 @@ export default function InspectionWizard() {
   const handleContactNext = (e) => {
     e.preventDefault();
     if (!validateContact()) return;
+    posthog.capture('inspection_wizard_contact_submitted', {
+      type_probleem: formData.type_probleem || null,
+    });
     goToStep('choice');
   };
 
   const handleChooseContact = async () => {
     setChosenPath('contact');
+    posthog.capture('inspection_wizard_path_chosen', { path: 'contact_only' });
     setIsSubmitting(true);
     setSubmitError('');
     try {
@@ -109,11 +114,15 @@ export default function InspectionWizard() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Er is iets misgegaan');
+      posthog.capture('contact_form_submitted', {
+        type_probleem: formData.type_probleem || null,
+      });
       if (typeof window !== 'undefined' && window.gtag_report_conversion) {
         window.gtag_report_conversion();
       }
       goToStep('success');
     } catch (err) {
+      posthog.captureException(err);
       setSubmitError(err.message || 'Er is iets misgegaan. Probeer het later opnieuw.');
     } finally {
       setIsSubmitting(false);
@@ -122,6 +131,7 @@ export default function InspectionWizard() {
 
   const handleChooseBooking = () => {
     setChosenPath('booking');
+    posthog.capture('inspection_wizard_path_chosen', { path: 'booking' });
     loadSlots();
     goToStep('address');
   };
@@ -163,11 +173,18 @@ export default function InspectionWizard() {
           time: slot.slot_time.slice(0, 5),
         });
       }
+      posthog.capture('inspection_booking_completed', {
+        type_probleem: formData.type_probleem || null,
+        plaatsnaam: address.plaatsnaam || null,
+        slot_date: slot?.slot_date || null,
+        slot_time: slot?.slot_time?.slice(0, 5) || null,
+      });
       if (typeof window !== 'undefined' && window.gtag_report_conversion) {
         window.gtag_report_conversion();
       }
       goToStep('success');
     } catch (err) {
+      posthog.captureException(err);
       setSubmitError(err.message || 'Er is iets misgegaan. Probeer het later opnieuw.');
     } finally {
       setIsSubmitting(false);

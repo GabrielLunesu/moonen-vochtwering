@@ -9,6 +9,7 @@ import { logLeadEvent } from '@/lib/utils/events';
 import { QuoteDocument } from '@/lib/pdf/quote-template';
 import { getLogoDataUri } from '@/lib/pdf/assets';
 import { getQuoteFontFamily } from '@/lib/pdf/fonts';
+import { getPostHogClient } from '@/lib/posthog-server';
 
 async function generateQuoteNumber(supabase, existingNumber) {
   if (existingNumber) return existingNumber;
@@ -243,6 +244,21 @@ export async function POST(request, { params }) {
         },
       });
     }
+
+    // Track quote sent in PostHog (server-side)
+    const posthog = getPostHogClient();
+    posthog.capture({
+      distinctId: user.email || 'gabriel',
+      event: 'quote_sent',
+      properties: {
+        quote_id: quoteId,
+        lead_id: quote.lead_id || null,
+        quote_number: quoteNumber,
+        amount: quote.total_incl,
+        customer_plaatsnaam: quote.customer_plaatsnaam || null,
+      },
+    });
+    await posthog.shutdown();
 
     return NextResponse.json(updatedQuote);
   } catch (error) {

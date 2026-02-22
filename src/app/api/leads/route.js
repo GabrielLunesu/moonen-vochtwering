@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { generateToken } from '@/lib/utils/tokens';
 import { notifyOpsAlert } from '@/lib/ops/alerts';
 import { logLeadEvent } from '@/lib/utils/events';
+import { getPostHogClient } from '@/lib/posthog-server';
 
 export async function GET() {
   const supabase = await createClient();
@@ -85,6 +86,20 @@ export async function POST(request) {
       actor: user.email || 'admin',
       metadata: { source: 'telefoon', type_probleem: type_probleem || null },
     });
+
+    // Track manual lead creation in PostHog (server-side)
+    const posthog = getPostHogClient();
+    posthog.capture({
+      distinctId: user.email || 'gabriel',
+      event: 'lead_created',
+      properties: {
+        lead_id: lead.id,
+        source: 'telefoon',
+        type_probleem: type_probleem || null,
+        plaatsnaam: plaatsnaam || null,
+      },
+    });
+    await posthog.shutdown();
 
     return NextResponse.json(lead);
   } catch (error) {

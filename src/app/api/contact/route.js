@@ -7,6 +7,7 @@ import { contactReceivedEmail } from '@/lib/email/templates/contact-received';
 import { generateToken } from '@/lib/utils/tokens';
 import { notifyOpsAlert } from '@/lib/ops/alerts';
 import { logLeadEvent } from '@/lib/utils/events';
+import { getPostHogClient } from '@/lib/posthog-server';
 
 export async function POST(request) {
   try {
@@ -56,6 +57,20 @@ export async function POST(request) {
         type_probleem: lead.type_probleem || null,
       },
     });
+
+    // Track new website lead in PostHog (server-side)
+    const posthog = getPostHogClient();
+    posthog.capture({
+      distinctId: lead.id,
+      event: 'website_lead_received',
+      properties: {
+        lead_id: lead.id,
+        source: 'website',
+        mode: mode || 'booking',
+        type_probleem: lead.type_probleem || null,
+      },
+    });
+    await posthog.shutdown();
 
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://moonenvochtwering.nl';
 

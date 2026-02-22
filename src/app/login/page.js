@@ -3,6 +3,7 @@
 import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import posthog from 'posthog-js';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Input } from '@/app/components/ui/input';
 import { Button } from '@/app/components/ui/button';
@@ -41,6 +42,10 @@ function LoginContent() {
       setLoading(false);
       return;
     }
+
+    // Identify the user in PostHog and capture login event
+    posthog.identify(email, { email });
+    posthog.capture('user_logged_in', { email });
 
     router.push(redirect);
     router.refresh();
