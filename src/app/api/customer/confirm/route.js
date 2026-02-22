@@ -5,6 +5,7 @@ import { confirmationEmail } from '@/lib/email/templates/confirmation';
 import { notifyOpsAlert } from '@/lib/ops/alerts';
 import { logLeadEvent } from '@/lib/utils/events';
 import { syncLeadToGoogleCalendar } from '@/lib/google/calendar';
+import { getPostHogClient } from '@/lib/posthog-server';
 
 export async function POST(request) {
   try {
@@ -174,6 +175,21 @@ export async function POST(request) {
         subject: emailContent.subject,
       },
     });
+
+    // Track inspection confirmed in PostHog (server-side)
+    const posthog = getPostHogClient();
+    posthog.capture({
+      distinctId: lead.id,
+      event: 'inspection_confirmed',
+      properties: {
+        lead_id: lead.id,
+        inspection_date: selectedDate,
+        inspection_time: selectedTime,
+        plaatsnaam: plaatsnaam || lead.plaatsnaam || null,
+        previous_status: lead.status,
+      },
+    });
+    await posthog.shutdown();
 
     // Sync to Google Calendar (best-effort)
     syncLeadToGoogleCalendar(

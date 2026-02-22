@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { sendEmail } from '@/lib/email/resend';
 import { notifyOpsAlert } from '@/lib/ops/alerts';
 import { logLeadEvent } from '@/lib/utils/events';
+import { getPostHogClient } from '@/lib/posthog-server';
 
 export async function POST(request) {
   try {
@@ -62,6 +63,21 @@ export async function POST(request) {
         newValue: 'akkoord',
       });
     }
+
+    // Track quote response in PostHog (server-side)
+    const posthog = getPostHogClient();
+    posthog.capture({
+      distinctId: lead.id,
+      event: 'quote_response_received',
+      properties: {
+        lead_id: lead.id,
+        response,
+        quote_amount: lead.quote_amount || null,
+        quote_number: lead.quote_number || null,
+        plaatsnaam: lead.plaatsnaam || null,
+      },
+    });
+    await posthog.shutdown();
 
     // Notify admin
     const responseLabels = {
