@@ -18,7 +18,7 @@ import {
   AlertDialogTitle,
 } from '@/app/components/ui/alert-dialog';
 import { Badge } from '@/app/components/ui/badge';
-import { ChevronLeft, ChevronRight, Loader2, Trash2, Lock, Unlock, MoveRight, ExternalLink, Plus, X, Copy } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, Trash2, Lock, Unlock, MoveRight, ExternalLink, Plus, X, Copy, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 import QuickLeadDialog from './QuickLeadDialog';
 import GoogleEventBlock from './GoogleEventBlock';
@@ -618,7 +618,7 @@ export default function WeekCalendar({ leads = [], slots = [], googleEvents = []
             className={`grid min-w-[600px] select-none ${leadDrag ? 'cursor-grabbing' : ''}`}
             style={{
               gridTemplateColumns: '40px repeat(7, 1fr)',
-              gridTemplateRows: `auto repeat(${HOURS.length * 2}, minmax(12px, 1fr))`,
+              gridTemplateRows: `auto repeat(${HOURS.length * 2}, minmax(20px, 1fr))`,
             }}
             onMouseUp={() => {
               // Handle slot-creation drag release (lead drag handled by document listener)
@@ -773,10 +773,15 @@ export default function WeekCalendar({ leads = [], slots = [], googleEvents = []
       {leadDrag && (
         <div
           ref={ghostRef}
-          className="fixed pointer-events-none z-50 rounded px-2 py-1 text-xs font-medium bg-blue-600 text-white shadow-lg opacity-90 whitespace-nowrap"
+          className="fixed pointer-events-none z-50 rounded-md px-2.5 py-1.5 text-xs bg-blue-600 text-white shadow-lg opacity-90"
           style={{ left: -9999, top: -9999 }}
         >
-          {leadDrag.lead.name}
+          <div className="font-semibold">{leadDrag.lead.name}</div>
+          {(leadDrag.lead.straat || leadDrag.lead.plaatsnaam) && (
+            <div className="text-[10px] text-blue-100">
+              {[leadDrag.lead.straat, leadDrag.lead.plaatsnaam].filter(Boolean).join(', ')}
+            </div>
+          )}
         </div>
       )}
 
@@ -836,7 +841,7 @@ function LeadBlock({ lead, interactive, rescheduleMode, onReschedule, onDragInit
   const [copied, setCopied] = useState(false);
   const mouseDownPos = useRef(null);
 
-  const address = [lead.plaatsnaam, lead.postcode].filter(Boolean).join(' ');
+  const address = [lead.straat, [lead.plaatsnaam, lead.postcode].filter(Boolean).join(' ')].filter(Boolean).join(', ');
 
   const copyAddress = async () => {
     if (!address) return;
@@ -853,10 +858,11 @@ function LeadBlock({ lead, interactive, rescheduleMode, onReschedule, onDragInit
   if (!interactive || rescheduleMode) {
     return (
       <div
-        className="block rounded px-1 py-0.5 text-[10px] leading-tight truncate bg-blue-600 text-white mb-0.5 relative z-10"
+        className="block rounded-md px-1.5 py-1 text-[10px] leading-snug bg-blue-600 text-white mb-0.5 relative z-10"
         title={`${lead.name} - ${address} (${formatTime(lead.inspection_time)})`}
       >
-        {formatTime(lead.inspection_time)} {lead.name}
+        <div className="font-semibold truncate">{formatTime(lead.inspection_time)} {lead.name}</div>
+        {address && <div className="truncate text-blue-100 text-[9px]">{address}</div>}
       </div>
     );
   }
@@ -866,7 +872,7 @@ function LeadBlock({ lead, interactive, rescheduleMode, onReschedule, onDragInit
       <PopoverAnchor asChild>
         <button
           type="button"
-          className={`block w-full text-left rounded px-1 py-0.5 text-[10px] leading-tight truncate bg-blue-600 text-white hover:bg-blue-700 transition-colors mb-0.5 relative z-10 cursor-grab active:cursor-grabbing touch-none ${isDragging ? 'opacity-40' : ''}`}
+          className={`block w-full text-left rounded-md px-1.5 py-1 text-[10px] leading-snug bg-blue-600 text-white hover:bg-blue-700 transition-colors mb-0.5 relative z-10 cursor-grab active:cursor-grabbing touch-none ${isDragging ? 'opacity-40' : ''}`}
           title={`${lead.name} - ${address} (${formatTime(lead.inspection_time)})`}
           onMouseDown={(e) => {
             if (e.button !== 0) return;
@@ -892,10 +898,11 @@ function LeadBlock({ lead, interactive, rescheduleMode, onReschedule, onDragInit
             setOpen(true);
           }}
         >
-          {formatTime(lead.inspection_time)} {lead.name}
+          <div className="font-semibold truncate">{formatTime(lead.inspection_time)} {lead.name}</div>
+          {address && <div className="truncate text-blue-100 text-[9px]">{address}</div>}
         </button>
       </PopoverAnchor>
-      <PopoverContent className="w-64 p-3" side="right" align="start">
+      <PopoverContent className="w-72 p-3" side="right" align="start">
         <div className="space-y-3">
           <div>
             <p className="font-medium text-sm">{lead.name}</p>
@@ -903,8 +910,9 @@ function LeadBlock({ lead, interactive, rescheduleMode, onReschedule, onDragInit
               {formatTime(lead.inspection_time)}
             </p>
             {address && (
-              <div className="flex items-center gap-1.5 mt-1">
-                <p className="text-xs text-muted-foreground truncate">{address}</p>
+              <div className="flex items-center gap-1.5 mt-1.5 rounded-md bg-muted/50 px-2 py-1.5">
+                <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <p className="text-xs flex-1">{address}</p>
                 <button
                   type="button"
                   onClick={copyAddress}
@@ -916,7 +924,7 @@ function LeadBlock({ lead, interactive, rescheduleMode, onReschedule, onDragInit
               </div>
             )}
             {lead.phone && (
-              <p className="text-xs text-muted-foreground mt-0.5">{lead.phone}</p>
+              <p className="text-xs text-muted-foreground mt-1">{lead.phone}</p>
             )}
           </div>
           <div className="flex flex-col gap-2">

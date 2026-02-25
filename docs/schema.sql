@@ -11,6 +11,7 @@ CREATE TABLE leads (
   name TEXT NOT NULL,
   email TEXT NOT NULL,
   phone TEXT NOT NULL,
+  straat TEXT,
   plaatsnaam TEXT NOT NULL,
   postcode TEXT,
   message TEXT,

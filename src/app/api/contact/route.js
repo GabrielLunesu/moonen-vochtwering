@@ -11,7 +11,7 @@ import { getPostHogClient } from '@/lib/posthog-server';
 
 export async function POST(request) {
   try {
-    const { name, email, phone, message, type_probleem, mode } = await request.json();
+    const { name, email, phone, message, type_probleem, mode, straat, postcode, plaatsnaam } = await request.json();
 
     // Validate required fields
     if (!name || !email || !phone) {
@@ -33,7 +33,9 @@ export async function POST(request) {
         name,
         email,
         phone,
-        plaatsnaam: null,
+        straat: straat || null,
+        plaatsnaam: plaatsnaam || null,
+        postcode: postcode || null,
         message: message || null,
         type_probleem: type_probleem || null,
         availability_token,

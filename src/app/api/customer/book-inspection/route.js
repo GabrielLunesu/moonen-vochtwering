@@ -60,6 +60,7 @@ export async function POST(request) {
         name,
         email,
         phone,
+        straat: straat || null,
         plaatsnaam: plaatsnaam || null,
         postcode: postcode || null,
         message: fullMessage || null,

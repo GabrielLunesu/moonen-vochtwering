@@ -5,39 +5,16 @@ import { Badge } from '@/app/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/app/components/ui/dropdown-menu';
 import { Button } from '@/app/components/ui/button';
 import { PIPELINE_STAGES, PROBLEEM_TYPES } from '@/lib/utils/pipeline';
-import {
-  getLastContactAt,
-  getLeadRiskLevel,
-  getLeadWarnings,
-  getNextActionSummary,
-  getStageAging,
-} from '@/lib/utils/lead-workflow';
-import { MoreHorizontal, Phone, MapPin, Calendar, MessageSquareText, ArrowRightCircle } from 'lucide-react';
+import { getStageAging } from '@/lib/utils/lead-workflow';
+import { MoreHorizontal, Phone, MapPin, Calendar } from 'lucide-react';
 import Link from 'next/link';
 
 export default function LeadCard({ lead, onStatusChange, provided }) {
   const stageAging = getStageAging(lead);
-  const warning = getLeadWarnings(lead);
-  const riskLevel = getLeadRiskLevel(lead);
-  const lastContactAt = getLastContactAt(lead);
-  const nextAction = getNextActionSummary(lead);
-
-  const riskClass = {
-    laag: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-    midden: 'bg-amber-50 text-amber-800 border-amber-200',
-    hoog: 'bg-red-50 text-red-800 border-red-200',
-  }[riskLevel];
-
-  const warningClass =
-    warning.level === 'critical'
-      ? 'bg-red-100 text-red-800'
-      : warning.level === 'warning'
-        ? 'bg-amber-100 text-amber-800'
-        : 'bg-slate-100 text-slate-700';
 
   const afspraakLabel = lead.inspection_date
     ? `${new Date(`${lead.inspection_date}T12:00:00`).toLocaleDateString('nl-NL')}${lead.inspection_time ? ` om ${lead.inspection_time.slice(0, 5)}` : ''}`
-    : 'Nog niet gepland';
+    : null;
 
   return (
     <div
@@ -47,7 +24,7 @@ export default function LeadCard({ lead, onStatusChange, provided }) {
     >
       <Card className="mb-2 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow">
         <CardContent className="p-3">
-          <div className="flex items-start justify-between mb-2">
+          <div className="flex items-start justify-between mb-1.5">
             <Link
               href={`/dashboard/lead/${lead.id}`}
               className="font-medium text-sm hover:underline truncate mr-2"
@@ -67,7 +44,7 @@ export default function LeadCard({ lead, onStatusChange, provided }) {
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href={`/dashboard/offerte/nieuw?lead=${lead.id}`}>
+                  <Link href={`/dashboard/offerte/builder?lead=${lead.id}`}>
                     Maak offerte
                   </Link>
                 </DropdownMenuItem>
@@ -91,78 +68,44 @@ export default function LeadCard({ lead, onStatusChange, provided }) {
             </DropdownMenu>
           </div>
 
-          <div className="space-y-1.5 text-xs text-muted-foreground">
+          <div className="space-y-0.5 text-xs text-muted-foreground">
             <div className="flex items-center gap-1.5">
-              <MapPin className="h-3 w-3" />
-              <span>{lead.plaatsnaam || 'Onbekende locatie'}</span>
+              <MapPin className="h-3 w-3 shrink-0" />
+              <span className="truncate">{lead.plaatsnaam || '—'}</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <Phone className="h-3 w-3" />
+              <Phone className="h-3 w-3 shrink-0" />
               <span>{lead.phone}</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <MessageSquareText className="h-3 w-3" />
-              <span>
-                Laatste contact:{' '}
-                {lastContactAt
-                  ? lastContactAt.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })
-                  : 'Onbekend'}
-              </span>
-            </div>
-            <div className="flex items-start gap-1.5">
-              <ArrowRightCircle className="h-3 w-3 mt-0.5 shrink-0" />
-              <span>
-                Volgende stap: {nextAction.label}
-                {nextAction.dueAt ? ` (uiterlijk ${nextAction.dueAt.toLocaleDateString('nl-NL')})` : ''}
-              </span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Calendar className="h-3 w-3" />
-              <span>Afspraak: {afspraakLabel}</span>
-            </div>
+            {afspraakLabel && (
+              <div className="flex items-center gap-1.5">
+                <Calendar className="h-3 w-3 shrink-0" />
+                <span>{afspraakLabel}</span>
+              </div>
+            )}
           </div>
 
-          <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+          <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
             {lead.type_probleem && (
-              <Badge variant="outline" className="text-xs">
+              <Badge variant="outline" className="text-[11px] px-1.5 py-0">
                 {PROBLEEM_TYPES[lead.type_probleem] || lead.type_probleem}
               </Badge>
             )}
-            <Badge variant="outline" className={`text-xs ${riskClass}`}>
-              Risico: {riskLevel}
-            </Badge>
-            {warning.level !== 'none' && (
-              <Badge className={`text-xs ${warningClass}`}>
-                {warning.level === 'critical' ? 'Kritiek' : 'Waarschuwing'}
+            {stageAging.sla !== null && (
+              <Badge
+                variant="outline"
+                className={`text-[11px] px-1.5 py-0 ${
+                  stageAging.urgency === 'critical'
+                    ? 'border-red-300 text-red-700'
+                    : stageAging.urgency === 'warning'
+                      ? 'border-amber-300 text-amber-700'
+                      : ''
+                }`}
+              >
+                {stageAging.daysInStage}d
               </Badge>
             )}
           </div>
-
-          {stageAging.sla !== null && (
-            <Badge
-              className={`mt-2 text-xs ${
-                stageAging.urgency === 'critical'
-                  ? 'bg-red-100 text-red-800'
-                  : stageAging.urgency === 'warning'
-                    ? 'bg-amber-100 text-amber-800'
-                    : 'bg-slate-100 text-slate-700'
-              }`}
-            >
-              {stageAging.daysInStage}d in fase
-            </Badge>
-          )}
-
-          {warning.reasons.length > 0 && (
-            <p
-              className={`mt-2 rounded-md px-2 py-1 text-[11px] ${
-                warning.level === 'critical'
-                  ? 'bg-red-50 text-red-800'
-                  : 'bg-amber-50 text-amber-800'
-              }`}
-            >
-              {warning.reasons[0].message}
-            </p>
-          )}
         </CardContent>
       </Card>
     </div>
