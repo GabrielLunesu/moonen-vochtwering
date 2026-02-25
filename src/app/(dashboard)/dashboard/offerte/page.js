@@ -29,7 +29,7 @@ function OffertePageContent() {
                 Prijslijst
               </Button>
             </Link>
-            <Link href={leadId ? `/dashboard/offerte/nieuw?lead=${leadId}` : '/dashboard/offerte/nieuw'}>
+            <Link href={leadId ? `/dashboard/offerte/builder?lead=${leadId}` : '/dashboard/offerte/builder'}>
               <Button size="sm" className="gap-2" style={{ backgroundColor: '#355b23' }}>
                 <Plus className="h-4 w-4" />
                 Nieuwe offerte

@@ -1,6 +1,6 @@
 # Moonen Vochtwering — CRM & Quoting Webapp
 
-> **Living document** — last updated: 20 Feb 2026
+> **Living document** — last updated: 24 Feb 2026
 
 ---
 
@@ -46,7 +46,20 @@
 - ✅ Quote PDF layout refactored: right-aligned totals, improved line wrapping, cleaner pricing table
 - ✅ Light green Moonen branding applied in quote PDF
 - ✅ Optional SF Pro Display PDF font registration with safe Helvetica fallback
-- ✅ Faster quote navigation: each lead card menu includes "Maak offerte" linking to QuoteGenerator, and lead detail now shows visible lead ID
+- ✅ Faster quote navigation: each lead card menu includes "Maak offerte" linking to quote builder, and lead detail now shows visible lead ID
+
+### Conversational Quote Builder (Implemented)
+- ✅ **AI-powered quote builder** at `/dashboard/offerte/builder` — split-view with chat panel + live quote panel
+- ✅ **Pricing engine** (`lib/quote-builder/pricing-engine.js`): wraps existing staffel pricing, maps treatment codes to templates
+- ✅ **Treatment catalog** (`lib/quote-builder/treatment-catalog.js`): descriptions, problem-to-treatment mappings, bundle definitions for AI system prompt
+- ✅ **AI tools** (`lib/quote-builder/tools.js`): Vercel AI SDK tool definitions — add_treatment, update_line, remove_line, set_customer, set_discount, add_note, suggest_treatments, calculate_area, add_custom_line, set_quote_details
+- ✅ **Chat API** (`/api/quote-builder/chat`): streaming chat with Claude Haiku 4.5, server-side tool execution, maxSteps: 5
+- ✅ **useQuoteState hook**: manages line items, customer, discount, notes, oplossingen, diagnoseDetails, oppervlakte; dispatches tool results (incl. `set_quote_details`); builds API-compatible payload
+- ✅ **Responsive UI**: side-by-side on desktop, tabs on mobile; reuses existing save/send/PDF preview flow
+- ✅ **Offerte details panel**: editable Betreft (oplossingen), Diagnose, Oppervlakte, Doorlooptijd, Garantie, Betaling fields in QuotePanel — AI sets via `set_quote_details`, user can override manually
+- ✅ **Payment terms default**: "40% op de eerste werkdag bij aanvang, restant binnen 2 weken na oplevering"
+- ✅ **Full API compatibility**: `buildPayload()` works with existing `/api/quotes` POST and `/api/quotes/[id]/send` POST
+- ✅ **Pre-fill from lead**: `?lead=<id>` param loads customer data and inspection info
 
 ### Sprint D — Quote Wizard & PDF Overhaul (Implemented)
 - ✅ Logo converted from 4MB SVG to 60KB PNG; `assets.js` tries PNG first with SVG fallback
@@ -144,8 +157,9 @@
 ### Sprint F — Standalone Quote Generator (Implemented)
 - ✅ **New `quotes` table**: Standalone quotes with full customer snapshot, line items (incl. BTW), totals, terms, status tracking, and lead linkage
 - ✅ **CRUD API**: `GET/POST /api/quotes`, `GET/PATCH/DELETE /api/quotes/[id]`, `POST /api/quotes/[id]/send`
-- ✅ **QuoteGenerator component**: Customer search/selector, diagnose & treatment checkboxes, line item editor with auto-generation, BTW incl. totals, discount, PDF preview, save/send
-- ✅ **QuoteList component**: Filterable/searchable quote list with status badges, duplicate & delete functionality
+- ✅ **QuoteGenerator replaced**: Old multi-step form deleted; all quoting now through conversational AI quote builder
+- ✅ **Quote detail page**: `/dashboard/offerte/[id]` shows status, customer, line items, totals, with send/PDF/delete actions
+- ✅ **QuoteList component**: Filterable/searchable quote list with status badges (concept/verzonden/akkoord/afgewezen/verlopen), duplicate & delete
 - ✅ **PricelistEditor component**: Editable pricelist settings per category, staffel editing, extras management, saves to `settings.pricelist`
 - ✅ **Page routes**: `/dashboard/offerte` (list), `/dashboard/offerte/nieuw` (new), `/dashboard/offerte/[id]` (edit), `/dashboard/offerte/instellingen` (pricelist)
 - ✅ **Sidebar nav**: "Offertes" added between Planning and Instellingen
@@ -230,7 +244,12 @@ src/app/components/
 ├── dashboard/
 │   ├── WeekCalendar.jsx           # Week view with slot CRUD, lead popovers, reschedule mode, drag-to-reschedule, quick lead creation
 │   ├── QuickLeadDialog.jsx        # Dialog form for creating lead + booking from calendar
-│   ├── QuoteGenerator.jsx          # Centralized quote builder: customer selector, treatment, line items (incl. BTW), PDF preview, save/send
+│   ├── quote-builder/
+│   │   ├── QuoteBuilderView.jsx     # AI quote builder orchestrator: useChat + useQuoteState, responsive layout
+│   │   ├── ChatPanel.jsx            # Chat message list, input, tool call confirmations
+│   │   ├── QuotePanel.jsx           # Live quote: customer info, lead selector, offerte details, line items, totals
+│   │   ├── LeadSelector.jsx         # Search dropdown to find and select existing leads for customer prefill
+│   │   └── useQuoteState.js         # Quote state hook: line items, customer, discount, oplossingen, diagnose, buildPayload()
 │   ├── QuoteList.jsx               # Filterable quote list with status badges, duplicate, delete
 │   ├── PricelistEditor.jsx         # Editable pricelist settings: templates per category, staffels, extras
 │   ├── MapView.jsx                # Leaflet map with route visualization
@@ -262,6 +281,11 @@ src/lib/
     ├── pipeline.js
     ├── pricing.js               # Staffel pricing: getStaffelPrijs(), getStaffelLabel(), applyMinimum()
     └── whatsapp.js
+├── quote-builder/
+│   ├── pricing-engine.js       # Wraps staffel pricing + treatment templates; calculatePrice(), suggestTreatmentsForProblem()
+│   ├── treatment-catalog.js    # Treatment descriptions/mappings for AI system prompt (no prices)
+│   ├── tools.js                # Vercel AI SDK tool definitions (add_treatment, update_line, etc.)
+│   └── system-prompt.js        # Builds system prompt from catalog + current quote state
 ```
 
 ---
@@ -357,6 +381,7 @@ Each page outputs three JSON-LD schemas:
 | GET | `/api/cron/follow-ups` | `CRON_SECRET` | Follow-up engine (disabled — use manual send) |
 | POST | `/api/upload` | Auth | Upload inspection photos |
 | POST | `/api/ai/refine-text` | Auth | AI-powered diagnose text refinement (Claude Haiku 4.5) |
+| POST | `/api/quote-builder/chat` | Auth | AI quote builder chat (streaming, Claude Haiku 4.5 with tools) |
 | GET | `/api/geocode` | Public | Nominatim proxy |
 | POST | `/api/gcal/webhook` | `GCAL_WEBHOOK_SECRET` | Receives Google Calendar push notifications → incremental sync |
 | POST | `/api/gcal/sync` | Auth | Manual sync trigger (optional `?full=true` for full sync) |
