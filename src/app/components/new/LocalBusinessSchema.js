@@ -14,15 +14,15 @@ const LocalBusinessSchema = () => {
     'email': 'info@moonenvochtwering.nl',
     'address': {
       '@type': 'PostalAddress',
-      'streetAddress': 'Grasbroekerweg 141',
-      'addressLocality': 'Heerlen',
-      'postalCode': '6412BD',
+      'streetAddress': 'Dorpstraat 25',
+      'addressLocality': 'Brunssum',
+      'postalCode': '6441 CB',
       'addressCountry': 'NL'
     },
     'geo': {
       '@type': 'GeoCoordinates',
-      'latitude': '50.8853',
-      'longitude': '5.9721'
+      'latitude': '50.9445',
+      'longitude': '5.9685'
     },
     'priceRange': '€€',
     'openingHoursSpecification': [

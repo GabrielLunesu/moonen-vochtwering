@@ -25,7 +25,7 @@ export const OPLOSSING_OPTIONS = [
   { value: 'Kelderafdichting (inwendig)', templateKey: 'kelderafdichting', hasSubAreas: true },
   { value: 'Kelderafdichting (uitwendig)', templateKey: 'kelderafdichting', hasSubAreas: true },
   { value: 'Vochtbestendige pleister', templateKey: 'vochtbestendige_pleister' },
-  { value: 'Gevelimpregnatie', templateKey: 'gevelimpregnatie' },
+  { value: 'Gevel impregneren', templateKey: 'gevelimpregnatie' },
   { value: 'Drainage', templateKey: 'drainage' },
   { value: 'Ventilatie verbetering', templateKey: 'ventilatie' },
 ];
@@ -93,7 +93,7 @@ export const DEFAULT_LINE_ITEM_TEMPLATES = {
   ],
   gevelimpregnatie: [
     {
-      description: 'Gevelimpregnatie (Funcosil FC)',
+      description: 'Gevel impregneren (Funcosil FC)',
       unit: 'm²',
       unit_price: 15,
       staffels: [{ vanaf: 50, prijs: 13 }],

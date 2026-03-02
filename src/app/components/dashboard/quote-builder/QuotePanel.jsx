@@ -7,7 +7,7 @@ import { Button } from '@/app/components/ui/button';
 import { Badge } from '@/app/components/ui/badge';
 import { Separator } from '@/app/components/ui/separator';
 import { Textarea } from '@/app/components/ui/textarea';
-import { Trash2, FileText } from 'lucide-react';
+import { Trash2, FileText, Plus } from 'lucide-react';
 import LeadSelector from './LeadSelector';
 
 function formatCurrency(value) {
@@ -40,6 +40,7 @@ export default function QuotePanel({
   onOppervlakteChange,
   onNotesChange,
   onDefaultsChange,
+  onAddLine,
 }) {
   // Local string state for Betreft — avoids trimming spaces on every keystroke
   const [betreftInput, setBetreftInput] = useState(oplossingen?.join(', ') || '');
@@ -192,13 +193,22 @@ export default function QuotePanel({
                 <Badge variant="secondary" className="ml-2">{lineItems.length}</Badge>
               )}
             </CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => onAddLine({ description: '', quantity: 1, unit: 'stuk', unit_price: 0 })}
+            >
+              <Plus className="h-3 w-3 mr-1" />
+              Regel
+            </Button>
           </div>
         </CardHeader>
         <CardContent>
           {lineItems.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <FileText className="h-8 w-8 mx-auto mb-2 opacity-40" />
-              <p className="text-sm">Begin een gesprek om regels toe te voegen</p>
+              <p className="text-sm">Voeg regels toe via de chat of klik op "+ Regel"</p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -208,8 +218,13 @@ export default function QuotePanel({
                   <div key={item.id} className="group flex items-start gap-2 py-2 border-b last:border-0">
                     <span className="text-xs text-muted-foreground mt-1 w-5 shrink-0">{index + 1}.</span>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{item.description}</p>
-                      <div className="flex items-center gap-2 mt-1">
+                      <Input
+                        value={item.description}
+                        onChange={(e) => onUpdateLine(index, { description: e.target.value })}
+                        placeholder="Omschrijving"
+                        className="h-7 text-sm font-medium mb-1"
+                      />
+                      <div className="flex items-center gap-2">
                         <Input
                           type="number"
                           value={item.quantity}
@@ -218,7 +233,11 @@ export default function QuotePanel({
                           min={0}
                           step="any"
                         />
-                        <span className="text-xs text-muted-foreground">{item.unit}</span>
+                        <Input
+                          value={item.unit}
+                          onChange={(e) => onUpdateLine(index, { unit: e.target.value })}
+                          className="h-7 w-14 text-xs"
+                        />
                         <span className="text-xs text-muted-foreground">×</span>
                         <Input
                           type="number"

@@ -51,7 +51,7 @@ Moonen Vochtwering is opgericht door Donato Moonen, die al meer dan vijftien jaa
 Vandaag werkt de volgende generatie mee. Dezelfde waarden, dezelfde eerlijkheid, dezelfde garantie op vakwerk. Met moderne middelen en frisse energie erbij.
 
 ### Vestiging & contact
-- Adres: Grasbroekerweg 141, 6412BD Heerlen
+- Adres: Dorpstraat 25, 6441 CB Brunssum
 - Telefoon: 06 18 16 25 15
 - E-mail: info@moonenvochtwering.nl
 - Website: www.moonenvochtwering.nl

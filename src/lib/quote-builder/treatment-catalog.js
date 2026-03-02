@@ -78,10 +78,10 @@ export const TREATMENT_DESCRIPTIONS = {
     isBundle: true,
   },
 
-  // Gevelimpregnatie
+  // Gevel impregneren
   gevelimpregnatie: {
     code: 'gevelimpregnatie',
-    name: 'Gevelimpregnatie (Funcosil FC)',
+    name: 'Gevel impregneren (Funcosil FC)',
     description: 'Hydrofoberen van de gevel om vochtdoorslag te voorkomen. Staffelkorting bij grote oppervlaktes.',
     unit: 'm²',
     when: 'Bij vochtdoorslag via de gevel / buitenmuur.',
@@ -133,7 +133,7 @@ export const TREATMENT_DESCRIPTIONS = {
     name: 'Gevel chemisch reinigen',
     description: 'Gevel reinigen met Clean FP alvorens te impregneren.',
     unit: 'm²',
-    when: 'Voorafgaand aan gevelimpregnatie als de gevel vuil of verontreinigd is.',
+    when: 'Voorafgaand aan gevel impregneren als de gevel vuil of verontreinigd is.',
   },
   spouwrooster: {
     code: 'spouwrooster',

@@ -35,9 +35,9 @@ export default function CityServicePageLayout({ data, siblings, sameCities }) {
                 telephone: '+31618162515',
                 address: {
                   '@type': 'PostalAddress',
-                  streetAddress: 'Grasbroekerweg 141',
+                  streetAddress: 'Dorpstraat 25',
                   addressLocality: data.cityName,
-                  postalCode: '6412BD',
+                  postalCode: '6441 CB',
                   addressRegion: 'Limburg',
                   addressCountry: 'NL',
                 },
