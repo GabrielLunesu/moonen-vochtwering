@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Input } from '@/app/components/ui/input';
 import { Button } from '@/app/components/ui/button';
@@ -40,6 +41,14 @@ export default function QuotePanel({
   onNotesChange,
   onDefaultsChange,
 }) {
+  // Local string state for Betreft — avoids trimming spaces on every keystroke
+  const [betreftInput, setBetreftInput] = useState(oplossingen?.join(', ') || '');
+
+  // Sync from parent when AI tool calls update oplossingen
+  useEffect(() => {
+    setBetreftInput(oplossingen?.join(', ') || '');
+  }, [oplossingen]);
+
   return (
     <div className="flex flex-col h-full overflow-y-auto p-4 space-y-4">
       {/* Customer info */}
@@ -100,10 +109,11 @@ export default function QuotePanel({
             <label className="text-xs text-muted-foreground">Betreft</label>
             <Input
               placeholder="Bijv. Kelderafdichting"
-              value={oplossingen?.join(', ') || ''}
-              onChange={(e) => {
-                const val = e.target.value;
-                onOplossingenChange(val ? val.split(',').map((s) => s.trim()).filter(Boolean) : []);
+              value={betreftInput}
+              onChange={(e) => setBetreftInput(e.target.value)}
+              onBlur={() => {
+                const arr = betreftInput ? betreftInput.split(',').map((s) => s.trim()).filter(Boolean) : [];
+                onOplossingenChange(arr);
               }}
               className="text-sm"
             />
