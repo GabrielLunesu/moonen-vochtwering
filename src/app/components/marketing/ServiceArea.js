@@ -63,10 +63,10 @@ export default function ServiceArea() {
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-[#111827] font-semibold mb-1">Gevestigd in Heerlen</h3>
-                  <p className="text-[#6B7280] text-sm mb-2">Grasbroekerweg 141, 6412 BG Heerlen</p>
+                  <h3 className="text-[#111827] font-semibold mb-1">Gevestigd in Brunssum</h3>
+                  <p className="text-[#6B7280] text-sm mb-2">Dorpstraat 25, 6441 CB Brunssum</p>
                   <a
-                    href="https://maps.google.com/?q=Grasbroekerweg+141+Heerlen"
+                    href="https://maps.google.com/?q=Dorpstraat+25+Brunssum"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-[#8aab4c] text-sm font-medium hover:underline inline-flex items-center gap-1"

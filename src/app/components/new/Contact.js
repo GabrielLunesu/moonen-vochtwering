@@ -326,8 +326,8 @@ export default function Contact() {
                   </svg>
                   <div>
                     <p className="font-medium text-black text-sm md:text-base">Adres</p>
-                    <p className="text-black text-sm md:text-base">Grasbroekerweg 141</p>
-                    <p className="text-black text-sm md:text-base">6412BD Heerlen</p>
+                    <p className="text-black text-sm md:text-base">Dorpstraat 25</p>
+                    <p className="text-black text-sm md:text-base">6441 CB Brunssum</p>
                   </div>
                 </div>
 

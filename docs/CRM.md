@@ -57,6 +57,9 @@
 - ✅ **useQuoteState hook**: manages line items, customer, discount, notes, oplossingen, diagnoseDetails, oppervlakte; dispatches tool results (incl. `set_quote_details`); builds API-compatible payload
 - ✅ **Responsive UI**: side-by-side on desktop, tabs on mobile; reuses existing save/send/PDF preview flow
 - ✅ **Offerte details panel**: editable Betreft (oplossingen), Diagnose, Oppervlakte, Doorlooptijd, Garantie, Betaling fields in QuotePanel — AI sets via `set_quote_details`, user can override manually
+- ✅ **Inline editable line items**: all fields (description, quantity, unit, unit_price) are editable directly in the QuotePanel
+- ✅ **Manual line item addition**: "+ Regel" button adds a blank custom line to the quote without AI
+- ✅ **Auto-save**: Quote auto-saves every 3 seconds (skips if payload unchanged). Uses customer name or quote ID as fallback when no name entered. Subtle "Opslaan…" / "Opgeslagen" indicator in header.
 - ✅ **Payment terms default**: "40% op de eerste werkdag bij aanvang, restant binnen 2 weken na oplevering"
 - ✅ **Full API compatibility**: `buildPayload()` works with existing `/api/quotes` POST and `/api/quotes/[id]/send` POST
 - ✅ **Pre-fill from lead**: `?lead=<id>` param loads customer data and inspection info
@@ -64,7 +67,7 @@
 ### Sprint D — Quote Wizard & PDF Overhaul (Implemented)
 - ✅ Logo converted from 4MB SVG to 60KB PNG; `assets.js` tries PNG first with SVG fallback
 - ✅ Fixed PDF text overlaps in AAN and BETREFT cards
-- ✅ Dynamic intro text per solution type (kelderafdichting, injectie/DPC, gevelimpregnatie)
+- ✅ Dynamic intro text per solution type (kelderafdichting, injectie/DPC, gevel impregneren)
 - ✅ Editable Offertevoorwaarden in Step 4: garantie, doorlooptijd, geldigheid, betaling, inleiding
 - ✅ Updated payment terms default; new `inspection_data_v2` fields: `geldigheid_dagen`, `offerte_inleiding`
 
@@ -621,7 +624,7 @@ Run in Supabase SQL editor in this order:
 - ✅ Logo converted from 4MB SVG to 60KB PNG; `assets.js` tries PNG first with SVG fallback
 - ✅ Fixed AAN card text overlap (marginBottom spacing, split address into street/city fields)
 - ✅ Fixed BETREFT card overlap (increased intro marginTop to 8)
-- ✅ Dynamic intro text per solution type (kelderafdichting, injectie/DPC, gevelimpregnatie, default)
+- ✅ Dynamic intro text per solution type (kelderafdichting, injectie/DPC, gevel impregneren, default)
 - ✅ Custom intro text field in Step 4 (empty = auto from solution type)
 - ✅ Editable Offertevoorwaarden section in Step 4: garantie, doorlooptijd, geldigheid, betaling, inleiding
 - ✅ Updated payment terms default to "Op de eerste werkdag bij aanvang, restant binnen 2 weken na oplevering"
@@ -752,7 +755,7 @@ Run in Supabase SQL editor in this order:
 - Kelderafdichting muurvlak now generates 4 individual treatment steps: frezen (€100/m²), Kiesol hechtlaag (€15/m²), Sulfatex aanbrandlaag (€50/m²), DS Levell afwerklaag (€70/m²)
 - Keldervloer has staffel pricing (≥20m²: €130, ≥30m²: €110, ≥40m²: €90) and minimum (€1.500)
 - Afwerking corrected to SP Top White at €90/m²; ventilatie corrected to €100/stuk
-- Gevelimpregnatie has staffel (≥50m²: €13/m²)
+- Gevel impregneren has staffel (≥50m²: €13/m²)
 - Vochtbestendige pleister uses same 4-step treatment as muurvlak
 - Added muurinjectie depth selector (10/20/30cm radio buttons) with price per depth (€80/€90/€100 per m¹)
 - Depth persisted in `inspection_data_v2.injectie_depth`; defaults to 30cm for old data
@@ -805,7 +808,7 @@ Run in Supabase SQL editor in this order:
 - Converted logo from 4MB SVG to 60KB PNG (`public/logo/logo.png`); `assets.js` tries PNG first, SVG fallback, then null
 - Fixed AAN card text overlap in PDF: added `marginBottom` spacing, split address into `customerStreet`/`customerCity` fields
 - Fixed BETREFT card overlap: increased `styles.intro.marginTop` from 2 → 8
-- Added `getDefaultIntroText(oplossing)` helper: solution-specific intro text for kelderafdichting, injectie/DPC, gevelimpregnatie, and default
+- Added `getDefaultIntroText(oplossing)` helper: solution-specific intro text for kelderafdichting, injectie/DPC, gevel impregneren, and default
 - Quote PDF now uses `quote.introText` from `inspection_data_v2.offerte_inleiding` or auto-generated from solution type
 - Updated default payment terms to "Op de eerste werkdag bij aanvang, restant binnen 2 weken na oplevering"
 - Added editable "Offertevoorwaarden" section to InspectionForm Step 4: garantie (jaren), doorlooptijd, geldigheid (dagen), betalingsvoorwaarden, inleidende tekst

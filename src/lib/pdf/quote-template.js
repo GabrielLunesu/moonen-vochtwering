@@ -14,8 +14,8 @@ const COLORS = {
 
 const COMPANY = {
   name: 'Moonen Vochtwering',
-  street: 'Grasbroekerweg 141',
-  city: '6412 BD Heerlen',
+  street: 'Dorpstraat 25',
+  city: '6441 CB Brunssum',
   phone: '06 18 16 25 15',
   email: 'info@moonenvochtwering.nl',
   kvk: '14090765',
@@ -400,7 +400,7 @@ function getDefaultIntroText(oplossing) {
   if (single.includes('injectie') || single.includes('dpc')) {
     return 'Naar aanleiding van onze inspectie bieden wij u graag onderstaande werkzaamheden aan voor een definitieve oplossing tegen opstijgend vocht middels muurinjectie.';
   }
-  if (single.includes('gevelimpregnatie') || single.includes('gevel')) {
+  if (single.includes('gevel impregneren') || single.includes('gevelimpregnatie') || single.includes('gevel')) {
     return 'Naar aanleiding van onze inspectie bieden wij u graag onderstaande werkzaamheden aan om uw gevel blijvend te beschermen tegen vochtdoorslag.';
   }
   return 'Naar aanleiding van onze inspectie bieden wij u graag onderstaande werkzaamheden aan voor een duurzame oplossing van uw vochtprobleem.';

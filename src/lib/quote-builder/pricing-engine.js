@@ -75,10 +75,10 @@ const TREATMENT_MAP = {
     isBundle: true,
   },
 
-  // Gevelimpregnatie
+  // Gevel impregneren
   gevelimpregnatie: {
     templateKey: 'gevelimpregnatie',
-    label: 'Gevelimpregnatie (Funcosil FC)',
+    label: 'Gevel impregneren (Funcosil FC)',
     category: 'gevel',
   },
 
@@ -307,7 +307,7 @@ export function suggestTreatmentsForProblem(problem) {
     suggestions.push('schimmel_doden');
   }
   if (p.includes('gevel') || p.includes('doorslag') || p.includes('buitenmuur')) {
-    suggestions.push('gevelimpregnatie');
+    suggestions.push('gevelimpregnatie'); // code unchanged, display label is "Gevel impregneren"
   }
   if (p.includes('drainage') || p.includes('grondwater')) {
     suggestions.push('drainage_buis', 'drainage_grondwerk');

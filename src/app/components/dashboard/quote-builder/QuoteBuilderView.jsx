@@ -7,7 +7,7 @@ import { DefaultChatTransport } from 'ai';
 import { Button } from '@/app/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/components/ui/tabs';
 import { toast } from 'sonner';
-import { Save, Send, Eye, Loader2, MessageSquare, FileText } from 'lucide-react';
+import { Save, Send, Eye, Loader2, MessageSquare, FileText, Check } from 'lucide-react';
 import { useQuoteState } from './useQuoteState';
 import ChatPanel from './ChatPanel';
 import QuotePanel from './QuotePanel';
@@ -20,6 +20,9 @@ export default function QuoteBuilderView({ lead = null, quote = null }) {
   const [generatingPreview, setGeneratingPreview] = useState(false);
   const [activeTab, setActiveTab] = useState('chat');
   const [input, setInput] = useState('');
+  const [autoSaveStatus, setAutoSaveStatus] = useState(null); // null | 'saving' | 'saved'
+  const autoSaveTimer = useRef(null);
+  const lastSavedPayload = useRef(null);
 
   const quoteState = useQuoteState(lead);
   const quoteStateRef = useRef(quoteState);
@@ -121,15 +124,62 @@ export default function QuoteBuilderView({ lead = null, quote = null }) {
     }
   }, [lead]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // --- Save ---
-  const handleSave = useCallback(async () => {
-    if (!quoteState.customer.name) {
-      toast.error('Vul een klantnaam in');
-      return;
+  // --- Auto-save every 3 seconds ---
+  const performAutoSave = useCallback(async () => {
+    const qs = quoteStateRef.current;
+    // Nothing to save yet
+    if (qs.lineItems.length === 0 && !qs.customer.name && !qs.customer.email) return;
+
+    const payload = qs.buildPayload();
+    // Use name, or quoteId as fallback, or "Concept"
+    if (!payload.customer_name) {
+      payload.customer_name = qs.quoteId || 'Concept';
     }
+
+    // Skip if payload hasn't changed since last save
+    const payloadJson = JSON.stringify(payload);
+    if (payloadJson === lastSavedPayload.current) return;
+
+    const isEditing = Boolean(qs.quoteId);
+    const url = isEditing ? `/api/quotes/${qs.quoteId}` : '/api/quotes';
+    const method = isEditing ? 'PATCH' : 'POST';
+
+    setAutoSaveStatus('saving');
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: payloadJson,
+      });
+      if (!res.ok) return;
+      const saved = await res.json();
+      lastSavedPayload.current = payloadJson;
+
+      // Store the ID after first save so subsequent saves are PATCHes
+      if (!isEditing && saved.id) {
+        qs.setQuoteId(saved.id);
+      }
+
+      setAutoSaveStatus('saved');
+      setTimeout(() => setAutoSaveStatus(null), 2000);
+    } catch {
+      setAutoSaveStatus(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    autoSaveTimer.current = setInterval(performAutoSave, 3000);
+    return () => clearInterval(autoSaveTimer.current);
+  }, [performAutoSave]);
+
+  // --- Save (manual) ---
+  const handleSave = useCallback(async () => {
     setSaving(true);
     try {
       const payload = quoteState.buildPayload();
+      if (!payload.customer_name) {
+        payload.customer_name = quoteState.quoteId || 'Concept';
+      }
       const isEditing = Boolean(quoteState.quoteId);
       const url = isEditing ? `/api/quotes/${quoteState.quoteId}` : '/api/quotes';
       const method = isEditing ? 'PATCH' : 'POST';
@@ -144,6 +194,7 @@ export default function QuoteBuilderView({ lead = null, quote = null }) {
         throw new Error(data.error || 'Opslaan mislukt');
       }
       const saved = await res.json();
+      lastSavedPayload.current = JSON.stringify(payload);
       toast.success(isEditing ? 'Offerte bijgewerkt' : 'Offerte opgeslagen als concept');
       router.push(`/dashboard/offerte/${saved.id}`);
     } catch (err) {
@@ -280,13 +331,29 @@ export default function QuoteBuilderView({ lead = null, quote = null }) {
       {/* Header */}
       <div className="border-b px-4 py-3 shrink-0 flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-bold">
-            {quoteState.quoteId ? 'Offerte bewerken' : 'Offerte Builder'}
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-lg font-bold">
+              {quoteState.quoteId ? 'Offerte bewerken' : 'Offerte Builder'}
+            </h1>
+            {autoSaveStatus === 'saving' && (
+              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Opslaan…
+              </span>
+            )}
+            {autoSaveStatus === 'saved' && (
+              <span className="flex items-center gap-1 text-xs text-green-600">
+                <Check className="h-3 w-3" />
+                Opgeslagen
+              </span>
+            )}
+          </div>
           <p className="text-xs text-muted-foreground">
-            {quoteState.quoteId
-              ? `${quoteState.customer.name || 'Concept'}`
-              : lead ? `${lead.name} — ${lead.plaatsnaam || ''}` : 'Nieuwe offerte via AI'}
+            {quoteState.customer.name
+              ? quoteState.customer.name
+              : quoteState.quoteId
+                ? `#${quoteState.quoteId.slice(0, 8)}`
+                : lead ? `${lead.name} — ${lead.plaatsnaam || ''}` : 'Nieuwe offerte via AI'}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -356,6 +423,7 @@ export default function QuoteBuilderView({ lead = null, quote = null }) {
             onOppervlakteChange={quoteState.setOppervlakte}
             onNotesChange={quoteState.setNotes}
             onDefaultsChange={(updates) => quoteState.setDefaults((prev) => ({ ...prev, ...updates }))}
+            onAddLine={quoteState.addLine}
           />
         </div>
       </div>

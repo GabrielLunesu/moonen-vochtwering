@@ -120,7 +120,7 @@ export async function POST(request) {
             <p style="font-size: 14px; color: #666;">Of bel ons op <a href="tel:+31618162515" style="color: #355b23;">06 18 16 25 15</a>.</p>
           </div>
           <div style="background: #f5f5f5; padding: 20px 24px; font-size: 13px; color: #666;">
-            <p style="margin: 0;">Moonen Vochtwering | Grasbroekerweg 141, 6412BD Heerlen | 06 18 16 25 15</p>
+            <p style="margin: 0;">Moonen Vochtwering | Dorpstraat 25, 6441 CB Brunssum | 06 18 16 25 15</p>
           </div>
         </div>
       `,

@@ -80,7 +80,7 @@ export default function OverOnsPage() {
               gevestigde naam in de regio.
             </p>
             <p>
-              Vanuit ons kantoor aan de Grasbroekerweg in Heerlen bedienen we klanten van Maastricht
+              Vanuit ons kantoor aan de Dorpstraat in Brunssum bedienen we klanten van Maastricht
               tot Echt-Susteren, van Valkenburg tot Kerkrade. In al die jaren hebben we meer dan 1000
               projecten succesvol afgerond.
             </p>

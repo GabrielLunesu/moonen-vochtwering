@@ -99,7 +99,31 @@ CREATE TABLE settings (
 INSERT INTO settings (key, value) VALUES
   ('inspection_days', '["woensdag", "donderdag"]'),
   ('pricing', '{"base_rate": 280, "min_charge": 1500}'),
-  ('follow_up_days', '[2, 5, 10]');
+  ('follow_up_days', '[2, 5, 10]'),
+  (
+    'line_item_templates',
+    '{
+      "kelderafdichting": [
+        {"description": "Kelderwanden waterdicht maken", "unit": "m²", "unit_price": 280},
+        {"description": "Vloer/wandovergangen afdichten", "unit": "stuk", "unit_price": 650},
+        {"description": "Afwerking stucwerk", "unit": "m²", "unit_price": 40}
+      ],
+      "muurinjectie": [
+        {"description": "Muurinjectie tegen opstijgend vocht", "unit": "m¹", "unit_price": 95},
+        {"description": "Boor- en injectiewerkzaamheden", "unit": "stuk", "unit_price": 350},
+        {"description": "Nabehandeling en afwerking", "unit": "m²", "unit_price": 35}
+      ]
+    }'::jsonb
+  ),
+  (
+    'quote_defaults',
+    '{
+      "btw_percentage": 21,
+      "garantie_jaren": 5,
+      "doorlooptijd": "3 werkdagen",
+      "betaling": "40% op eerste werkdag, 60% na oplevering"
+    }'::jsonb
+  );
 
 -- ===== AVAILABILITY SLOTS =====
 CREATE TABLE availability_slots (
