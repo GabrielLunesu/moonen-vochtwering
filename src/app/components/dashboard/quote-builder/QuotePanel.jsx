@@ -37,6 +37,7 @@ export default function QuotePanel({
   onOplossingenChange,
   onDiagnoseDetailsChange,
   onOppervlakteChange,
+  onNotesChange,
   onDefaultsChange,
 }) {
   return (
@@ -280,16 +281,20 @@ export default function QuotePanel({
       )}
 
       {/* Notes */}
-      {notes && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Notities</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground whitespace-pre-wrap">{notes}</p>
-          </CardContent>
-        </Card>
-      )}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium">Notities</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Textarea
+            placeholder="Opmerkingen voor op de offerte..."
+            value={notes || ''}
+            onChange={(e) => onNotesChange(e.target.value)}
+            className="text-sm min-h-[80px]"
+            rows={3}
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 }

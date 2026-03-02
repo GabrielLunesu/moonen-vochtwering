@@ -46,7 +46,7 @@ export function useQuoteState(initialLead = null) {
   const [discount, setDiscountState] = useState({ type: 'percentage', value: 0 });
 
   // --- Notes ---
-  const [notes, setNotes] = useState('');
+  const [notes, setNotes] = useState('40% op eerste werkdag');
 
   // --- Diagnose ---
   const [diagnose, setDiagnose] = useState([]);

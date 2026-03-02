@@ -354,6 +354,7 @@ export default function QuoteBuilderView({ lead = null, quote = null }) {
             onOplossingenChange={quoteState.setOplossingen}
             onDiagnoseDetailsChange={quoteState.setDiagnoseDetails}
             onOppervlakteChange={quoteState.setOppervlakte}
+            onNotesChange={quoteState.setNotes}
             onDefaultsChange={(updates) => quoteState.setDefaults((prev) => ({ ...prev, ...updates }))}
           />
         </div>
@@ -409,6 +410,7 @@ export default function QuoteBuilderView({ lead = null, quote = null }) {
               onOplossingenChange={quoteState.setOplossingen}
               onDiagnoseDetailsChange={quoteState.setDiagnoseDetails}
               onOppervlakteChange={quoteState.setOppervlakte}
+              onNotesChange={quoteState.setNotes}
               onDefaultsChange={(updates) => quoteState.setDefaults((prev) => ({ ...prev, ...updates }))}
             />
           </TabsContent>
