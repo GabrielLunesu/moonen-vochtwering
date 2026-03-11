@@ -4,6 +4,9 @@ export const metadata = {
   title: 'Werkwijze',
   description:
     'Zo werkt Moonen Vochtwering: van gratis inspectie tot oplevering. Ontdek ons 5-stappen proces voor een blijvend droge woning.',
+  alternates: {
+    canonical: '/werkwijze',
+  },
 };
 
 const steps = [

@@ -5,6 +5,9 @@ export const metadata = {
   title: 'Gratis Inspectie Aanvragen',
   description:
     'Vraag een gratis vochtinspectie aan. Plan direct online of laat ons contact opnemen. Vrijblijvend en zonder kosten.',
+  alternates: {
+    canonical: '/gratis-inspectie',
+  },
 };
 
 const steps = [

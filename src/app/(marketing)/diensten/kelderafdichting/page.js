@@ -6,6 +6,9 @@ const service = getServiceBySlug('kelderafdichting');
 export const metadata = {
   title: service.metaTitle,
   description: service.metaDescription,
+  alternates: {
+    canonical: '/diensten/kelderafdichting',
+  },
 };
 
 export default function KelderafdichtingPage() {

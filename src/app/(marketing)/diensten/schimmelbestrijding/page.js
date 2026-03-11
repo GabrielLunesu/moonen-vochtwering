@@ -6,6 +6,9 @@ const service = getServiceBySlug('schimmelbestrijding');
 export const metadata = {
   title: service.metaTitle,
   description: service.metaDescription,
+  alternates: {
+    canonical: '/diensten/schimmelbestrijding',
+  },
 };
 
 export default function SchimmelbestrijdingPage() {

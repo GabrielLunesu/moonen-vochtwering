@@ -37,9 +37,6 @@ export const metadata = {
       },
     ],
   },
-  alternates: {
-    canonical: "https://moonenvochtwering.nl",
-  },
   other: {
     "application-name": "Moonen Vochtwering",
   },
