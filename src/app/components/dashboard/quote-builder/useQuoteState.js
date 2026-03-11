@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
+import { normalizeDiscountType } from '@/lib/utils/quote-discounts';
 
 function toNumber(value, fallback = 0) {
   const parsed = Number(value);
@@ -131,7 +132,7 @@ export function useQuoteState(initialLead = null) {
 
   const setDiscount = useCallback((discountObj) => {
     setDiscountState({
-      type: discountObj.type || 'percentage',
+      type: normalizeDiscountType(discountObj.type) || 'percentage',
       value: toNumber(discountObj.value, 0),
     });
   }, []);
@@ -175,7 +176,10 @@ export function useQuoteState(initialLead = null) {
     setLabel(q.label || '');
     setPhotos(q.photos || []);
     if (q.discount_type && q.discount_value > 0) {
-      setDiscountState({ type: q.discount_type, value: toNumber(q.discount_value, 0) });
+      setDiscountState({
+        type: normalizeDiscountType(q.discount_type) || 'percentage',
+        value: toNumber(q.discount_value, 0),
+      });
     }
     setDefaults((prev) => ({
       ...prev,

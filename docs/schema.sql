@@ -22,6 +22,7 @@ CREATE TABLE leads (
     CHECK (status IN ('nieuw','uitgenodigd','bevestigd','bezocht','offerte_verzonden','akkoord','verloren')),
   stage_changed_at TIMESTAMPTZ DEFAULT now(),
   verloren_reden TEXT,
+  archived_at TIMESTAMPTZ,
 
   -- Scheduling
   inspection_date DATE,
@@ -63,6 +64,7 @@ CREATE TABLE leads (
 
 CREATE INDEX idx_leads_status ON leads(status);
 CREATE INDEX idx_leads_inspection_date ON leads(inspection_date);
+CREATE INDEX idx_leads_archived_at ON leads(archived_at);
 
 -- ===== EMAIL LOG =====
 CREATE TABLE email_log (

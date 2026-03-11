@@ -8,8 +8,9 @@ export function generateStaticParams() {
   }));
 }
 
-export function generateMetadata({ params }) {
-  const city = getCityBySlug(params.city);
+export async function generateMetadata({ params }) {
+  const { city: citySlug } = await params;
+  const city = getCityBySlug(citySlug);
   if (!city) return {};
 
   return {
@@ -21,8 +22,9 @@ export function generateMetadata({ params }) {
   };
 }
 
-export default function CityPage({ params }) {
-  const city = getCityBySlug(params.city);
+export default async function CityPage({ params }) {
+  const { city: citySlug } = await params;
+  const city = getCityBySlug(citySlug);
 
   if (!city) {
     notFound();

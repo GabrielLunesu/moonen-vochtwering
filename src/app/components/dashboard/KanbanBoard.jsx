@@ -1,16 +1,18 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useDeferredValue } from 'react';
 import { DragDropContext } from '@hello-pangea/dnd';
 import { createClient } from '@/lib/supabase/client';
 import { STAGE_ORDER } from '@/lib/utils/pipeline';
 import { getLeadPriorityScore, isNeedsActionToday } from '@/lib/utils/lead-workflow';
+import { matchesLeadSearch } from '@/lib/utils/lead-search';
 import { toast } from 'sonner';
 import KanbanColumn from './KanbanColumn';
 import PipelineStats from './PipelineStats';
 import NewLeadDialog from './NewLeadDialog';
 import { Skeleton } from '@/app/components/ui/skeleton';
 import { Button } from '@/app/components/ui/button';
+import { Input } from '@/app/components/ui/input';
 import { Plus } from 'lucide-react';
 
 const FILTER_STORAGE_KEY = 'crm.dashboard.filter.v1';
@@ -26,6 +28,9 @@ export default function KanbanBoard() {
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState('all');
   const [newLeadOpen, setNewLeadOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [leadActionLoadingId, setLeadActionLoadingId] = useState(null);
+  const deferredSearchQuery = useDeferredValue(searchQuery);
 
   const fetchLeads = useCallback(async () => {
     try {
@@ -73,12 +78,19 @@ export default function KanbanBoard() {
         { event: '*', schema: 'public', table: 'leads' },
         (payload) => {
           if (payload.eventType === 'INSERT') {
+            if (payload.new.archived_at) return;
             setLeads(prev => [payload.new, ...prev]);
             toast.success(`Nieuwe lead: ${payload.new.name}`);
           } else if (payload.eventType === 'UPDATE') {
-            setLeads(prev =>
-              prev.map(l => (l.id === payload.new.id ? payload.new : l))
-            );
+            if (payload.new.archived_at) {
+              setLeads(prev => prev.filter(l => l.id !== payload.new.id));
+            } else {
+              setLeads((prev) => {
+                const exists = prev.some((lead) => lead.id === payload.new.id);
+                if (!exists) return [payload.new, ...prev];
+                return prev.map(l => (l.id === payload.new.id ? payload.new : l));
+              });
+            }
           } else if (payload.eventType === 'DELETE') {
             setLeads(prev => prev.filter(l => l.id !== payload.old.id));
           }
@@ -89,6 +101,58 @@ export default function KanbanBoard() {
     return () => {
       supabase.removeChannel(channel);
     };
+  }, []);
+
+  const archiveLead = useCallback(async (lead) => {
+    if (!window.confirm(`Archiveer ${lead.name}? Deze lead verdwijnt uit pipeline en planning, maar blijft bewaard in het systeem.`)) {
+      return;
+    }
+
+    setLeadActionLoadingId(lead.id);
+    try {
+      const res = await fetch(`/api/leads/${lead.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ archive: true }),
+      });
+      const payload = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(payload?.error || 'Kon lead niet archiveren');
+      }
+
+      setLeads((prev) => prev.filter((item) => item.id !== lead.id));
+      toast.success('Lead gearchiveerd');
+    } catch (error) {
+      toast.error(error?.message || 'Archiveren mislukt');
+    } finally {
+      setLeadActionLoadingId(null);
+    }
+  }, []);
+
+  const deleteLead = useCallback(async (lead) => {
+    if (!window.confirm(`Verwijder ${lead.name} definitief? Dit verwijdert de lead, tijdlijn en mailhistorie uit het systeem.`)) {
+      return;
+    }
+
+    setLeadActionLoadingId(lead.id);
+    try {
+      const res = await fetch(`/api/leads/${lead.id}`, {
+        method: 'DELETE',
+      });
+      const payload = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(payload?.error || 'Kon lead niet verwijderen');
+      }
+
+      setLeads((prev) => prev.filter((item) => item.id !== lead.id));
+      toast.success('Lead verwijderd');
+    } catch (error) {
+      toast.error(error?.message || 'Verwijderen mislukt');
+    } finally {
+      setLeadActionLoadingId(null);
+    }
   }, []);
 
   const updateLeadStatus = async (leadId, newStatus) => {
@@ -123,6 +187,8 @@ export default function KanbanBoard() {
   };
 
   const visibleLeads = leads.filter((lead) => {
+    if (!matchesLeadSearch(lead, deferredSearchQuery)) return false;
+
     if (activeFilter === 'all') return true;
 
     if (activeFilter === 'needs_action') {
@@ -143,6 +209,7 @@ export default function KanbanBoard() {
 
     return true;
   });
+  const hasLeadResults = visibleLeads.length > 0;
 
   const leadsByStage = STAGE_ORDER.reduce((acc, stage) => {
     acc[stage] = visibleLeads
@@ -178,58 +245,81 @@ export default function KanbanBoard() {
     <div className="p-6 space-y-6">
       <PipelineStats leads={leads} />
 
-      <div className="flex items-center gap-2 flex-wrap">
-        <Button
-          size="sm"
-          style={{ backgroundColor: '#355b23' }}
-          onClick={() => setNewLeadOpen(true)}
-        >
-          <Plus className="h-4 w-4 mr-1" />
-          Nieuwe aanvraag
-        </Button>
-        <div className="w-px h-6 bg-border mx-1" />
-        <Button
-          variant={activeFilter === 'all' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setActiveFilter('all')}
-        >
-          Alle leads
-        </Button>
-        <Button
-          variant={activeFilter === 'needs_action' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setActiveFilter('needs_action')}
-        >
-          Actie nodig
-        </Button>
-        <Button
-          variant={activeFilter === 'no_response_3d' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setActiveFilter('no_response_3d')}
-        >
-          Geen reactie &gt;3d
-        </Button>
-        <Button
-          variant={activeFilter === 'waiting_quote_response' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setActiveFilter('waiting_quote_response')}
-        >
-          Wacht op offerte reactie
-        </Button>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            size="sm"
+            style={{ backgroundColor: '#355b23' }}
+            onClick={() => setNewLeadOpen(true)}
+          >
+            <Plus className="h-4 w-4 mr-1" />
+            Nieuwe aanvraag
+          </Button>
+          <div className="w-px h-6 bg-border mx-1" />
+          <Button
+            variant={activeFilter === 'all' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setActiveFilter('all')}
+          >
+            Alle leads
+          </Button>
+          <Button
+            variant={activeFilter === 'needs_action' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setActiveFilter('needs_action')}
+          >
+            Actie nodig
+          </Button>
+          <Button
+            variant={activeFilter === 'no_response_3d' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setActiveFilter('no_response_3d')}
+          >
+            Geen reactie &gt;3d
+          </Button>
+          <Button
+            variant={activeFilter === 'waiting_quote_response' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setActiveFilter('waiting_quote_response')}
+          >
+            Wacht op offerte reactie
+          </Button>
+        </div>
+
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Input
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="Zoek op naam, plaats, telefoon..."
+            className="w-full sm:w-80"
+          />
+          <span className="text-xs text-muted-foreground whitespace-nowrap">
+            {visibleLeads.length} van {leads.length} leads in beeld
+          </span>
+        </div>
       </div>
 
-      <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="flex gap-4 overflow-x-auto pb-4">
-          {STAGE_ORDER.map(stage => (
-            <KanbanColumn
-              key={stage}
-              stageKey={stage}
-              leads={leadsByStage[stage]}
-              onStatusChange={updateLeadStatus}
-            />
-          ))}
+      {hasLeadResults ? (
+        <DragDropContext onDragEnd={handleDragEnd}>
+          <div className="flex gap-4 overflow-x-auto pb-4">
+            {STAGE_ORDER.map(stage => (
+              <KanbanColumn
+                key={stage}
+                stageKey={stage}
+                leads={leadsByStage[stage]}
+                onStatusChange={updateLeadStatus}
+                onArchive={archiveLead}
+                onDelete={deleteLead}
+                busyLeadId={leadActionLoadingId}
+              />
+            ))}
+          </div>
+        </DragDropContext>
+      ) : (
+        <div className="rounded-lg border bg-muted/20 p-8 text-center text-sm text-muted-foreground">
+          Geen leads gevonden voor deze zoekopdracht of filter.
         </div>
-      </DragDropContext>
+      )}
 
       <NewLeadDialog open={newLeadOpen} onOpenChange={setNewLeadOpen} />
     </div>

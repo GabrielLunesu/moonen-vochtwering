@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { generateToken } from '@/lib/utils/tokens';
 import { logLeadEvent } from '@/lib/utils/events';
 import { notifyOpsAlert } from '@/lib/ops/alerts';
+import { normalizeDiscountType } from '@/lib/utils/quote-discounts';
 
 export async function GET(request) {
   const supabase = await createClient();
@@ -43,16 +44,22 @@ export async function POST(request) {
     }
 
     const body = await request.json();
+    const discountType = normalizeDiscountType(body.discount_type);
 
     if (!body.customer_name) {
       return NextResponse.json({ error: 'Klantnaam is verplicht' }, { status: 400 });
     }
 
+    if (body.discount_type && !discountType) {
+      return NextResponse.json({ error: 'Ongeldig kortingstype' }, { status: 400 });
+    }
+
     const admin = createAdminClient();
 
-    // If no lead_id, auto-create a lead
+    // If no lead_id, auto-create a lead — but only with a real customer name
+    const PLACEHOLDER_NAMES = ['concept', 'onbekend', 'test', ''];
     let leadId = body.lead_id || null;
-    if (!leadId && body.customer_name) {
+    if (!leadId && body.customer_name && !PLACEHOLDER_NAMES.includes(body.customer_name.toLowerCase().trim())) {
       const { data: newLead, error: leadError } = await admin
         .from('leads')
         .insert({
@@ -112,7 +119,7 @@ export async function POST(request) {
         photos: body.photos || [],
         line_items: body.line_items || [],
         subtotal_incl: body.subtotal_incl || 0,
-        discount_type: body.discount_type || null,
+        discount_type: discountType,
         discount_value: body.discount_value || null,
         discount_amount: body.discount_amount || 0,
         btw_percentage: body.btw_percentage ?? 21,

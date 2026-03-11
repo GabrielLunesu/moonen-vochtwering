@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logLeadEvent } from '@/lib/utils/events';
 import { notifyOpsAlert } from '@/lib/ops/alerts';
+import { normalizeDiscountType } from '@/lib/utils/quote-discounts';
 
 export async function GET(request, { params }) {
   const { id } = await params;
@@ -42,6 +43,14 @@ export async function PATCH(request, { params }) {
     delete body.id;
     delete body.created_at;
     delete body.quote_token;
+
+    if (Object.prototype.hasOwnProperty.call(body, 'discount_type')) {
+      const discountType = normalizeDiscountType(body.discount_type);
+      if (body.discount_type && !discountType) {
+        return NextResponse.json({ error: 'Ongeldig kortingstype' }, { status: 400 });
+      }
+      body.discount_type = discountType;
+    }
 
     const admin = createAdminClient();
     const { data: quote, error } = await admin
