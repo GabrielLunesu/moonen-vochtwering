@@ -130,6 +130,10 @@ export default function QuoteBuilderView({ lead = null, quote = null }) {
     // Nothing to save yet
     if (qs.lineItems.length === 0 && !qs.customer.name && !qs.customer.email) return;
 
+    // Don't auto-create new quotes without a lead or real customer name — prevents phantom "Concept" leads
+    const isEditing = Boolean(qs.quoteId);
+    if (!isEditing && !qs.customer.lead_id && !qs.customer.name) return;
+
     const payload = qs.buildPayload();
     // Use name, or quoteId as fallback, or "Concept"
     if (!payload.customer_name) {
@@ -140,7 +144,6 @@ export default function QuoteBuilderView({ lead = null, quote = null }) {
     const payloadJson = JSON.stringify(payload);
     if (payloadJson === lastSavedPayload.current) return;
 
-    const isEditing = Boolean(qs.quoteId);
     const url = isEditing ? `/api/quotes/${qs.quoteId}` : '/api/quotes';
     const method = isEditing ? 'PATCH' : 'POST';
 

@@ -6,10 +6,10 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Button } from '@/app/components/ui/button';
 import { PIPELINE_STAGES, PROBLEEM_TYPES } from '@/lib/utils/pipeline';
 import { getStageAging } from '@/lib/utils/lead-workflow';
-import { MoreHorizontal, Phone, MapPin, Calendar } from 'lucide-react';
+import { MoreHorizontal, Phone, MapPin, Calendar, Archive, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 
-export default function LeadCard({ lead, onStatusChange, provided }) {
+export default function LeadCard({ lead, onStatusChange, onArchive, onDelete, busy = false, provided }) {
   const stageAging = getStageAging(lead);
 
   const afspraakLabel = lead.inspection_date
@@ -48,7 +48,7 @@ export default function LeadCard({ lead, onStatusChange, provided }) {
                     Maak offerte
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild>
+                <DropdownMenuItem asChild disabled={busy}>
                   <a href={`tel:${lead.phone}`}>
                     Bel {lead.name}
                   </a>
@@ -59,11 +59,28 @@ export default function LeadCard({ lead, onStatusChange, provided }) {
                   .map(([key, value]) => (
                     <DropdownMenuItem
                       key={key}
+                      disabled={busy}
                       onClick={() => onStatusChange(lead.id, key)}
                     >
                       Verplaats naar {value.label}
                     </DropdownMenuItem>
                   ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  disabled={busy}
+                  onClick={() => onArchive?.(lead)}
+                >
+                  <Archive className="h-3.5 w-3.5 mr-2" />
+                  Archiveren
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={busy}
+                  onClick={() => onDelete?.(lead)}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="h-3.5 w-3.5 mr-2" />
+                  Definitief verwijderen
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

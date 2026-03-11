@@ -18,7 +18,7 @@ import {
   AlertDialogTitle,
 } from '@/app/components/ui/alert-dialog';
 import { Badge } from '@/app/components/ui/badge';
-import { ChevronLeft, ChevronRight, Loader2, Trash2, Lock, Unlock, MoveRight, ExternalLink, Plus, X, Copy, MapPin } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, Trash2, Lock, Unlock, MoveRight, ExternalLink, Plus, X, Copy, MapPin, Archive } from 'lucide-react';
 import { toast } from 'sonner';
 import QuickLeadDialog from './QuickLeadDialog';
 import GoogleEventBlock from './GoogleEventBlock';
@@ -46,7 +46,17 @@ function formatHour(hour) {
   return `${String(hour).padStart(2, '0')}:00`;
 }
 
-export default function WeekCalendar({ leads = [], slots = [], googleEvents = [], onSlotsChange, onLeadsChange, interactive = true }) {
+export default function WeekCalendar({
+  leads = [],
+  slots = [],
+  googleEvents = [],
+  onSlotsChange,
+  onLeadsChange,
+  onArchiveLead,
+  onDeleteLead,
+  busyLeadId = null,
+  interactive = true,
+}) {
   const [weekOffset, setWeekOffset] = useState(0);
   const [creating, setCreating] = useState(false);
   const [actionLoading, setActionLoading] = useState(null);
@@ -749,10 +759,13 @@ export default function WeekCalendar({ leads = [], slots = [], googleEvents = []
                           interactive={interactive}
                           rescheduleMode={!!rescheduleMode}
                           onReschedule={() => startReschedule(lead)}
+                          onArchiveLead={onArchiveLead}
+                          onDeleteLead={onDeleteLead}
                           onDragInit={initLeadDrag}
                           onTouchDragInit={handleLeadTouchStart}
                           isDragging={leadDrag?.lead?.id === lead.id}
                           leadDragJustEnded={leadDragJustEnded}
+                          busy={busyLeadId === lead.id}
                         />
                       ))}
 
@@ -836,7 +849,19 @@ export default function WeekCalendar({ leads = [], slots = [], googleEvents = []
 }
 
 // Lead block with popover for reschedule + drag support
-function LeadBlock({ lead, interactive, rescheduleMode, onReschedule, onDragInit, onTouchDragInit, isDragging, leadDragJustEnded }) {
+function LeadBlock({
+  lead,
+  interactive,
+  rescheduleMode,
+  onReschedule,
+  onArchiveLead,
+  onDeleteLead,
+  onDragInit,
+  onTouchDragInit,
+  isDragging,
+  leadDragJustEnded,
+  busy = false,
+}) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const mouseDownPos = useRef(null);
@@ -943,6 +968,7 @@ function LeadBlock({ lead, interactive, rescheduleMode, onReschedule, onDragInit
               size="sm"
               variant="outline"
               className="w-full justify-start gap-2"
+              disabled={busy}
               onClick={() => {
                 setOpen(false);
                 onReschedule();
@@ -950,6 +976,32 @@ function LeadBlock({ lead, interactive, rescheduleMode, onReschedule, onDragInit
             >
               <MoveRight className="h-3.5 w-3.5" />
               Verplaatsen
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full justify-start gap-2"
+              disabled={busy}
+              onClick={() => {
+                setOpen(false);
+                onArchiveLead?.(lead);
+              }}
+            >
+              <Archive className="h-3.5 w-3.5" />
+              Archiveren
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full justify-start gap-2 text-destructive hover:text-destructive"
+              disabled={busy}
+              onClick={() => {
+                setOpen(false);
+                onDeleteLead?.(lead);
+              }}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Definitief verwijderen
             </Button>
           </div>
         </div>

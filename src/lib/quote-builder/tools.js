@@ -127,7 +127,7 @@ De pricing engine berekent alle prijzen — geef alleen de code en hoeveelheid.`
       inputSchema: jsonSchema({
         type: 'object',
         properties: {
-          type: { type: 'string', enum: ['percentage', 'amount'], description: 'percentage = % korting, amount = vast bedrag in €' },
+          type: { type: 'string', enum: ['percentage', 'fixed'], description: 'percentage = % korting, fixed = vast bedrag in €' },
           value: { type: 'number', description: 'Kortingswaarde (bijv. 10 voor 10% of 200 voor €200)' },
         },
         required: ['type', 'value'],

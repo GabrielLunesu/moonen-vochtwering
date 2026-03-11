@@ -6,8 +6,9 @@ export function generateStaticParams() {
   return getAllCityServiceParams();
 }
 
-export function generateMetadata({ params }) {
-  const data = getCityService(params.city, params.service);
+export async function generateMetadata({ params }) {
+  const { city, service } = await params;
+  const data = getCityService(city, service);
   if (!data) return {};
 
   return {
@@ -27,15 +28,16 @@ export function generateMetadata({ params }) {
   };
 }
 
-export default function CityServicePage({ params }) {
-  const data = getCityService(params.city, params.service);
+export default async function CityServicePage({ params }) {
+  const { city, service } = await params;
+  const data = getCityService(city, service);
 
   if (!data) {
     notFound();
   }
 
-  const siblings = getSiblingServices(params.city, params.service);
-  const sameCities = getSameCities(params.city, params.service);
+  const siblings = getSiblingServices(city, service);
+  const sameCities = getSameCities(city, service);
 
   return <CityServicePageLayout data={data} siblings={siblings} sameCities={sameCities} />;
 }

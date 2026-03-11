@@ -6,7 +6,7 @@ import { notifyOpsAlert } from '@/lib/ops/alerts';
 import { logLeadEvent } from '@/lib/utils/events';
 import { getPostHogClient } from '@/lib/posthog-server';
 
-export async function GET() {
+export async function GET(request) {
   const supabase = await createClient();
 
   const { data: { user } } = await supabase.auth.getUser();
@@ -14,10 +14,18 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { data, error } = await supabase
+  const includeArchived = request.nextUrl.searchParams.get('include_archived') === 'true';
+
+  let query = supabase
     .from('leads')
     .select('*')
     .order('created_at', { ascending: false });
+
+  if (!includeArchived) {
+    query = query.is('archived_at', null);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

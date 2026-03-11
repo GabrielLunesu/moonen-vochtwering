@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { nl } from 'date-fns/locale';
 import {
@@ -29,12 +29,25 @@ const emptyForm = {
   plaatsnaam: '',
   type_probleem: '',
   message: '',
+  slot_date: '',
+  slot_time: '09:00',
 };
 
-export default function QuickLeadDialog({ open, onOpenChange, slot, onCreated }) {
+export default function QuickLeadDialog({ open, onOpenChange, slot, defaultSlot, onCreated }) {
   const [form, setForm] = useState(emptyForm);
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      const now = new Date();
+      setForm({
+        ...emptyForm,
+        slot_date: slot?.slot_date || defaultSlot?.date || now.toISOString().split('T')[0],
+        slot_time: slot?.slot_time || defaultSlot?.time || '09:00',
+      });
+    }
+  }, [open, slot, defaultSlot]);
 
   const handleChange = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -47,23 +60,26 @@ export default function QuickLeadDialog({ open, onOpenChange, slot, onCreated })
     const newErrors = {};
     if (!form.name.trim()) newErrors.name = 'Naam is verplicht';
     if (!form.phone.trim()) newErrors.phone = 'Telefoon is verplicht';
+    if (!slot && !form.slot_date) newErrors.slot_date = 'Datum is verplicht';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validate() || !slot) return;
+    if (!validate()) return;
 
     setSubmitting(true);
     try {
+      const payload = { ...form };
+      if (slot?.id) {
+        payload.slot_id = slot.id; // legacy booking support string match
+      }
+
       const res = await fetch('/api/leads/create-with-booking', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...form,
-          slot_id: slot.id,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -96,10 +112,7 @@ export default function QuickLeadDialog({ open, onOpenChange, slot, onCreated })
     }
   };
 
-  const dateLabel = slot?.slot_date
-    ? format(new Date(`${slot.slot_date}T12:00:00`), 'EEEE d MMMM yyyy', { locale: nl })
-    : '';
-  const timeLabel = slot?.slot_time ? slot.slot_time.slice(0, 5) : '';
+  const hasFixedSlot = !!(slot?.slot_date && slot?.id);
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -111,13 +124,37 @@ export default function QuickLeadDialog({ open, onOpenChange, slot, onCreated })
           </DialogDescription>
         </DialogHeader>
 
-        {slot && (
+        {hasFixedSlot ? (
           <div
-            className="rounded-md px-3 py-2 text-sm"
+            className="rounded-md px-3 py-2 text-sm mb-2"
             style={{ background: '#f0f7ec', borderLeft: '3px solid #355b23' }}
           >
-            <span className="font-medium capitalize">{dateLabel}</span> om{' '}
-            <span className="font-medium">{timeLabel}</span>
+            <span className="font-medium capitalize">
+              {format(new Date(`${slot.slot_date}T12:00:00`), 'EEEE d MMMM yyyy', { locale: nl })}
+            </span> om{' '}
+            <span className="font-medium">{slot.slot_time.slice(0, 5)}</span>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3 mb-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="slot_date">Datum *</Label>
+              <Input
+                type="date"
+                id="slot_date"
+                value={form.slot_date}
+                onChange={(e) => handleChange('slot_date', e.target.value)}
+                className={errors.slot_date ? 'border-red-400' : ''}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="slot_time">Tijd</Label>
+              <Input
+                type="time"
+                id="slot_time"
+                value={form.slot_time}
+                onChange={(e) => handleChange('slot_time', e.target.value)}
+              />
+            </div>
           </div>
         )}
 

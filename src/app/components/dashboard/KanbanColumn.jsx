@@ -5,7 +5,7 @@ import { Badge } from '@/app/components/ui/badge';
 import { PIPELINE_STAGES } from '@/lib/utils/pipeline';
 import LeadCard from './LeadCard';
 
-export default function KanbanColumn({ stageKey, leads, onStatusChange }) {
+export default function KanbanColumn({ stageKey, leads, onStatusChange, onArchive, onDelete, busyLeadId }) {
   const stage = PIPELINE_STAGES[stageKey];
 
   return (
@@ -35,6 +35,9 @@ export default function KanbanColumn({ stageKey, leads, onStatusChange }) {
                   <LeadCard
                     lead={lead}
                     onStatusChange={onStatusChange}
+                    onArchive={onArchive}
+                    onDelete={onDelete}
+                    busy={busyLeadId === lead.id}
                     provided={provided}
                   />
                 )}

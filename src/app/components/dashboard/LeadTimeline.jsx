@@ -49,6 +49,10 @@ const EVENT_CONFIG = {
     title: 'Offerte gegenereerd',
     icon: FileText,
   },
+  lead_archived: {
+    title: 'Lead gearchiveerd',
+    icon: PauseCircle,
+  },
 };
 
 function humanizeStatus(status) {
@@ -146,6 +150,10 @@ function formatDescription(event) {
       currency: 'EUR',
     }).format(amount);
     return `Bedrag: ${formatted} (excl. BTW)`;
+  }
+
+  if (event.event_type === 'lead_archived') {
+    return 'Verborgen uit pipeline en planning';
   }
 
   return null;

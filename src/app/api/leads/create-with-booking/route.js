@@ -17,36 +17,37 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { name, email, phone, straat, postcode, plaatsnaam, type_probleem, message, slot_id } =
+    const { name, email, phone, straat, postcode, plaatsnaam, type_probleem, message, slot_id, slot_date, slot_time } =
       await request.json();
 
-    if (!name || !phone || !slot_id) {
+    if (!name || !phone || (!slot_id && (!slot_date || !slot_time))) {
       return NextResponse.json(
-        { error: 'Naam, telefoon en tijdslot zijn verplicht' },
+        { error: 'Naam, telefoon en tijdstip zijn verplicht' },
         { status: 400 }
       );
     }
 
     const admin = createAdminClient();
 
-    // Book the slot atomically
-    const { data: bookedSlot, error: bookError } = await admin.rpc('book_availability_slot', {
-      p_slot_id: slot_id,
-    });
+    let finalDate = slot_date;
+    let finalTime = slot_time;
 
-    if (bookError) {
-      return NextResponse.json({ error: bookError.message }, { status: 500 });
+    if (slot_id) {
+      // Legacy support if slot_id is provided, try to book it
+      const { data: bookedSlot, error: bookError } = await admin.rpc('book_availability_slot', {
+        p_slot_id: slot_id,
+      });
+
+      if (bookError) {
+        return NextResponse.json({ error: bookError.message }, { status: 500 });
+      }
+
+      // Even if it's full we can still allow it, but we extract date and time if it succeeded
+      if (bookedSlot?.length) {
+        finalDate = bookedSlot[0].slot_date;
+        finalTime = bookedSlot[0].slot_time;
+      }
     }
-
-    if (!bookedSlot?.length) {
-      return NextResponse.json(
-        { error: 'Dit moment is niet meer beschikbaar.', code: 'SLOT_FULL' },
-        { status: 409 }
-      );
-    }
-
-    const slotDate = bookedSlot[0].slot_date;
-    const slotTime = bookedSlot[0].slot_time;
 
     // Generate tokens
     const availability_token = generateToken();
@@ -72,9 +73,9 @@ export async function POST(request) {
         type_probleem: type_probleem || null,
         source: 'telefoon',
         status: 'bevestigd',
-        inspection_date: slotDate,
-        inspection_time: slotTime,
-        availability_slot_id: slot_id,
+        inspection_date: finalDate, // updated
+        inspection_time: finalTime, // updated
+        availability_slot_id: slot_id || null,
         availability_token,
         quote_token,
         stage_changed_at: new Date().toISOString(),
@@ -83,8 +84,10 @@ export async function POST(request) {
       .single();
 
     if (insertError) {
-      // Release booked slot on failure
-      await admin.rpc('release_availability_slot', { p_slot_id: slot_id });
+      // Release booked slot on failure if we had one
+      if (slot_id) {
+        await admin.rpc('release_availability_slot', { p_slot_id: slot_id });
+      }
       console.error('[DB_FAIL] /api/leads/create-with-booking:', insertError);
       await notifyOpsAlert({
         source: '/api/leads/create-with-booking',
@@ -107,7 +110,7 @@ export async function POST(request) {
       leadId: lead.id,
       eventType: 'slot_booked',
       actor: user.email || 'admin',
-      metadata: { slot_id, date: slotDate, time: slotTime },
+      metadata: { slot_id: slot_id || null, date: finalDate, time: finalTime }, // updated
     });
 
     await logLeadEvent({
@@ -134,8 +137,8 @@ export async function POST(request) {
 
       const emailContent = confirmationEmail({
         name,
-        date: slotDate,
-        time: slotTime,
+        date: finalDate, // updated
+        time: finalTime, // updated
         siteUrl,
         token: availability_token,
         overrides,

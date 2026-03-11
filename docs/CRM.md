@@ -1,6 +1,6 @@
 # Moonen Vochtwering — CRM & Quoting Webapp
 
-> **Living document** — last updated: 24 Feb 2026
+> **Living document** — last updated: 11 Mar 2026
 
 ---
 
@@ -28,6 +28,8 @@
 - ✅ Branded 2-page quote PDF with line items, terms, logo, and inspection photos (fallback-safe)
 - ✅ Quote numbering (`MV-YYYY-####`) with DB-backed sequence helper
 - ✅ Quote email now includes attached PDF + public tokenized PDF link
+- ✅ Lead search in both Pipeline and Planning
+- ✅ Lead archive + permanent delete actions from Pipeline and Planning (archive hides lead, delete removes it)
 
 ### Sprint C+ — UX Overhaul (Implemented)
 - ✅ Flexible stage actions: `getAvailableActions(lead, communication, linkedQuotes)` returns context-aware buttons per stage
@@ -63,6 +65,7 @@
 - ✅ **Payment terms default**: "40% op de eerste werkdag bij aanvang, restant binnen 2 weken na oplevering"
 - ✅ **Full API compatibility**: `buildPayload()` works with existing `/api/quotes` POST and `/api/quotes/[id]/send` POST
 - ✅ **Pre-fill from lead**: `?lead=<id>` param loads customer data and inspection info
+- ✅ **Discount type normalization**: quote builder + quote APIs normalize legacy fixed-discount alias `amount` to DB-safe `fixed`
 
 ### Sprint D — Quote Wizard & PDF Overhaul (Implemented)
 - ✅ Logo converted from 4MB SVG to 60KB PNG; `assets.js` tries PNG first with SVG fallback
@@ -351,10 +354,11 @@ Each page outputs three JSON-LD schemas:
 | Method | Route | Auth | Purpose |
 |-------|-------|------|---------|
 | POST | `/api/contact` | Public | Contact form → lead + emails |
-| GET | `/api/leads` | Auth | List leads |
+| GET | `/api/leads` | Auth | List active leads (archived excluded by default; `?include_archived=true` to include them) |
 | POST | `/api/leads` | Auth | Create lead manually (no appointment, status: nieuw) |
 | GET | `/api/leads/[id]` | Auth | Get lead |
-| PATCH | `/api/leads/[id]` | Auth | Update lead (status, notes, follow-up pause, route/time) |
+| PATCH | `/api/leads/[id]` | Auth | Update lead (status, notes, follow-up pause, route/time) or archive with `{ "archive": true }` |
+| DELETE | `/api/leads/[id]` | Auth | Permanently delete lead from the CRM |
 | GET | `/api/leads/[id]/events` | Auth | Lead event history |
 | POST | `/api/leads/[id]/send-availability` | Auth | Send availability email (first 4 open slots) |
 | GET | `/api/pdf/quote/[id]` | Auth or quote token | Render quote PDF |
@@ -400,6 +404,7 @@ Each page outputs three JSON-LD schemas:
 - `plaatsnaam TEXT NULL` (nullable — address collected at booking, not form submit)
 - `postcode TEXT` (saved from /bevestig address step)
 - `availability_slot_id UUID` → linked booked slot
+- `archived_at TIMESTAMPTZ NULL` (soft archive; archived leads are hidden from normal CRM lists)
 - `followup_paused BOOLEAN DEFAULT false`
 - `route_position INT`
 - `inspection_data_v2 JSONB` (includes `diagnose` array, `oplossingen` array, `kelder_sub_areas` object, `diagnose_details`, `line_items`, `discount_type`, `discount_value`, `discount_amount`, `m2_unit_price`, `geldigheid_dagen`, `offerte_inleiding`, `injectie_depth` when applicable)
@@ -748,6 +753,18 @@ Run in Supabase SQL editor in this order:
 - BTW incl. display: all prices stored/shown incl. BTW, totals show excl. BTW + BTW amount + incl. BTW
 - New extras added to `EXTRA_LINE_ITEMS`: MB2K + Kiesol MB (€200/m²), Kim aanhechten (€40/m²), Trap demonteren (€300/stuk), Egaliseren vloer (€25/m²)
 - Old InspectionForm removed in Sprint F+ centralization; all quoting now through `QuoteGenerator` + `quotes` table
+
+### 2026-03-11 — Quote Discount Type Compatibility Fix
+- Quote create/update APIs now normalize legacy `discount_type: "amount"` payloads to `fixed` before saving to `quotes`
+- Conversational quote builder tool schema now uses `fixed` as the canonical fixed-discount value
+- `useQuoteState` normalizes legacy discount payloads so existing browser state and older tool outputs still save correctly
+
+### 2026-03-11 — Lead Archive/Delete + Search
+- Added `archived_at` soft-delete column for leads; `/api/leads` now hides archived leads by default
+- `PATCH /api/leads/[id]` accepts `{ archive: true }` and releases any booked slot before archiving
+- `DELETE /api/leads/[id]` permanently removes a lead and also releases any booked slot first
+- Pipeline now supports lead search plus archive/delete actions from each lead card menu
+- Planning now supports lead search plus archive/delete actions from each calendar lead popover
 
 ### 2026-02-10 — Real Pricelist Integration
 - Replaced placeholder prices in `DEFAULT_LINE_ITEM_TEMPLATES` with actual Moonen pricelist data (product names, real prices)

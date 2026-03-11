@@ -108,7 +108,6 @@ async function gcalFetch(path, { method = 'GET', body, query } = {}) {
     const text = await res.text().catch(() => '');
     throw new Error(`Google Calendar API ${method} ${path} → ${res.status}: ${text}`);
   }
-
   if (res.status === 204) return null;
   return res.json();
 }
@@ -118,14 +117,27 @@ async function gcalFetch(path, { method = 'GET', body, query } = {}) {
 // ---------------------------------------------------------------------------
 
 /**
- * Create a Google Calendar event for an inspection.
- * Returns the created event object or null if not configured.
- */
-export async function createCalendarEvent({ summary, description, date, startTime, endTime, location }) {
+export async function createCalendarEvent({ summary, description, date, startTime, endTime, location, startDateTime, endDateTime, isAllDay }) {
   if (!isConfigured()) return null;
 
-  const startDateTime = `${date}T${startTime || '09:00'}:00`;
-  const endDateTime = `${date}T${endTime || '10:00'}:00`;
+  let start = {};
+  let end = {};
+
+  if (startDateTime && endDateTime) {
+    start = { dateTime: startDateTime, timeZone: TIMEZONE };
+    end = { dateTime: endDateTime, timeZone: TIMEZONE };
+  } else if (isAllDay && date) {
+    start = { date };
+    // Google Calendar expects the end date to be exclusive for all-day events.
+    // E.g. start = 2023-01-01, end = 2023-01-02 for a 1-day event.
+    // If we have an endTime string in YYYY-MM-DD format we use it, otherwise date + 1
+    let nextDay = new Date(date);
+    nextDay.setDate(nextDay.getDate() + 1);
+    end = { date: endTime && endTime.length === 10 ? endTime : nextDay.toISOString().split('T')[0] };
+  } else {
+    start = { dateTime: `${date}T${startTime || '09:00'}:00`, timeZone: TIMEZONE };
+    end = { dateTime: `${date}T${endTime || '10:00'}:00`, timeZone: TIMEZONE };
+  }
 
   const event = await gcalFetch(`/calendars/${calendarId()}/events`, {
     method: 'POST',
@@ -133,8 +145,8 @@ export async function createCalendarEvent({ summary, description, date, startTim
       summary,
       description: description || '',
       location: location || '',
-      start: { dateTime: startDateTime, timeZone: TIMEZONE },
-      end: { dateTime: endDateTime, timeZone: TIMEZONE },
+      start,
+      end,
     },
   });
 
@@ -144,14 +156,23 @@ export async function createCalendarEvent({ summary, description, date, startTim
 /**
  * Update an existing Google Calendar event.
  */
-export async function updateCalendarEvent(googleEventId, { summary, description, date, startTime, endTime, location }) {
+export async function updateCalendarEvent(googleEventId, { summary, description, date, startTime, endTime, location, startDateTime, endDateTime, isAllDay }) {
   if (!isConfigured() || !googleEventId) return null;
 
   const body = {};
   if (summary !== undefined) body.summary = summary;
   if (description !== undefined) body.description = description;
   if (location !== undefined) body.location = location;
-  if (date && startTime) {
+
+  if (startDateTime && endDateTime) {
+    body.start = { dateTime: startDateTime, timeZone: TIMEZONE };
+    body.end = { dateTime: endDateTime, timeZone: TIMEZONE };
+  } else if (isAllDay && date) {
+    body.start = { date };
+    let nextDay = new Date(date);
+    nextDay.setDate(nextDay.getDate() + 1);
+    body.end = { date: endTime && endTime.length === 10 ? endTime : nextDay.toISOString().split('T')[0] };
+  } else if (date && startTime) {
     body.start = { dateTime: `${date}T${startTime}:00`, timeZone: TIMEZONE };
     body.end = { dateTime: `${date}T${endTime || startTime}:00`, timeZone: TIMEZONE };
   }
@@ -163,6 +184,7 @@ export async function updateCalendarEvent(googleEventId, { summary, description,
 
   return event;
 }
+
 
 /**
  * Delete a Google Calendar event.
@@ -460,4 +482,71 @@ export async function syncLeadToGoogleCalendar(lead, action, overrides = {}) {
     });
     // Never throw — best effort only
   }
+}
+
+/**
+ * Create, update, or delete a Google Calendar event for a generic CRM event.
+ * Never throws — logs + alerts on failure.
+ *
+ * @param {object} crmEvent — the event object
+ * @param {'create'|'update'|'delete'} action
+ * @returns {string|null} The created google_event_id if action === 'create'
+ */
+export async function syncEventToGoogleCalendar(crmEvent, action) {
+  if (!isConfigured()) return null;
+
+  const supabase = createAdminClient();
+
+  try {
+    const { summary, description, location, start_time, end_time, is_all_day } = crmEvent;
+
+    if (action === 'create') {
+      const event = await createCalendarEvent({
+        summary,
+        description,
+        location,
+        startDateTime: is_all_day ? null : start_time,
+        endDateTime: is_all_day ? null : end_time,
+        isAllDay: is_all_day,
+        date: is_all_day && start_time ? start_time.split('T')[0] : null,
+        endTime: is_all_day && end_time ? end_time.split('T')[0] : null,
+      });
+
+      if (event?.id) {
+        await upsertSyncedEvents([{ ...event, source: 'crm' }]);
+        return event.id;
+      }
+    } else if (action === 'update' && crmEvent.google_event_id) {
+      const event = await updateCalendarEvent(crmEvent.google_event_id, {
+        summary,
+        description,
+        location,
+        startDateTime: is_all_day ? null : start_time,
+        endDateTime: is_all_day ? null : end_time,
+        isAllDay: is_all_day,
+        date: is_all_day && start_time ? start_time.split('T')[0] : null,
+        endTime: is_all_day && end_time ? end_time.split('T')[0] : null,
+      });
+
+      if (event) {
+        await upsertSyncedEvents([{ ...event, source: 'crm' }]);
+      }
+    } else if (action === 'delete' && crmEvent.google_event_id) {
+      await deleteCalendarEvent(crmEvent.google_event_id);
+
+      await supabase
+        .from('google_calendar_events')
+        .delete()
+        .eq('google_event_id', crmEvent.google_event_id);
+    }
+  } catch (err) {
+    console.error(`[GCAL] syncEventToGoogleCalendar ${action} failed for event ${crmEvent.id || crmEvent.summary}:`, err);
+    await notifyOpsAlert({
+      source: 'syncEventToGoogleCalendar',
+      message: `Google Calendar generic event ${action} failed`,
+      error: err,
+      context: { event_id: crmEvent.id, action },
+    });
+  }
+  return null;
 }
