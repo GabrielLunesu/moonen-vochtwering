@@ -1,3 +1,9 @@
+export const metadata = {
+  alternates: {
+    canonical: '/',
+  },
+};
+
 import Hero from '@/app/components/marketing/Hero';
 import ProblemAgitation from '@/app/components/marketing/ProblemAgitation';
 import BeforeAfterSlider from '@/app/components/marketing/BeforeAfterSlider';

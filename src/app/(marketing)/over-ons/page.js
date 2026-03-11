@@ -5,6 +5,9 @@ export const metadata = {
   title: 'Over ons',
   description:
     'Leer Moonen Vochtwering kennen: een familiebedrijf uit Heerlen met meer dan 15 jaar ervaring in vochtbestrijding in Zuid-Limburg.',
+  alternates: {
+    canonical: '/over-ons',
+  },
 };
 
 const values = [

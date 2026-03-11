@@ -6,6 +6,9 @@ const service = getServiceBySlug('opstijgend-vocht');
 export const metadata = {
   title: service.metaTitle,
   description: service.metaDescription,
+  alternates: {
+    canonical: '/diensten/opstijgend-vocht',
+  },
 };
 
 export default function OpstijgendVochtPage() {

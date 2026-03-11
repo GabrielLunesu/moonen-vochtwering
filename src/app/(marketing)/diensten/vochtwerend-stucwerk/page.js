@@ -6,6 +6,9 @@ const service = getServiceBySlug('vochtwerend-stucwerk');
 export const metadata = {
   title: service.metaTitle,
   description: service.metaDescription,
+  alternates: {
+    canonical: '/diensten/vochtwerend-stucwerk',
+  },
 };
 
 export default function VochtwoerendStucwerkPage() {

@@ -6,6 +6,9 @@ export const metadata = {
   title: 'Veelgestelde vragen',
   description:
     'Antwoorden op veelgestelde vragen over vochtbestrijding, kosten, inspectie, schimmel en meer. Moonen Vochtwering geeft duidelijke antwoorden.',
+  alternates: {
+    canonical: '/veelgestelde-vragen',
+  },
 };
 
 const faqGroups = [
