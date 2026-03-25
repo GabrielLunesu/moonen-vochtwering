@@ -340,31 +340,37 @@ function addDays(date, days) {
   return result;
 }
 
-function buildLineItems(lead, inspectionData, subtotal) {
+function buildLineItems(lead, inspectionData, subtotalIncl) {
+  const btwPercentage = toNumber(inspectionData?.btw_percentage, 21);
+  const btwDivisor = 1 + btwPercentage / 100;
+
   if (Array.isArray(inspectionData?.line_items) && inspectionData.line_items.length > 0) {
     return inspectionData.line_items.map((item, index) => {
       const quantity = toNumber(item.quantity, 0);
-      const unitPrice = toNumber(item.unit_price, 0);
-      const rowTotal = roundMoney(item.total ?? quantity * unitPrice);
+      const unitPriceIncl = toNumber(item.unit_price, 0);
+      // Convert incl. BTW prices to excl. BTW for PDF display
+      const unitPriceExcl = roundMoney(unitPriceIncl / btwDivisor);
+      const rowTotalExcl = roundMoney(quantity * unitPriceExcl);
       return {
         id: `${index}`,
         description: item.description || 'Werkzaamheden',
         quantity,
         unit: item.unit || '',
-        unitPrice,
-        total: rowTotal,
+        unitPrice: unitPriceExcl,
+        total: rowTotalExcl,
       };
     });
   }
 
+  const subtotalExcl = roundMoney(subtotalIncl / btwDivisor);
   return [
     {
       id: 'fallback',
       description: lead?.oplossing || 'Vochtwering werkzaamheden',
       quantity: toNumber(lead?.oppervlakte_m2, 1),
       unit: lead?.oppervlakte_m2 ? 'm\u00b2' : 'stuk',
-      unitPrice: roundMoney(subtotal / Math.max(1, toNumber(lead?.oppervlakte_m2, 1))),
-      total: roundMoney(subtotal),
+      unitPrice: roundMoney(subtotalExcl / Math.max(1, toNumber(lead?.oppervlakte_m2, 1))),
+      total: roundMoney(subtotalExcl),
     },
   ];
 }
@@ -435,14 +441,20 @@ function resolveIntroText(inspectionData, lead) {
 
 function buildQuoteData(lead) {
   const inspectionData = lead?.inspection_data_v2 || {};
-  const subtotal = roundMoney(inspectionData?.subtotal ?? lead?.quote_amount ?? 0);
+  const subtotalIncl = roundMoney(inspectionData?.subtotal ?? lead?.quote_amount ?? 0);
   const discountAmount = roundMoney(toNumber(inspectionData?.discount_amount, 0));
   const discountType = inspectionData?.discount_type || null;
   const discountValue = toNumber(inspectionData?.discount_value, 0);
-  const discountedSubtotal = roundMoney(subtotal - discountAmount);
+  const discountedIncl = roundMoney(subtotalIncl - discountAmount);
   const btwPercentage = toNumber(inspectionData?.btw_percentage, 21);
-  const btwAmount = roundMoney(inspectionData?.btw_amount ?? (discountedSubtotal * btwPercentage) / 100);
-  const totalIncl = roundMoney(inspectionData?.total_incl_btw ?? discountedSubtotal + btwAmount);
+  // All stored prices are incl. BTW — back-calculate excl. BTW and BTW amount
+  const totalIncl = roundMoney(inspectionData?.total_incl_btw ?? discountedIncl);
+  const exclBtw = roundMoney(totalIncl / (1 + btwPercentage / 100));
+  const btwAmount = roundMoney(totalIncl - exclBtw);
+  // Subtotal excl. BTW (before discount)
+  const subtotalExcl = roundMoney(subtotalIncl / (1 + btwPercentage / 100));
+  // Discount excl. BTW for display
+  const discountAmountExcl = roundMoney(discountAmount / (1 + btwPercentage / 100));
   const issueDate = lead?.quote_sent_at ? new Date(lead.quote_sent_at) : new Date();
   const validityDays = Math.max(1, Math.trunc(toNumber(inspectionData?.geldigheid_dagen, 30)));
   const validUntil = addDays(issueDate, validityDays);
@@ -469,15 +481,15 @@ function buildQuoteData(lead) {
     timeline: inspectionData?.doorlooptijd || '3 werkdagen',
     guarantee: `${toNumber(inspectionData?.garantie_jaren, 5)} jaar`,
     paymentTerms: inspectionData?.betaling || 'Op de eerste werkdag bij aanvang, restant binnen 2 weken na oplevering',
-    subtotal,
-    discountAmount,
+    subtotal: subtotalExcl,
+    discountAmount: discountAmountExcl,
     discountType,
     discountValue,
     btwPercentage,
     btwAmount,
     totalIncl,
     notes: inspectionData?.notes || lead?.inspection_notes || null,
-    lineItems: buildLineItems(lead, inspectionData, subtotal),
+    lineItems: buildLineItems(lead, inspectionData, subtotalIncl),
     photos: buildPhotoRows(lead, inspectionData),
   };
 }

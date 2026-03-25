@@ -741,7 +741,7 @@ Run in Supabase SQL editor in this order:
 - New `quotes` table with full customer snapshot, line items (incl. BTW), totals, terms, and status tracking
 - Migration: `docs/migrations/2026-02-11-quotes-table.sql`
 - CRUD API routes: `GET/POST /api/quotes`, `GET/PATCH/DELETE /api/quotes/[id]`
-- Send API: `POST /api/quotes/[id]/send` — generates quote number, renders PDF, sends email, updates linked lead
+- Send API: `POST /api/quotes/[id]/send` — generates quote number, renders PDF, sends email, updates linked lead. Auto-creates a lead if the quote has no `lead_id` (prevents orphan quotes invisible to the pipeline dashboard).
 - `QuoteGenerator.jsx`: customer search/selector, diagnose & treatment checkboxes, auto-generate line items from selections, editable line items with incl. BTW pricing, discount controls, PDF preview via Sheet, save as concept or send
 - `QuoteList.jsx`: filterable/searchable list with status badges (concept/verzonden/akkoord/afgewezen/verlopen), duplicate, delete
 - `PricelistEditor.jsx`: editable pricelist per category (kelder sub-areas, muurinjectie, etc.), staffel editing, extras section, saves to `settings.pricelist`
@@ -753,6 +753,12 @@ Run in Supabase SQL editor in this order:
 - BTW incl. display: all prices stored/shown incl. BTW, totals show excl. BTW + BTW amount + incl. BTW
 - New extras added to `EXTRA_LINE_ITEMS`: MB2K + Kiesol MB (€200/m²), Kim aanhechten (€40/m²), Trap demonteren (€300/stuk), Egaliseren vloer (€25/m²)
 - Old InspectionForm removed in Sprint F+ centralization; all quoting now through `QuoteGenerator` + `quotes` table
+
+### 2026-03-26 — Quote Builder Bug Fixes
+- **PDF BTW display fix**: All prices are stored incl. BTW. PDF now converts line items and subtotals to excl. BTW before display, so Subtotaal + BTW = Totaal incl. BTW adds up correctly.
+- **Settings overwriting quote defaults on re-edit**: When editing an existing quote, global settings were loaded async and overwrote the quote's saved `betaling`, `doorlooptijd`, `garantie_jaren`. Fixed by loading settings first, then applying quote data on top.
+- **Auto-save phantom prevention**: Tightened auto-save guard — new quotes are only auto-created when there's a linked lead OR (customer name >2 chars AND at least one line item). Prevents junk "G", "E" etc. leads.
+- **Orphan quote prevention**: `POST /api/quotes/[id]/send` now auto-creates a lead if the quote has no `lead_id`, preventing sent quotes from being invisible to the pipeline dashboard.
 
 ### 2026-03-11 — Quote Discount Type Compatibility Fix
 - Quote create/update APIs now normalize legacy `discount_type: "amount"` payloads to `fixed` before saving to `quotes`

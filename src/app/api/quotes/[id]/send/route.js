@@ -71,6 +71,52 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: 'Geen offerteregels' }, { status: 400 });
     }
 
+    // Auto-create a lead if the quote has no linked lead (prevents orphan quotes)
+    if (!quote.lead_id) {
+      const { generateToken } = await import('@/lib/utils/tokens');
+      const { data: newLead, error: leadError } = await admin
+        .from('leads')
+        .insert({
+          name: quote.customer_name,
+          email: quote.customer_email || 'onbekend@moonenvochtwering.nl',
+          phone: quote.customer_phone || '',
+          straat: quote.customer_straat || null,
+          postcode: quote.customer_postcode || null,
+          plaatsnaam: quote.customer_plaatsnaam || '',
+          source: 'offerte',
+          status: 'bezocht',
+          availability_token: generateToken(),
+          quote_token: quote.quote_token,
+        })
+        .select()
+        .single();
+
+      if (leadError) {
+        console.error('[DB_FAIL] Auto-create lead for orphan quote:', leadError);
+        await notifyOpsAlert({
+          source: '/api/quotes/[id]/send',
+          message: 'Failed to auto-create lead for orphan quote',
+          error: leadError,
+          context: { quote_id: quoteId, customer_name: quote.customer_name },
+        });
+        return NextResponse.json({ error: 'Kon lead niet automatisch aanmaken' }, { status: 500 });
+      }
+
+      // Link the quote to the new lead
+      quote.lead_id = newLead.id;
+      await admin
+        .from('quotes')
+        .update({ lead_id: newLead.id })
+        .eq('id', quoteId);
+
+      await logLeadEvent({
+        leadId: newLead.id,
+        eventType: 'lead_created',
+        actor: user.email || 'admin',
+        metadata: { source: 'offerte', auto_created: true, quote_id: quoteId },
+      });
+    }
+
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://moonenvochtwering.nl';
     const quoteToken = quote.quote_token;
     const responseUrl = `${baseUrl}/reactie?token=${quoteToken}`;

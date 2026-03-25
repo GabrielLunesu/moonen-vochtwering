@@ -90,26 +90,33 @@ export default function QuoteBuilderView({ lead = null, quote = null }) {
     setInput(e.target.value);
   }, []);
 
-  // Load existing quote for editing
+  // Load settings first, then load existing quote (so quote values override settings)
   useEffect(() => {
-    if (!quote) return;
-    quoteState.loadQuote(quote);
-  }, [quote]); // eslint-disable-line react-hooks/exhaustive-deps
+    let cancelled = false;
 
-  // Load settings (quote defaults + pricelist)
-  useEffect(() => {
-    fetch('/api/settings')
-      .then((res) => {
-        if (!res.ok) throw new Error();
-        return res.json();
-      })
-      .then((settings) => {
-        if (settings.quote_defaults && typeof settings.quote_defaults === 'object') {
-          quoteState.setDefaults((prev) => ({ ...prev, ...settings.quote_defaults }));
+    async function init() {
+      // Load global settings first
+      try {
+        const res = await fetch('/api/settings');
+        if (res.ok) {
+          const settings = await res.json();
+          if (!cancelled && settings.quote_defaults && typeof settings.quote_defaults === 'object') {
+            quoteState.setDefaults((prev) => ({ ...prev, ...settings.quote_defaults }));
+          }
         }
-      })
-      .catch(() => {});
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+      } catch {
+        // ignore
+      }
+
+      // Then load existing quote — its values override the global defaults
+      if (!cancelled && quote) {
+        quoteState.loadQuote(quote);
+      }
+    }
+
+    init();
+    return () => { cancelled = true; };
+  }, [quote]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Pre-fill from lead inspection data
   useEffect(() => {
@@ -130,9 +137,13 @@ export default function QuoteBuilderView({ lead = null, quote = null }) {
     // Nothing to save yet
     if (qs.lineItems.length === 0 && !qs.customer.name && !qs.customer.email) return;
 
-    // Don't auto-create new quotes without a lead or real customer name — prevents phantom "Concept" leads
+    // Don't auto-create new quotes without meaningful data — prevents phantom "Concept" leads
     const isEditing = Boolean(qs.quoteId);
-    if (!isEditing && !qs.customer.lead_id && !qs.customer.name) return;
+    if (!isEditing) {
+      // Require either a linked lead, or a real customer name (>2 chars) AND at least one line item
+      const hasRealName = qs.customer.name && qs.customer.name.trim().length > 2;
+      if (!qs.customer.lead_id && (!hasRealName || qs.lineItems.length === 0)) return;
+    }
 
     const payload = qs.buildPayload();
     // Use name, or quoteId as fallback, or "Concept"
