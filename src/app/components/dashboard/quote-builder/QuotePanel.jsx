@@ -39,6 +39,8 @@ export default function QuotePanel({
   onDiagnoseDetailsChange,
   onOppervlakteChange,
   onNotesChange,
+  voorwaarden,
+  onVoorwaardenChange,
   onDefaultsChange,
   onAddLine,
 }) {
@@ -322,6 +324,49 @@ export default function QuotePanel({
             className="text-sm min-h-[80px]"
             rows={3}
           />
+        </CardContent>
+      </Card>
+
+      {/* Voorwaarden */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium">Voorwaarden</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-1.5">
+          {(voorwaarden || []).map((term, index) => (
+            <div key={index} className="flex items-start gap-1.5">
+              <span className="text-xs text-muted-foreground mt-1.5 shrink-0">-</span>
+              <Input
+                value={term}
+                onChange={(e) => {
+                  const updated = [...voorwaarden];
+                  updated[index] = e.target.value;
+                  onVoorwaardenChange(updated);
+                }}
+                className="text-sm h-8"
+              />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 shrink-0"
+                onClick={() => {
+                  const updated = voorwaarden.filter((_, i) => i !== index);
+                  onVoorwaardenChange(updated);
+                }}
+              >
+                <Trash2 className="h-3 w-3 text-destructive" />
+              </Button>
+            </div>
+          ))}
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs mt-1"
+            onClick={() => onVoorwaardenChange([...(voorwaarden || []), ''])}
+          >
+            <Plus className="h-3 w-3 mr-1" />
+            Voorwaarde
+          </Button>
         </CardContent>
       </Card>
     </div>

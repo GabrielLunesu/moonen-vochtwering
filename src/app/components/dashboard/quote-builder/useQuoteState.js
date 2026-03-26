@@ -64,6 +64,16 @@ export function useQuoteState(initialLead = null) {
   // --- Quote defaults ---
   const [defaults, setDefaults] = useState(DEFAULT_DEFAULTS);
 
+  // --- Voorwaarden (editable terms for PDF) ---
+  const DEFAULT_VOORWAARDEN = [
+    'Prijzen zijn vast en all-inclusive.',
+    'Geen meerwerk zonder voorafgaand overleg.',
+    `Betaling: ${DEFAULT_DEFAULTS.betaling}.`,
+    'Start werkzaamheden in overleg, doorgaans binnen 2-4 weken.',
+    `Garantie: ${DEFAULT_DEFAULTS.garantie_jaren} jaar op waterdichtheid.`,
+  ];
+  const [voorwaarden, setVoorwaarden] = useState(DEFAULT_VOORWAARDEN);
+
   // --- Label ---
   const [label, setLabel] = useState('');
 
@@ -175,6 +185,9 @@ export function useQuoteState(initialLead = null) {
     setNotes(q.notes || '');
     setLabel(q.label || '');
     setPhotos(q.photos || []);
+    if (Array.isArray(q.voorwaarden) && q.voorwaarden.length > 0) {
+      setVoorwaarden(q.voorwaarden);
+    }
     if (q.discount_type && q.discount_value > 0) {
       setDiscountState({
         type: normalizeDiscountType(q.discount_type) || 'percentage',
@@ -338,12 +351,13 @@ export function useQuoteState(initialLead = null) {
       betaling: defaults.betaling,
       geldigheid_dagen: toNumber(defaults.geldigheid_dagen, 30),
       offerte_inleiding: defaults.offerte_inleiding || null,
+      voorwaarden: voorwaarden.length > 0 ? voorwaarden : null,
       label: label || null,
     };
   }, [
     lineItems, customer, diagnose, diagnoseDetails, oplossingen, oppervlakte,
     notes, photos, subtotalIncl, discount, discountAmount, btwPercentage,
-    btwAmount, afterDiscount, defaults, label,
+    btwAmount, afterDiscount, defaults, label, voorwaarden,
   ]);
 
   return {
@@ -359,6 +373,7 @@ export function useQuoteState(initialLead = null) {
     oplossingen,
     diagnoseDetails,
     oppervlakte,
+    voorwaarden,
     quoteId,
 
     // Setters
@@ -373,6 +388,7 @@ export function useQuoteState(initialLead = null) {
     setOplossingen,
     setDiagnoseDetails,
     setOppervlakte,
+    setVoorwaarden,
     setQuoteId,
 
     // Actions

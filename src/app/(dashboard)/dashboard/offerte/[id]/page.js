@@ -149,6 +149,7 @@ export default function QuoteDetailPage() {
           betaling: quote.betaling,
           geldigheid_dagen: quote.geldigheid_dagen,
           offerte_inleiding: quote.offerte_inleiding,
+          voorwaarden: quote.voorwaarden,
           notes: quote.notes,
         },
       };

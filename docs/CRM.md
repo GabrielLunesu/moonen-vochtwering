@@ -754,6 +754,12 @@ Run in Supabase SQL editor in this order:
 - New extras added to `EXTRA_LINE_ITEMS`: MB2K + Kiesol MB (€200/m²), Kim aanhechten (€40/m²), Trap demonteren (€300/stuk), Egaliseren vloer (€25/m²)
 - Old InspectionForm removed in Sprint F+ centralization; all quoting now through `QuoteGenerator` + `quotes` table
 
+### 2026-03-26 — Editable Voorwaarden per Quote
+- New `voorwaarden` TEXT[] column on `quotes` table (migration: `docs/migrations/2026-03-26-quotes-voorwaarden.sql`)
+- Quote builder shows editable terms list with defaults pre-filled; add/remove/edit individual terms
+- PDF template uses custom voorwaarden if set, otherwise falls back to hardcoded defaults
+- Voorwaarden passed through preview, save, and send flows
+
 ### 2026-03-26 — Quote Builder Bug Fixes
 - **PDF BTW display fix**: All prices are stored incl. BTW. PDF now converts line items and subtotals to excl. BTW before display, so Subtotaal + BTW = Totaal incl. BTW adds up correctly.
 - **Settings overwriting quote defaults on re-edit**: When editing an existing quote, global settings were loaded async and overwrote the quote's saved `betaling`, `doorlooptijd`, `garantie_jaren`. Fixed by loading settings first, then applying quote data on top.

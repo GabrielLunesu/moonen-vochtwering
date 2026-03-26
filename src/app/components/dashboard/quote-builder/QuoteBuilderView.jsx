@@ -311,6 +311,7 @@ export default function QuoteBuilderView({ lead = null, quote = null }) {
           betaling: payload.betaling,
           geldigheid_dagen: payload.geldigheid_dagen,
           offerte_inleiding: payload.offerte_inleiding,
+          voorwaarden: payload.voorwaarden,
           notes: quoteState.notes || null,
         },
       };
@@ -436,6 +437,8 @@ export default function QuoteBuilderView({ lead = null, quote = null }) {
             onDiagnoseDetailsChange={quoteState.setDiagnoseDetails}
             onOppervlakteChange={quoteState.setOppervlakte}
             onNotesChange={quoteState.setNotes}
+            voorwaarden={quoteState.voorwaarden}
+            onVoorwaardenChange={quoteState.setVoorwaarden}
             onDefaultsChange={(updates) => quoteState.setDefaults((prev) => ({ ...prev, ...updates }))}
             onAddLine={quoteState.addLine}
           />

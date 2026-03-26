@@ -489,6 +489,7 @@ function buildQuoteData(lead) {
     btwAmount,
     totalIncl,
     notes: inspectionData?.notes || lead?.inspection_notes || null,
+    voorwaarden: inspectionData?.voorwaarden || null,
     lineItems: buildLineItems(lead, inspectionData, subtotalIncl),
     photos: buildPhotoRows(lead, inspectionData),
   };
@@ -652,11 +653,18 @@ export function QuoteDocument({ lead, logoDataUri = null, fontFamily = 'Helvetic
 
         <Text style={styles.sectionTitle}>Voorwaarden</Text>
         <View style={styles.termsBox} wrap={false}>
-          <Text style={styles.term}>- Prijzen zijn vast en all-inclusive.</Text>
-          <Text style={styles.term}>- Geen meerwerk zonder voorafgaand overleg.</Text>
-          <Text style={styles.term}>- Betaling: {quote.paymentTerms}.</Text>
-          <Text style={styles.term}>- Start werkzaamheden in overleg, doorgaans binnen 2-4 weken.</Text>
-          <Text style={styles.term}>- Garantie: {quote.guarantee} op waterdichtheid.</Text>
+          {(quote.voorwaarden && quote.voorwaarden.length > 0
+            ? quote.voorwaarden
+            : [
+                'Prijzen zijn vast en all-inclusive.',
+                'Geen meerwerk zonder voorafgaand overleg.',
+                `Betaling: ${quote.paymentTerms}.`,
+                'Start werkzaamheden in overleg, doorgaans binnen 2-4 weken.',
+                `Garantie: ${quote.guarantee} op waterdichtheid.`,
+              ]
+          ).map((term, i) => (
+            <Text key={i} style={styles.term}>- {term}</Text>
+          ))}
         </View>
 
         <Text style={styles.closing}>

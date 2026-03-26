@@ -158,6 +158,7 @@ export async function POST(request, { params }) {
         geldigheid_dagen: quote.geldigheid_dagen,
         offerte_inleiding: quote.offerte_inleiding,
         injectie_depth: quote.injectie_depth,
+        voorwaarden: quote.voorwaarden,
         notes: quote.notes,
       },
     };
