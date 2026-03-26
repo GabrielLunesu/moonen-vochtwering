@@ -117,6 +117,8 @@ async function gcalFetch(path, { method = 'GET', body, query } = {}) {
 // ---------------------------------------------------------------------------
 
 /**
+ * Create a new Google Calendar event.
+ */
 export async function createCalendarEvent({ summary, description, date, startTime, endTime, location, startDateTime, endDateTime, isAllDay }) {
   if (!isConfigured()) return null;
 
