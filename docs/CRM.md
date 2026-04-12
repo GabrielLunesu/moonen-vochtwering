@@ -1,6 +1,6 @@
 # Moonen Vochtwering — CRM & Quoting Webapp
 
-> **Living document** — last updated: 13 Apr 2026 (batch reschedule + slot options menu)
+> **Living document** — last updated: 13 Apr 2026 (batch reschedule + slot options menu in FullViewportCalendar)
 
 ---
 
@@ -9,6 +9,16 @@
 ### Pipeline Dashboard Scaling Overhaul (Implemented)
 
 ### Batch Reschedule & Slot Options Menu (Implemented)
+
+#### FullViewportCalendar (Planning Page)
+- ✅ **Slot options dialog**: clicking a slot now shows an `AlertDialog` with options (Nieuwe aanvraag, Verplaats naar hier if pending moves exist, Openen/Sluiten, Verwijderen) instead of immediately opening QuickLeadDialog
+- ✅ **Batch reschedule**: dragging an inspection lead to a new time adds it to a pending moves queue instead of immediately rescheduling
+- ✅ **Pending moves banner**: sticky bottom banner shows all pending moves with per-move remove (×) and "Opslaan & versturen" button
+- ✅ **Verplaats naar hier**: button in slot options dialog assigns the first unslotted pending lead to the selected slot
+- ✅ **Lead highlight**: leads in pending moves show amber highlighting in the calendar
+
+#### WeekCalendar
+- ✅ Same slot options menu and batch reschedule features as FullViewportCalendar
 - ✅ **Slot options menu** (`SlotCell`): clicking a slot now shows a popover with options first (Nieuwe aanvraag, Verplaats naar hier, Sluiten/Openen, Verwijderen) instead of immediately opening the new lead dialog
 - ✅ **"Verplaats naar hier"** option on open slots when there are pending moves — assigns the first unslotted pending lead to that slot
 - ✅ **Batch pending reschedule**: moving a lead (via popover "Verplaatsen" button or drag) adds it to a pending moves queue rather than confirming immediately
@@ -288,6 +298,7 @@ src/app/
 ```
 src/app/components/
 ├── dashboard/
+│   ├── FullViewportCalendar.jsx  # react-big-calendar with slot options dialog, batch reschedule (pending moves queue), drag-to-reschedule for inspections, slot toggle/delete
 │   ├── WeekCalendar.jsx           # Week view with slot CRUD, lead popovers, batch reschedule (pending moves queue), drag-to-reschedule, slot options menu
 │   ├── QuickLeadDialog.jsx        # Dialog form for creating lead + booking from calendar
 │   ├── quote-builder/
