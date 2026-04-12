@@ -223,6 +223,8 @@ export default function PlanningPage() {
           onEventDrop={handleEventDrop}
           onEventResize={handleEventResize}
           searchQuery={deferredSearchQuery}
+          onSlotsChange={fetchSlots}
+          onLeadsChange={fetchLeads}
         />
       </div>
 

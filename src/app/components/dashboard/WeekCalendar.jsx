@@ -917,7 +917,7 @@ function LeadBlock({
         title={`${lead.name} - ${address} (${formatTime(lead.inspection_time)})${pendingMove ? ' — verplaatsing in de wachtrij' : ''}`}
       >
         <div className="font-semibold truncate">{formatTime(lead.inspection_time)} {lead.name}</div>
-        {address && <div className="truncate text-[9px]">{pendingMove ? 'bg-amber-100' : 'text-blue-100'}>{address}</div>}
+        {address && <div className={`truncate text-[9px] ${pendingMove ? 'text-amber-100' : 'text-blue-100'}`}>{address}</div>}
       </div>
     );
   }

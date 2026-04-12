@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useState } from 'react';
 import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
 import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop';
 import { format, parse, startOfWeek, getDay, addHours } from 'date-fns';
@@ -8,8 +8,19 @@ import { nl } from 'date-fns/locale';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import 'react-big-calendar/lib/addons/dragAndDrop/styles.css';
 import { Button } from '@/app/components/ui/button';
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, ArrowRightLeft, X, Loader2, Send, Trash2, Lock, Unlock } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/app/components/ui/alert-dialog';
+import { toast } from 'sonner';
 
 // Configure date-fns localizer
 const locales = {
@@ -116,10 +127,21 @@ export default function FullViewportCalendar({
     onEventDrop,
     onEventResize,
     searchQuery = '',
+    onSlotsChange,
+    onLeadsChange,
 }) {
     const [view, setView] = React.useState('week');
     const [date, setDate] = React.useState(new Date());
     const [showGoogleInspections, setShowGoogleInspections] = React.useState(false);
+
+    // Slot options dialog state
+    const [slotDialogOpen, setSlotDialogOpen] = React.useState(false);
+    const [selectedSlot, setSelectedSlot] = React.useState(null);
+    const [slotActionLoading, setSlotActionLoading] = React.useState(false);
+
+    // Batch reschedule state
+    const [pendingMoves, setPendingMoves] = React.useState([]);
+    const [batchRescheduleLoading, setBatchRescheduleLoading] = React.useState(false);
 
     const calendarEvents = useMemo(() => {
         // Collect all Google Event IDs that are already represented as leads
@@ -241,6 +263,26 @@ export default function FullViewportCalendar({
     }, [leads, events, slots, searchQuery, showGoogleInspections]);
 
     const eventPropGetter = useCallback((event) => {
+        // Highlight leads that are in pending moves
+        if (event.type === 'inspection') {
+            const isPending = pendingMoves.some(m => m.lead.id === event.resource.id);
+            if (isPending) {
+                return {
+                    style: {
+                        ...event.style,
+                        backgroundColor: '#fbbf24',
+                        color: '#92400e',
+                        border: '2px solid #f59e0b',
+                        borderRadius: '4px',
+                        opacity: 0.9,
+                        display: 'block',
+                        fontSize: '12px',
+                        fontWeight: '500',
+                        padding: '2px 4px',
+                    },
+                };
+            }
+        }
         return {
             style: {
                 ...event.style,
@@ -252,10 +294,147 @@ export default function FullViewportCalendar({
                 padding: '2px 4px',
             },
         };
+    }, [pendingMoves]);
+
+    // Slot options dialog handlers
+    const handleSlotClick = useCallback((event) => {
+        if (event.type === 'slot') {
+            setSelectedSlot(event.resource);
+            setSlotDialogOpen(true);
+        } else {
+            onSelectEvent(event);
+        }
+    }, [onSelectEvent]);
+
+    const toggleSlot = useCallback(async () => {
+        if (!selectedSlot) return;
+        setSlotActionLoading(true);
+        try {
+            const res = await fetch(`/api/availability/${selectedSlot.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ is_open: !selectedSlot.is_open }),
+            });
+            if (!res.ok) throw new Error();
+            toast.success(selectedSlot.is_open ? 'Moment gesloten' : 'Moment geopend');
+            setSlotDialogOpen(false);
+            if (onSlotsChange) await onSlotsChange();
+        } catch {
+            toast.error('Kon moment niet bijwerken');
+        } finally {
+            setSlotActionLoading(false);
+        }
+    }, [selectedSlot, onSlotsChange]);
+
+    const deleteSlot = useCallback(async () => {
+        if (!selectedSlot) return;
+        setSlotActionLoading(true);
+        try {
+            const res = await fetch(`/api/availability/${selectedSlot.id}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error();
+            toast.success('Moment verwijderd');
+            setSlotDialogOpen(false);
+            if (onSlotsChange) await onSlotsChange();
+        } catch {
+            toast.error('Kon moment niet verwijderen');
+        } finally {
+            setSlotActionLoading(false);
+        }
+    }, [selectedSlot, onSlotsChange]);
+
+    // Batch reschedule handlers
+    const addPendingMove = useCallback((move) => {
+        setPendingMoves(prev => {
+            const withoutExisting = prev.filter(m => m.lead.id !== move.lead.id);
+            return [...withoutExisting, move];
+        });
     }, []);
 
+    const removePendingMove = useCallback((leadId) => {
+        setPendingMoves(prev => prev.filter(m => m.lead.id !== leadId));
+    }, []);
+
+    const cancelAllPendingMoves = useCallback(() => {
+        setPendingMoves([]);
+    }, []);
+
+    const confirmAllPendingMoves = useCallback(async () => {
+        if (pendingMoves.length === 0) return;
+        setBatchRescheduleLoading(true);
+        let successCount = 0;
+        let failCount = 0;
+        const errors = [];
+
+        for (const move of pendingMoves) {
+            try {
+                let slotId = move.newSlot?.id;
+                if (!slotId && move.targetDateStr && move.targetHour !== undefined) {
+                    const createRes = await fetch('/api/availability', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ slot_date: move.targetDateStr, slot_time: `${String(move.targetHour).padStart(2, '0')}:00`, max_visits: 1 }),
+                    });
+                    if (!createRes.ok) throw new Error('Kon moment niet aanmaken');
+                    const created = await createRes.json();
+                    slotId = Array.isArray(created) ? created[0]?.id : created?.id;
+                }
+                if (!slotId) throw new Error('Geen geldig moment');
+
+                const res = await fetch(`/api/leads/${move.lead.id}/reschedule`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ new_slot_id: slotId }),
+                });
+                if (!res.ok) {
+                    const body = await res.json().catch(() => ({}));
+                    throw new Error(body?.error || 'Kon niet verplaatsen');
+                }
+                successCount++;
+            } catch (err) {
+                failCount++;
+                errors.push(`${move.lead.name}: ${err.message}`);
+            }
+        }
+
+        if (onLeadsChange) await onLeadsChange();
+        if (onSlotsChange) await onSlotsChange();
+
+        setPendingMoves([]);
+        setBatchRescheduleLoading(false);
+
+        if (failCount === 0) {
+            toast.success(`${successCount} inspectie${successCount !== 1 ? 's' : ''} verplaatst`);
+        } else if (successCount === 0) {
+            toast.error(`Kon niet verplaatsen: ${errors.join(', ')}`);
+        } else {
+            toast.warning(`${successCount} verplaatst, ${failCount} mislukt: ${errors.join(', ')}`);
+        }
+    }, [pendingMoves, onLeadsChange, onSlotsChange]);
+
+    const handleLocalEventDrop = useCallback((args) => {
+        const { event, start } = args;
+        if (event.type === 'inspection') {
+            const lead = event.resource;
+            const dateStr = start.toISOString().split('T')[0];
+            const timeStr = start.toTimeString().slice(0, 5);
+            const slot = slots.find(s => s.slot_date === dateStr && s.slot_time === timeStr);
+            const oldSlot = lead.availability_slot_id
+                ? slots.find(s => s.id === lead.availability_slot_id)
+                : null;
+            addPendingMove({ lead, oldSlot, newSlot: slot || null, targetDateStr: slot ? null : dateStr, targetHour: parseInt(timeStr.split(':')[0], 10) });
+            toast.info(`${lead.name} → ${formatDateShort(dateStr)} ${timeStr} (in wachtrij)`);
+        } else {
+            onEventDrop?.(args);
+        }
+    }, [slots, addPendingMove, onEventDrop, formatDateShort]);
+
+    function formatDateShort(dateStr) {
+        if (!dateStr) return '';
+        return new Date(`${dateStr}T12:00:00`).toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' });
+    }
+
     return (
-        <div className="h-full w-full bg-white flex flex-col overflow-hidden">
+        <div className="relative h-full w-full bg-white flex flex-col overflow-hidden">
             <style dangerouslySetInnerHTML={{
                 __html: `
         /* Custom tweaks to make react-big-calendar look clean and modern */
@@ -293,9 +472,9 @@ export default function FullViewportCalendar({
                 date={date}
                 onNavigate={setDate}
                 selectable
-                onSelectEvent={onSelectEvent}
+                onSelectEvent={handleSlotClick}
                 onSelectSlot={onSelectSlot}
-                onEventDrop={onEventDrop}
+                onEventDrop={handleLocalEventDrop}
                 onEventResize={onEventResize}
                 resizable
                 eventPropGetter={eventPropGetter}
@@ -312,6 +491,166 @@ export default function FullViewportCalendar({
                 }}
                 className="flex-1"
             />
+
+            {/* Pending moves banner */}
+            {pendingMoves.length > 0 && (
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 rounded-lg border border-blue-300 bg-blue-50 px-4 py-3 shadow-lg min-w-80 max-w-lg">
+                    <div className="flex items-center gap-2">
+                        <ArrowRightLeft className="h-4 w-4 text-blue-600 shrink-0" />
+                        <span className="text-blue-800 font-medium text-sm">
+                            {pendingMoves.length} verplaatsing{pendingMoves.length !== 1 ? 'en' : ''} in de wachtrij
+                        </span>
+                        <button
+                            type="button"
+                            className="ml-auto rounded p-1 hover:bg-blue-200 text-blue-500 hover:text-blue-700"
+                            onClick={cancelAllPendingMoves}
+                        >
+                            <X className="h-4 w-4" />
+                        </button>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                        {pendingMoves.map((move) => {
+                            const fromLabel = move.oldSlot
+                                ? `${formatDateShort(move.oldSlot.slot_date)} ${move.oldSlot.slot_time?.slice(0, 5)}`
+                                : move.lead.inspection_date
+                                    ? `${formatDateShort(move.lead.inspection_date)} ${move.lead.inspection_time?.slice(0, 5) || ''}`
+                                    : 'onbekend';
+                            const toLabel = move.newSlot
+                                ? `${formatDateShort(move.newSlot.slot_date)} ${move.newSlot.slot_time?.slice(0, 5)}`
+                                : move.targetDateStr
+                                    ? `${formatDateShort(move.targetDateStr)} ${String(move.targetHour).padStart(2, '0')}:00`
+                                    : 'nieuw moment';
+                            return (
+                                <div key={move.lead.id} className="flex items-center gap-2 text-sm text-blue-700 bg-blue-100/60 rounded px-2 py-1">
+                                    <span className="font-medium truncate">{move.lead.name}</span>
+                                    <span className="text-blue-400 shrink-0">→</span>
+                                    <span className="truncate">{toLabel}</span>
+                                    <button
+                                        type="button"
+                                        className="ml-auto shrink-0 rounded p-0.5 hover:bg-blue-200 text-blue-500 hover:text-blue-700"
+                                        onClick={() => removePendingMove(move.lead.id)}
+                                    >
+                                        <X className="h-3 w-3" />
+                                    </button>
+                                </div>
+                            );
+                        })}
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 text-xs border-blue-300 text-blue-700 hover:bg-blue-100"
+                            onClick={cancelAllPendingMoves}
+                        >
+                            Annuleren
+                        </Button>
+                        <Button
+                            size="sm"
+                            className="flex-1 text-xs bg-blue-600 hover:bg-blue-700"
+                            disabled={batchRescheduleLoading}
+                            onClick={confirmAllPendingMoves}
+                        >
+                            {batchRescheduleLoading ? (
+                                <>
+                                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                    Opslaan...
+                                </>
+                            ) : (
+                                <>
+                                    <Send className="h-3 w-3 mr-1" />
+                                    Opslaan &amp; versturen
+                                </>
+                            )}
+                        </Button>
+                    </div>
+                </div>
+            )}
+
+            {/* Slot options dialog */}
+            <AlertDialog open={slotDialogOpen} onOpenChange={setSlotDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>
+                            {selectedSlot ? `${selectedSlot.slot_time?.slice(0, 5)} - ${selectedSlot.slot_date}` : 'Moment'}
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {selectedSlot ? (
+                                <>
+                                    {selectedSlot.booked_count}/{selectedSlot.max_visits} geboekt
+                                    {selectedSlot.is_open ? ' · Open' : ' · Gesloten'}
+                                </>
+                            ) : 'Selecteer een actie'}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <div className="flex flex-col gap-2 py-2">
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            className="w-full justify-start gap-2"
+                            onClick={() => {
+                                setSlotDialogOpen(false);
+                                if (selectedSlot) {
+                                    onSelectEvent({ type: 'slot', resource: selectedSlot });
+                                }
+                            }}
+                        >
+                            <Plus className="h-4 w-4" />
+                            Nieuwe aanvraag
+                        </Button>
+                        {pendingMoves.length > 0 && selectedSlot?.is_open && selectedSlot.booked_count < selectedSlot.max_visits && (
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                className="w-full justify-start gap-2 text-blue-700"
+                                onClick={() => {
+                                    const unslotted = pendingMoves.filter(m => !m.newSlot);
+                                    const move = unslotted.length > 0 ? unslotted[0] : pendingMoves[pendingMoves.length - 1];
+                                    addPendingMove({ ...move, newSlot: selectedSlot, targetDateStr: null, targetHour: null });
+                                    toast.success(`${move.lead.name} → ${formatDateShort(selectedSlot.slot_date)} ${selectedSlot.slot_time?.slice(0, 5)}`);
+                                    setSlotDialogOpen(false);
+                                }}
+                            >
+                                <ArrowRightLeft className="h-4 w-4" />
+                                Verplaats naar hier
+                            </Button>
+                        )}
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            className="w-full justify-start gap-2"
+                            disabled={slotActionLoading}
+                            onClick={toggleSlot}
+                        >
+                            {slotActionLoading ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : selectedSlot?.is_open ? (
+                                <Lock className="h-4 w-4" />
+                            ) : (
+                                <Unlock className="h-4 w-4" />
+                            )}
+                            {selectedSlot?.is_open ? 'Moment sluiten' : 'Moment openen'}
+                        </Button>
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            className="w-full justify-start gap-2 text-destructive hover:text-destructive"
+                            disabled={slotActionLoading}
+                            onClick={deleteSlot}
+                        >
+                            {slotActionLoading ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <Trash2 className="h-4 w-4" />
+                            )}
+                            Verwijderen
+                        </Button>
+                    </div>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Annuleren</AlertDialogCancel>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }
