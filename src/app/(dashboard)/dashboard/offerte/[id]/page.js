@@ -21,7 +21,10 @@ import {
   Phone,
   Mail,
   Pencil,
+  Receipt,
+  CalendarDays,
 } from 'lucide-react';
+import ExecutionDateDialog from '@/app/components/dashboard/ExecutionDateDialog';
 
 const STATUS_CONFIG = {
   concept: { label: 'Concept', className: 'bg-slate-100 text-slate-700' },
@@ -64,6 +67,7 @@ export default function QuoteDetailPage() {
   const [sending, setSending] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [showExecDateDialog, setShowExecDateDialog] = useState(false);
 
   useEffect(() => {
     fetch(`/api/quotes/${id}`)
@@ -228,6 +232,25 @@ export default function QuoteDetailPage() {
               {previewLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Eye className="h-4 w-4 mr-1" />}
               PDF
             </Button>
+            {quote.status === 'akkoord' && (
+              <>
+                <Link href={`/dashboard/facturen/nieuw?quote=${id}`}>
+                  <Button variant="outline" size="sm" className="gap-1">
+                    <Receipt className="h-4 w-4" />
+                    Maak factuur
+                  </Button>
+                </Link>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1"
+                  onClick={() => setShowExecDateDialog(true)}
+                >
+                  <CalendarDays className="h-4 w-4" />
+                  {quote.planned_execution_date ? 'Uitvoeringsdatum' : 'Plan uitvoering'}
+                </Button>
+              </>
+            )}
             {quote.status === 'concept' && (
               <>
                 <Button
@@ -435,6 +458,44 @@ export default function QuoteDetailPage() {
             </CardContent>
           </Card>
         )}
+
+        {/* Execution date (for approved quotes) */}
+        {quote.status === 'akkoord' && (
+          <Card className={quote.planned_execution_date ? 'border-green-300 bg-green-50' : 'border-orange-300 bg-orange-50'}>
+            <CardContent className="pt-4 pb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Geplande uitvoering</span>
+                </div>
+                {quote.planned_execution_date ? (
+                  <span className="text-sm font-bold">
+                    {formatDate(quote.planned_execution_date)}
+                  </span>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowExecDateDialog(true)}
+                  >
+                    Datum instellen
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Execution Date Dialog */}
+        <ExecutionDateDialog
+          open={showExecDateDialog}
+          onOpenChange={setShowExecDateDialog}
+          quoteId={id}
+          customerName={quote?.customer_name}
+          onSaved={() => {
+            fetch(`/api/quotes/${id}`).then(r => r.json()).then(setQuote);
+          }}
+        />
 
         {/* Notes */}
         {quote.notes && (

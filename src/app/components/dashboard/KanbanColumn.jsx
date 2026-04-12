@@ -1,12 +1,24 @@
 'use client';
 
+import { useState } from 'react';
 import { Droppable, Draggable } from '@hello-pangea/dnd';
 import { Badge } from '@/app/components/ui/badge';
+import { Button } from '@/app/components/ui/button';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import { PIPELINE_STAGES } from '@/lib/utils/pipeline';
 import LeadCard from './LeadCard';
 
+// Columns with more than this many leads collapse to top N + "Toon alle" button.
+// This keeps "Bevestigd" (often 50+) from dominating the board.
+const COLLAPSE_THRESHOLD = 6;
+
 export default function KanbanColumn({ stageKey, leads, onStatusChange, onArchive, onDelete, busyLeadId }) {
   const stage = PIPELINE_STAGES[stageKey];
+  const [expanded, setExpanded] = useState(false);
+
+  const shouldCollapse = leads.length > COLLAPSE_THRESHOLD && !expanded;
+  const visibleLeads = shouldCollapse ? leads.slice(0, COLLAPSE_THRESHOLD) : leads;
+  const hiddenCount = leads.length - visibleLeads.length;
 
   return (
     <div className="flex flex-col min-w-[280px] max-w-[320px] bg-muted/50 rounded-lg">
@@ -29,7 +41,7 @@ export default function KanbanColumn({ stageKey, leads, onStatusChange, onArchiv
               snapshot.isDraggingOver ? 'bg-muted' : ''
             }`}
           >
-            {leads.map((lead, index) => (
+            {visibleLeads.map((lead, index) => (
               <Draggable key={lead.id} draggableId={lead.id} index={index}>
                 {(provided) => (
                   <LeadCard
@@ -47,6 +59,29 @@ export default function KanbanColumn({ stageKey, leads, onStatusChange, onArchiv
           </div>
         )}
       </Droppable>
+
+      {leads.length > COLLAPSE_THRESHOLD && (
+        <div className="px-2 pb-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full h-7 text-xs text-muted-foreground hover:text-foreground"
+            onClick={() => setExpanded((v) => !v)}
+          >
+            {expanded ? (
+              <>
+                <ChevronUp className="h-3 w-3 mr-1" />
+                Toon minder
+              </>
+            ) : (
+              <>
+                <ChevronDown className="h-3 w-3 mr-1" />
+                Toon alle {leads.length} ({hiddenCount} verborgen)
+              </>
+            )}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

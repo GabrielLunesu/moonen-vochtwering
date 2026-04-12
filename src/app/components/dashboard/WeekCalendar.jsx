@@ -18,7 +18,7 @@ import {
   AlertDialogTitle,
 } from '@/app/components/ui/alert-dialog';
 import { Badge } from '@/app/components/ui/badge';
-import { ChevronLeft, ChevronRight, Loader2, Trash2, Lock, Unlock, MoveRight, ExternalLink, Plus, X, Copy, MapPin, Archive } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, Trash2, Lock, Unlock, MoveRight, ExternalLink, Plus, X, Copy, MapPin, Archive, ArrowRightLeft, Check, Save, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import QuickLeadDialog from './QuickLeadDialog';
 import GoogleEventBlock from './GoogleEventBlock';
@@ -46,6 +46,11 @@ function formatHour(hour) {
   return `${String(hour).padStart(2, '0')}:00`;
 }
 
+function formatDateShort(dateStr) {
+  if (!dateStr) return '';
+  return new Date(`${dateStr}T12:00:00`).toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
 export default function WeekCalendar({
   leads = [],
   slots = [],
@@ -66,15 +71,17 @@ export default function WeekCalendar({
   const [dragEnd, setDragEnd] = useState(null);
   const isDragging = useRef(false);
 
-  // Reschedule mode state (click-based flow)
-  const [rescheduleMode, setRescheduleMode] = useState(null);
+  // Batch reschedule state — collect pending moves, confirm all at once
+  const [pendingMoves, setPendingMoves] = useState([]); // [{ lead, oldSlot, newSlot, targetDateStr, targetHour }]
+  const [batchRescheduleLoading, setBatchRescheduleLoading] = useState(false);
+
+  // Single reschedule confirmation (for non-batch clicks — kept for drag-drop)
   const [rescheduleConfirm, setRescheduleConfirm] = useState(null);
-  const [rescheduleLoading, setRescheduleLoading] = useState(false);
 
   // Lead drag-to-reschedule state
-  const [leadDrag, setLeadDrag] = useState(null);           // { lead } when actively dragging
-  const [leadDragTarget, setLeadDragTarget] = useState(null); // { dayIdx, rowIdx, dateStr, hour, slot }
-  const leadDragStartPos = useRef(null);  // { x, y, lead }
+  const [leadDrag, setLeadDrag] = useState(null);
+  const [leadDragTarget, setLeadDragTarget] = useState(null);
+  const leadDragStartPos = useRef(null);
   const leadDragActive = useRef(false);
   const leadDragJustEnded = useRef(false);
   const ghostRef = useRef(null);
@@ -253,86 +260,95 @@ export default function WeekCalendar({
     }
   }, [interactive, onSlotsChange]);
 
-  // --- Click-based reschedule ---
+  // --- Batch reschedule (pending moves) ---
 
-  const startReschedule = useCallback((lead) => {
-    const oldSlot = lead.availability_slot_id
-      ? slots.find((s) => s.id === lead.availability_slot_id)
-      : null;
-    setRescheduleMode({ lead, oldSlot });
-  }, [slots]);
-
-  const cancelReschedule = useCallback(() => {
-    setRescheduleMode(null);
-    setRescheduleConfirm(null);
+  const addPendingMove = useCallback((move) => {
+    setPendingMoves((prev) => {
+      const withoutExisting = prev.filter((m) => m.lead.id !== move.lead.id);
+      return [...withoutExisting, move];
+    });
   }, []);
 
-  const handleRescheduleTargetClick = useCallback((slot) => {
-    if (!rescheduleMode) return;
-    const isOpen = slot.is_open && slot.booked_count < slot.max_visits;
-    if (!isOpen) return;
-    setRescheduleConfirm({
-      lead: rescheduleMode.lead,
-      oldSlot: rescheduleMode.oldSlot,
-      newSlot: slot,
-    });
-  }, [rescheduleMode]);
+  const removePendingMove = useCallback((leadId) => {
+    setPendingMoves((prev) => prev.filter((m) => m.lead.id !== leadId));
+  }, []);
 
-  const confirmReschedule = useCallback(async () => {
-    if (!rescheduleConfirm) return;
-    const { lead, newSlot, targetDateStr, targetHour } = rescheduleConfirm;
+  const cancelAllPendingMoves = useCallback(() => {
+    setPendingMoves([]);
+  }, []);
 
-    setRescheduleLoading(true);
-    try {
-      let slotId = newSlot?.id;
+  const confirmAllPendingMoves = useCallback(async () => {
+    if (pendingMoves.length === 0) return;
+    setBatchRescheduleLoading(true);
+    let successCount = 0;
+    let failCount = 0;
+    const errors = [];
 
-      // Auto-create slot if dropping on empty cell
-      if (!slotId && targetDateStr && targetHour !== undefined) {
-        const createRes = await fetch('/api/availability', {
+    for (const move of pendingMoves) {
+      try {
+        let slotId = move.newSlot?.id;
+
+        if (!slotId && move.targetDateStr && move.targetHour !== undefined) {
+          const createRes = await fetch('/api/availability', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ slot_date: move.targetDateStr, slot_time: formatHour(move.targetHour), max_visits: 1 }),
+          });
+          if (!createRes.ok) throw new Error('Kon moment niet aanmaken');
+          const created = await createRes.json();
+          slotId = Array.isArray(created) ? created[0]?.id : created?.id;
+        }
+
+        if (!slotId) throw new Error('Geen geldig moment');
+
+        const res = await fetch(`/api/leads/${move.lead.id}/reschedule`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ slot_date: targetDateStr, slot_time: formatHour(targetHour), max_visits: 1 }),
+          body: JSON.stringify({ new_slot_id: slotId }),
         });
-        if (!createRes.ok) throw new Error('Kon moment niet aanmaken');
-        const created = await createRes.json();
-        slotId = Array.isArray(created) ? created[0]?.id : created?.id;
-        if (onSlotsChange) await onSlotsChange();
+
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body?.error || 'Kon niet verplaatsen');
+        }
+
+        successCount++;
+      } catch (err) {
+        failCount++;
+        errors.push(`${move.lead.name}: ${err.message}`);
       }
-
-      if (!slotId) throw new Error('Geen geldig moment');
-
-      const res = await fetch(`/api/leads/${lead.id}/reschedule`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ new_slot_id: slotId }),
-      });
-
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        toast.error(body?.error || 'Kon niet verplaatsen');
-        return;
-      }
-
-      toast.success(`${lead.name} verplaatst`);
-      setRescheduleMode(null);
-      setRescheduleConfirm(null);
-
-      if (onLeadsChange) await onLeadsChange();
-      if (onSlotsChange) await onSlotsChange();
-    } catch (err) {
-      toast.error(err?.message || 'Er ging iets mis bij het verplaatsen');
-    } finally {
-      setRescheduleLoading(false);
     }
-  }, [rescheduleConfirm, onLeadsChange, onSlotsChange]);
+
+    if (onLeadsChange) await onLeadsChange();
+    if (onSlotsChange) await onSlotsChange();
+
+    setPendingMoves([]);
+    setBatchRescheduleLoading(false);
+
+    if (failCount === 0) {
+      toast.success(`${successCount} inspectie${successCount !== 1 ? 's' : ''} verplaatst`);
+    } else if (successCount === 0) {
+      toast.error(`Kon niet verplaatsen: ${errors.join(', ')}`);
+    } else {
+      toast.warning(`${successCount} verplaatst, ${failCount} mislukt: ${errors.join(', ')}`);
+    }
+  }, [pendingMoves, onLeadsChange, onSlotsChange]);
+
+  // Convenience: single-move confirm (for drag-drop immediate action)
+  const rescheduleMode = pendingMoves.length > 0 ? { active: true } : null;
+
+  const cancelReschedule = useCallback(() => {
+    setPendingMoves([]);
+    setRescheduleConfirm(null);
+  }, []);
 
   // --- Lead drag-to-reschedule ---
 
   const initLeadDrag = useCallback((e, lead) => {
-    if (!interactive || rescheduleMode) return;
+    if (!interactive) return;
     leadDragStartPos.current = { x: e.clientX, y: e.clientY, lead };
     leadDragActive.current = false;
-  }, [interactive, rescheduleMode]);
+  }, [interactive]);
 
   const handleLeadDrop = useCallback(() => {
     const target = leadDragTarget;
@@ -352,15 +368,14 @@ export default function WeekCalendar({
     if (slot) {
       const status = getCellSlotStatus(slot);
       if (status === 'open') {
-        setRescheduleConfirm({ lead, oldSlot, newSlot: slot });
+        addPendingMove({ lead, oldSlot, newSlot: slot, targetDateStr: null, targetHour: null });
       } else {
         toast.info('Dit moment is niet beschikbaar');
       }
     } else {
-      // Empty cell — will auto-create slot on confirm
-      setRescheduleConfirm({ lead, oldSlot, newSlot: null, targetDateStr: dateStr, targetHour: hour });
+      addPendingMove({ lead, oldSlot, newSlot: null, targetDateStr: dateStr, targetHour: hour });
     }
-  }, [leadDragTarget, slots]);
+  }, [leadDragTarget, slots, addPendingMove]);
 
   const clearLeadDrag = useCallback(() => {
     leadDragStartPos.current = null;
@@ -428,11 +443,11 @@ export default function WeekCalendar({
 
   // Touch handlers for lead drag
   const handleLeadTouchStart = useCallback((e, lead) => {
-    if (!interactive || rescheduleMode) return;
+    if (!interactive) return;
     const touch = e.touches[0];
     leadDragStartPos.current = { x: touch.clientX, y: touch.clientY, lead };
     leadDragActive.current = false;
-  }, [interactive, rescheduleMode]);
+  }, [interactive]);
 
   useEffect(() => {
     function onTouchMove(e) {
@@ -489,13 +504,13 @@ export default function WeekCalendar({
   // --- Drag-to-create handlers ---
 
   const handleMouseDown = useCallback((dayIdx, rowIdx, dateStr, hour) => {
-    if (!interactive || creating || rescheduleMode || leadDragStartPos.current) return;
+    if (!interactive || creating || leadDragStartPos.current) return;
     const slot = getSlotForCell(dateStr, hour);
     if (slot) return;
     isDragging.current = true;
     setDragStart({ dayIdx, rowIdx: Math.floor(rowIdx / 2) });
     setDragEnd({ dayIdx, rowIdx: Math.floor(rowIdx / 2) });
-  }, [interactive, creating, slotMap, rescheduleMode]);
+  }, [interactive, creating, slotMap]);
 
   const handleMouseEnter = useCallback((dayIdx, rowIdx) => {
     if (!isDragging.current || !dragStart) return;
@@ -536,9 +551,9 @@ export default function WeekCalendar({
     return hourIdx >= minRow && hourIdx <= maxRow;
   }
 
-  // Check if a slot is a valid reschedule target (click-based mode)
+  // Check if a slot is a valid target for the current pending move being selected
   function isRescheduleTarget(slot) {
-    if (!rescheduleMode || !slot) return false;
+    if (!slot) return false;
     return slot.is_open && slot.booked_count < slot.max_visits;
   }
 
@@ -553,19 +568,6 @@ export default function WeekCalendar({
     if (status === 'open') return 'ring-2 ring-inset ring-blue-400';
     return 'ring-2 ring-inset ring-red-300 bg-red-50/50';
   }
-
-  // Format reschedule confirmation strings
-  const oldLabel = rescheduleConfirm?.oldSlot
-    ? `${new Date(`${rescheduleConfirm.oldSlot.slot_date}T12:00:00`).toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' })} ${rescheduleConfirm.oldSlot.slot_time.slice(0, 5)}`
-    : rescheduleConfirm?.lead?.inspection_date
-      ? `${new Date(`${rescheduleConfirm.lead.inspection_date}T12:00:00`).toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' })} ${rescheduleConfirm.lead.inspection_time?.slice(0, 5) || ''}`
-      : 'onbekend';
-
-  const newLabel = rescheduleConfirm?.newSlot
-    ? `${new Date(`${rescheduleConfirm.newSlot.slot_date}T12:00:00`).toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' })} ${rescheduleConfirm.newSlot.slot_time.slice(0, 5)}`
-    : rescheduleConfirm?.targetDateStr
-      ? `${new Date(`${rescheduleConfirm.targetDateStr}T12:00:00`).toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' })} ${formatHour(rescheduleConfirm.targetHour)}`
-      : '';
 
   return (
     <>
@@ -603,22 +605,73 @@ export default function WeekCalendar({
             {googleEvents.length > 0 && <span className="flex items-center gap-1"><span className="inline-block w-1.5 h-1.5 rounded-full bg-purple-400" /> Google Agenda</span>}
           </div>
 
-          {/* Reschedule mode banner */}
-          {rescheduleMode && (
-            <div className="mt-1 flex items-center gap-2 rounded-md border border-blue-300 bg-blue-50 px-2 py-1.5 text-xs">
-              <MoveRight className="h-3.5 w-3.5 text-blue-600 shrink-0" />
-              <span className="text-blue-800">
-                Klik op een open moment om <strong>{rescheduleMode.lead.name}</strong> te verplaatsen
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="ml-auto h-6 px-2 text-xs text-blue-600 hover:text-blue-800"
-                onClick={cancelReschedule}
-              >
-                <X className="h-3 w-3 mr-1" />
-                Annuleren
-              </Button>
+          {/* Pending moves banner */}
+          {pendingMoves.length > 0 && (
+            <div className="mt-1 flex flex-col gap-1.5 rounded-md border border-blue-300 bg-blue-50 px-2 py-1.5 text-xs">
+              <div className="flex items-center gap-2">
+                <ArrowRightLeft className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+                <span className="text-blue-800 font-medium">
+                  {pendingMoves.length} verplaatsing{pendingMoves.length !== 1 ? 'en' : ''} in de wachtrij
+                </span>
+                <div className="ml-auto flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs text-red-600 hover:text-red-800"
+                    onClick={cancelAllPendingMoves}
+                  >
+                    <X className="h-3 w-3 mr-0.5" />
+                    Annuleren
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="h-6 px-3 text-xs bg-blue-600 hover:bg-blue-700"
+                    disabled={batchRescheduleLoading}
+                    onClick={confirmAllPendingMoves}
+                  >
+                    {batchRescheduleLoading ? (
+                      <>
+                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                        Opslaan...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="h-3 w-3 mr-1" />
+                        Opslaan &amp; versturen
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+              <div className="flex flex-col gap-1">
+                {pendingMoves.map((move) => {
+                  const fromLabel = move.oldSlot
+                    ? `${formatDateShort(move.oldSlot.slot_date)} ${move.oldSlot.slot_time.slice(0, 5)}`
+                    : move.lead.inspection_date
+                      ? `${formatDateShort(move.lead.inspection_date)} ${move.lead.inspection_time?.slice(0, 5) || ''}`
+                      : 'onbekend';
+                  const toLabel = move.newSlot
+                    ? `${formatDateShort(move.newSlot.slot_date)} ${move.newSlot.slot_time.slice(0, 5)}`
+                    : move.targetDateStr
+                      ? `${formatDateShort(move.targetDateStr)} ${formatHour(move.targetHour)}`
+                      : '';
+                  return (
+                    <div key={move.lead.id} className="flex items-center gap-1.5 text-blue-700 bg-blue-100/60 rounded px-1.5 py-0.5">
+                      <span className="font-medium truncate">{move.lead.name}</span>
+                      <span className="text-blue-500">→</span>
+                      <span className="truncate">{toLabel || 'nieuw moment'}</span>
+                      <button
+                        type="button"
+                        className="ml-auto shrink-0 rounded p-0.5 hover:bg-blue-200 text-blue-500 hover:text-blue-700"
+                        onClick={() => removePendingMove(move.lead.id)}
+                        title="Verwijder"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </CardHeader>
@@ -688,7 +741,7 @@ export default function WeekCalendar({
                   const slot = getSlotForCell(dateStr, hour);
                   const slotStatus = getCellSlotStatus(slot);
                   const inDragSelection = isCellInDragSelection(dayIdx, rowIdx);
-                  const isTarget = rescheduleMode && isRescheduleTarget(slot);
+                  const isTarget = slots.length > 0 && isRescheduleTarget(slot) && pendingMoves.length > 0;
                   const leadDragHighlight = getLeadDragCellHighlight(dayIdx, rowIdx, dateStr, hour);
 
                   // Find leads booked at this exact half-hour
@@ -716,58 +769,66 @@ export default function WeekCalendar({
                         ${isTopHalf ? 'border-t border-t-gray-200' : ''}
                         ${!isEmpty ? cellBg[slotStatus] : ''}
                         ${inDragSelection && isEmpty ? 'bg-green-200/50' : ''}
-                        ${canClick && isEmpty && !inDragSelection && !rescheduleMode && !leadDrag ? 'hover:bg-green-100/40 cursor-pointer' : ''}
-                        ${canClick && !isEmpty && !rescheduleMode && !leadDrag ? 'cursor-pointer' : ''}
+                        ${canClick && isEmpty && !inDragSelection && !leadDrag ? 'hover:bg-green-100/40 cursor-pointer' : ''}
+                        ${canClick && !isEmpty && !leadDrag ? 'cursor-pointer' : ''}
                         ${isTarget ? 'ring-2 ring-inset ring-blue-400 cursor-pointer animate-pulse' : ''}
                         ${leadDragHighlight}
                       `}
                       style={{ gridRow: rowIdx + 2, gridColumn: dayIdx + 2 }}
                       onMouseDown={() => {
-                        if (canClick && isEmpty && !rescheduleMode && !leadDragStartPos.current) {
+                        if (canClick && isEmpty && !leadDragStartPos.current) {
                           handleMouseDown(dayIdx, rowIdx, dateStr, hour);
                         }
                       }}
                       onMouseEnter={() => handleMouseEnter(dayIdx, rowIdx)}
                       onClick={() => {
-                        // In reschedule mode, clicking an open slot triggers reschedule
-                        if (rescheduleMode && isTarget && isTopHalf) {
-                          handleRescheduleTargetClick(slot);
+                        // If pending moves exist and this is an empty cell (no slot), assign move here (will auto-create slot)
+                        if (pendingMoves.length > 0 && !slot && canClick) {
+                          const unslottedMoves = pendingMoves.filter((m) => !m.newSlot);
+                          const move = unslottedMoves.length > 0
+                            ? unslottedMoves[0]
+                            : pendingMoves[pendingMoves.length - 1];
+                          addPendingMove({ ...move, newSlot: null, targetDateStr: dateStr, targetHour: hour });
+                          toast.success(`${move.lead.name} → ${formatDateShort(dateStr)} ${formatHour(hour)}`);
+                          return;
                         }
                       }}
                     >
                       {/* Slot content in top half */}
                       {showSlotContent && (
-                        <SlotCell
-                          slot={slot}
-                          interactive={interactive && !rescheduleMode && !leadDrag}
-                          loading={actionLoading === slot.id}
-                          onToggle={() => toggleSlot(slot)}
-                          onDelete={() => deleteSlot(slot)}
-                          onNewLead={() => {
-                            setQuickLeadSlot(slot);
-                            setQuickLeadOpen(true);
-                          }}
-                          rescheduleMode={!!rescheduleMode || !!leadDrag}
-                        />
+<SlotCell
+                           slot={slot}
+                           interactive={interactive && !leadDrag}
+                           loading={actionLoading === slot.id}
+                           onToggle={() => toggleSlot(slot)}
+                           onDelete={() => deleteSlot(slot)}
+                           onNewLead={() => {
+                             setQuickLeadSlot(slot);
+                             setQuickLeadOpen(true);
+                           }}
+                           pendingLeadsToMove={pendingMoves}
+                           addPendingMove={addPendingMove}
+                         />
                       )}
 
                       {/* Lead blocks */}
-                      {cellLeads.map((lead) => (
-                        <LeadBlock
-                          key={lead.id}
-                          lead={lead}
-                          interactive={interactive}
-                          rescheduleMode={!!rescheduleMode}
-                          onReschedule={() => startReschedule(lead)}
-                          onArchiveLead={onArchiveLead}
-                          onDeleteLead={onDeleteLead}
-                          onDragInit={initLeadDrag}
-                          onTouchDragInit={handleLeadTouchStart}
-                          isDragging={leadDrag?.lead?.id === lead.id}
-                          leadDragJustEnded={leadDragJustEnded}
-                          busy={busyLeadId === lead.id}
-                        />
-                      ))}
+{cellLeads.map((lead) => (
+                         <LeadBlock
+                           key={lead.id}
+                           lead={lead}
+                           interactive={interactive}
+                           pendingMoves={pendingMoves}
+                           onAddPendingMove={(move) => addPendingMove(move)}
+                           onArchiveLead={onArchiveLead}
+                           onDeleteLead={onDeleteLead}
+                           onDragInit={initLeadDrag}
+                           onTouchDragInit={handleLeadTouchStart}
+                           isDragging={leadDrag?.lead?.id === lead.id}
+                           leadDragJustEnded={leadDragJustEnded}
+                           busy={busyLeadId === lead.id}
+                           slots={slots}
+                         />
+                       ))}
 
                       {/* Google Calendar events */}
                       {(googleEventsByDayRow[`${dateStr}|${rowIdx}`] || []).map((ev) => (
@@ -798,42 +859,6 @@ export default function WeekCalendar({
         </div>
       )}
 
-      {/* Reschedule confirmation dialog */}
-      <AlertDialog open={!!rescheduleConfirm} onOpenChange={(open) => { if (!open) setRescheduleConfirm(null); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Inspectie verplaatsen</AlertDialogTitle>
-            <AlertDialogDescription>
-              Verplaats <strong>{rescheduleConfirm?.lead?.name}</strong> van{' '}
-              <strong>{oldLabel}</strong> naar <strong>{newLabel}</strong>?
-              <br /><br />
-              Er wordt automatisch een bevestigingsmail verstuurd naar de klant.
-              {rescheduleConfirm && !rescheduleConfirm.newSlot && rescheduleConfirm.targetDateStr && (
-                <>
-                  <br />
-                  <span className="text-muted-foreground text-xs">Er wordt automatisch een nieuw moment aangemaakt.</span>
-                </>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={rescheduleLoading} onClick={() => setRescheduleConfirm(null)}>
-              Annuleren
-            </AlertDialogCancel>
-            <AlertDialogAction disabled={rescheduleLoading} onClick={confirmReschedule}>
-              {rescheduleLoading ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Verplaatsen...
-                </>
-              ) : (
-                'Verplaatsen'
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
       {/* Quick lead dialog */}
       <QuickLeadDialog
         open={quickLeadOpen}
@@ -852,8 +877,8 @@ export default function WeekCalendar({
 function LeadBlock({
   lead,
   interactive,
-  rescheduleMode,
-  onReschedule,
+  pendingMoves,
+  onAddPendingMove,
   onArchiveLead,
   onDeleteLead,
   onDragInit,
@@ -861,9 +886,11 @@ function LeadBlock({
   isDragging,
   leadDragJustEnded,
   busy = false,
+  slots,
 }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [chooseTarget, setChooseTarget] = useState(false);
   const mouseDownPos = useRef(null);
 
   const address = [lead.straat, [lead.plaatsnaam, lead.postcode].filter(Boolean).join(' ')].filter(Boolean).join(', ');
@@ -880,24 +907,27 @@ function LeadBlock({
     }
   };
 
-  if (!interactive || rescheduleMode) {
+  // If this lead is in pending moves and target has been chosen, show it differently
+  const pendingMove = pendingMoves?.find((m) => m.lead.id === lead.id);
+
+  if (!interactive) {
     return (
       <div
-        className="block rounded-md px-1.5 py-1 text-[10px] leading-snug bg-blue-600 text-white mb-0.5 relative z-10"
-        title={`${lead.name} - ${address} (${formatTime(lead.inspection_time)})`}
+        className={`block rounded-md px-1.5 py-1 text-[10px] leading-snug ${pendingMove ? 'bg-amber-500 text-white ring-2 ring-amber-300' : 'bg-blue-600 text-white'} mb-0.5 relative z-10`}
+        title={`${lead.name} - ${address} (${formatTime(lead.inspection_time)})${pendingMove ? ' — verplaatsing in de wachtrij' : ''}`}
       >
         <div className="font-semibold truncate">{formatTime(lead.inspection_time)} {lead.name}</div>
-        {address && <div className="truncate text-blue-100 text-[9px]">{address}</div>}
+        {address && <div className="truncate text-[9px]">{pendingMove ? 'bg-amber-100' : 'text-blue-100'}>{address}</div>}
       </div>
     );
   }
 
   return (
-    <Popover open={open} onOpenChange={(v) => { setOpen(v); if (!v) setCopied(false); }}>
+    <Popover open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setCopied(false); setChooseTarget(false); } }}>
       <PopoverAnchor asChild>
         <button
           type="button"
-          className={`block w-full text-left rounded-md px-1.5 py-1 text-[10px] leading-snug bg-blue-600 text-white hover:bg-blue-700 transition-colors mb-0.5 relative z-10 cursor-grab active:cursor-grabbing touch-none ${isDragging ? 'opacity-40' : ''}`}
+          className={`block w-full text-left rounded-md px-1.5 py-1 text-[10px] leading-snug ${pendingMove ? 'bg-amber-500 text-white ring-2 ring-amber-300 hover:bg-amber-600' : 'bg-blue-600 text-white hover:bg-blue-700'} transition-colors mb-0.5 relative z-10 cursor-grab active:cursor-grabbing touch-none ${isDragging ? 'opacity-40' : ''}`}
           title={`${lead.name} - ${address} (${formatTime(lead.inspection_time)})`}
           onMouseDown={(e) => {
             if (e.button !== 0) return;
@@ -912,7 +942,6 @@ function LeadBlock({
           }}
           onClick={(e) => {
             e.stopPropagation();
-            // Don't open popover if this was a drag or just ended one
             if (leadDragJustEnded?.current) return;
             if (mouseDownPos.current) {
               const dx = e.clientX - mouseDownPos.current.x;
@@ -924,7 +953,8 @@ function LeadBlock({
           }}
         >
           <div className="font-semibold truncate">{formatTime(lead.inspection_time)} {lead.name}</div>
-          {address && <div className="truncate text-blue-100 text-[9px]">{address}</div>}
+          {address && <div className="truncate text-[9px]">{pendingMove ? 'Verplaatsing in de wachtrij' : address}</div>}
+          {pendingMove && <div className="text-[8px] mt-0.5">↳ {pendingMove.newSlot ? `${formatDateShort(pendingMove.newSlot.slot_date)} ${pendingMove.newSlot.slot_time.slice(0, 5)}` : pendingMove.targetDateStr ? `${formatDateShort(pendingMove.targetDateStr)} ${formatHour(pendingMove.targetHour)}` : 'nieuw moment'}</div>}
         </button>
       </PopoverAnchor>
       <PopoverContent className="w-72 p-3" side="right" align="start">
@@ -971,10 +1001,14 @@ function LeadBlock({
               disabled={busy}
               onClick={() => {
                 setOpen(false);
-                onReschedule();
+                const oldSlot = lead.availability_slot_id
+                  ? slots?.find((s) => s.id === lead.availability_slot_id)
+                  : null;
+                onAddPendingMove?.({ lead, oldSlot, newSlot: null, targetDateStr: null, targetHour: null });
+                toast.info('Klik nu op een open moment om de verplaatsing toe te voegen. Je kunt meerdere leads verplaatsen voordat je opslaat.');
               }}
             >
-              <MoveRight className="h-3.5 w-3.5" />
+              <ArrowRightLeft className="h-3.5 w-3.5" />
               Verplaatsen
             </Button>
             <Button
@@ -1010,8 +1044,8 @@ function LeadBlock({
   );
 }
 
-// Slot cell with popover for managing
-function SlotCell({ slot, interactive, loading, onToggle, onDelete, onNewLead, rescheduleMode }) {
+// Slot cell with options popover
+function SlotCell({ slot, interactive, loading, onToggle, onDelete, onNewLead, pendingLeadsToMove, dateStr, hour, days, addPendingMove }) {
   const [open, setOpen] = useState(false);
   const remaining = slot.max_visits - slot.booked_count;
   const status = !slot.is_open ? 'closed' : remaining > 0 ? 'open' : 'full';
@@ -1028,7 +1062,9 @@ function SlotCell({ slot, interactive, loading, onToggle, onDelete, onNewLead, r
     closed: 'destructive',
   };
 
-  if (!interactive || rescheduleMode) {
+  const hasPendingMoves = pendingLeadsToMove && pendingLeadsToMove.length > 0;
+
+  if (!interactive) {
     return (
       <div className="text-[10px] leading-tight px-0.5 py-0.5">
         <span className="font-medium">{formatTime(slot.slot_time)}</span>
@@ -1044,9 +1080,26 @@ function SlotCell({ slot, interactive, loading, onToggle, onDelete, onNewLead, r
       <PopoverAnchor asChild>
         <button
           type="button"
-          className="w-full text-left text-[10px] leading-tight px-0.5 py-0.5 rounded hover:ring-1 hover:ring-primary/30"
+          className={`w-full text-left text-[10px] leading-tight px-0.5 py-0.5 rounded hover:ring-1 hover:ring-primary/30 ${hasPendingMoves && status === 'open' ? 'ring-1 ring-blue-400 animate-pulse' : ''}`}
           onClick={(e) => {
             e.stopPropagation();
+            // If there are pending moves and this slot is open, immediately add the first pending move here
+            if (hasPendingMoves && status === 'open') {
+              // Find pending moves without a target and assign this slot
+              const unslottedMoves = pendingLeadsToMove.filter((m) => !m.newSlot);
+              if (unslottedMoves.length > 0) {
+                // Assign this slot as the target for the first unslotted move
+                const move = unslottedMoves[0];
+                addPendingMove({ ...move, newSlot: slot, targetDateStr: null, targetHour: null });
+                toast.success(`${move.lead.name} → ${formatDateShort(slot.slot_date)} ${slot.slot_time.slice(0, 5)}`);
+                return;
+              }
+              // If all moves already have a slot, re-assign the most recent one
+              const lastMove = pendingLeadsToMove[pendingLeadsToMove.length - 1];
+              addPendingMove({ ...lastMove, newSlot: slot, targetDateStr: null, targetHour: null });
+              toast.success(`${lastMove.lead.name} → ${formatDateShort(slot.slot_date)} ${slot.slot_time.slice(0, 5)}`);
+              return;
+            }
             setOpen(true);
           }}
         >
@@ -1056,7 +1109,7 @@ function SlotCell({ slot, interactive, loading, onToggle, onDelete, onNewLead, r
           </Badge>
         </button>
       </PopoverAnchor>
-      <PopoverContent className="w-56 p-3" side="right" align="start">
+      <PopoverContent className="w-60 p-3" side="right" align="start">
         <div className="space-y-3">
           <div>
             <p className="font-medium text-sm">{formatTime(slot.slot_time)}</p>
@@ -1077,6 +1130,29 @@ function SlotCell({ slot, interactive, loading, onToggle, onDelete, onNewLead, r
               >
                 <Plus className="h-3.5 w-3.5" />
                 Nieuwe aanvraag
+              </Button>
+            )}
+            {status === 'open' && hasPendingMoves && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full justify-start gap-2 text-blue-700 hover:text-blue-800"
+                onClick={() => {
+                  setOpen(false);
+                  // Assign all unslotted pending moves to this slot
+                  const unslottedMoves = pendingLeadsToMove.filter((m) => !m.newSlot);
+                  if (unslottedMoves.length > 0) {
+                    addPendingMove({ ...unslottedMoves[0], newSlot: slot, targetDateStr: null, targetHour: null });
+                    toast.success(`${unslottedMoves[0].lead.name} → ${formatDateShort(slot.slot_date)} ${slot.slot_time.slice(0, 5)}`);
+                  } else {
+                    const lastMove = pendingLeadsToMove[pendingLeadsToMove.length - 1];
+                    addPendingMove({ ...lastMove, newSlot: slot, targetDateStr: null, targetHour: null });
+                    toast.success(`${lastMove.lead.name} → ${formatDateShort(slot.slot_date)} ${slot.slot_time.slice(0, 5)}`);
+                  }
+                }}
+              >
+                <ArrowRightLeft className="h-3.5 w-3.5" />
+                Verplaats naar hier
               </Button>
             )}
             <Button

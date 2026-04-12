@@ -1,21 +1,27 @@
 'use client';
 
-import { useState, useEffect, useCallback, useDeferredValue } from 'react';
+import { useState, useEffect, useCallback, useDeferredValue, useMemo } from 'react';
 import { DragDropContext } from '@hello-pangea/dnd';
 import { createClient } from '@/lib/supabase/client';
-import { STAGE_ORDER } from '@/lib/utils/pipeline';
+import { STAGE_ORDER, PIPELINE_STAGES } from '@/lib/utils/pipeline';
 import { getLeadPriorityScore, isNeedsActionToday } from '@/lib/utils/lead-workflow';
 import { matchesLeadSearch } from '@/lib/utils/lead-search';
 import { toast } from 'sonner';
 import KanbanColumn from './KanbanColumn';
 import PipelineStats from './PipelineStats';
 import NewLeadDialog from './NewLeadDialog';
+import LeadTable from './LeadTable';
 import { Skeleton } from '@/app/components/ui/skeleton';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
-import { Plus } from 'lucide-react';
+import { Plus, LayoutGrid, List, X } from 'lucide-react';
 
-const FILTER_STORAGE_KEY = 'crm.dashboard.filter.v1';
+// v2: bumped from v1 to reset existing users to the new "Actie nodig" default
+const FILTER_STORAGE_KEY = 'crm.dashboard.filter.v2';
+const VIEW_STORAGE_KEY = 'crm.dashboard.view.v1';
+
+const VALID_FILTERS = ['all', 'needs_action', 'no_response_3d', 'waiting_quote_response'];
+const VALID_VIEWS = ['table', 'kanban'];
 
 function daysSince(value) {
   const date = value ? new Date(value) : null;
@@ -27,6 +33,10 @@ export default function KanbanBoard() {
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState('all');
+  // Default view is "table" — Kanban breaks down at 100+ leads (esp. Bevestigd column).
+  const [view, setView] = useState('table');
+  // Independent stage filter set by clicking PipelineStats cards. null = no filter.
+  const [stageFilter, setStageFilter] = useState(null);
   const [newLeadOpen, setNewLeadOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [leadActionLoadingId, setLeadActionLoadingId] = useState(null);
@@ -49,11 +59,16 @@ export default function KanbanBoard() {
     fetchLeads();
   }, [fetchLeads]);
 
+  // Restore persisted filter + view preferences
   useEffect(() => {
     try {
-      const stored = window.localStorage.getItem(FILTER_STORAGE_KEY);
-      if (stored && ['all', 'needs_action', 'no_response_3d', 'waiting_quote_response'].includes(stored)) {
-        setActiveFilter(stored);
+      const storedFilter = window.localStorage.getItem(FILTER_STORAGE_KEY);
+      if (storedFilter && VALID_FILTERS.includes(storedFilter)) {
+        setActiveFilter(storedFilter);
+      }
+      const storedView = window.localStorage.getItem(VIEW_STORAGE_KEY);
+      if (storedView && VALID_VIEWS.includes(storedView)) {
+        setView(storedView);
       }
     } catch {
       // Ignore storage access issues.
@@ -67,6 +82,14 @@ export default function KanbanBoard() {
       // Ignore storage access issues.
     }
   }, [activeFilter]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(VIEW_STORAGE_KEY, view);
+    } catch {
+      // Ignore storage access issues.
+    }
+  }, [view]);
 
   // Supabase Realtime subscription
   useEffect(() => {
@@ -175,6 +198,20 @@ export default function KanbanBoard() {
     }
   };
 
+  // Filter buttons are mutually exclusive from the user's POV. Workflow filters
+  // (all/needs_action/no_response_3d/waiting_quote_response) and stage filters
+  // (nieuw/uitgenodigd/bevestigd/offerte_verzonden/akkoord) live in separate
+  // state, but selecting one clears the other so only one button is "active".
+  const selectWorkflowFilter = (filter) => {
+    setActiveFilter(filter);
+    setStageFilter(null);
+  };
+
+  const selectStageFilter = (stage) => {
+    setStageFilter(stage);
+    setActiveFilter('all');
+  };
+
   const handleDragEnd = (result) => {
     const { destination, draggableId } = result;
     if (!destination) return;
@@ -186,8 +223,11 @@ export default function KanbanBoard() {
     updateLeadStatus(draggableId, newStatus);
   };
 
-  const visibleLeads = leads.filter((lead) => {
+  const visibleLeads = useMemo(() => leads.filter((lead) => {
     if (!matchesLeadSearch(lead, deferredSearchQuery)) return false;
+
+    // Stage filter from PipelineStats clicks — applied independently of activeFilter
+    if (stageFilter && lead.status !== stageFilter) return false;
 
     if (activeFilter === 'all') return true;
 
@@ -208,10 +248,11 @@ export default function KanbanBoard() {
     }
 
     return true;
-  });
+  }), [leads, deferredSearchQuery, stageFilter, activeFilter]);
+
   const hasLeadResults = visibleLeads.length > 0;
 
-  const leadsByStage = STAGE_ORDER.reduce((acc, stage) => {
+  const leadsByStage = useMemo(() => STAGE_ORDER.reduce((acc, stage) => {
     acc[stage] = visibleLeads
       .filter((lead) => lead.status === stage)
       .sort((a, b) => {
@@ -222,7 +263,7 @@ export default function KanbanBoard() {
         return aTouch - bTouch;
       });
     return acc;
-  }, {});
+  }, {}), [visibleLeads]);
 
   if (loading) {
     return (
@@ -232,18 +273,25 @@ export default function KanbanBoard() {
             <Skeleton key={i} className="h-24 rounded-lg" />
           ))}
         </div>
-        <div className="flex gap-4 overflow-x-auto pb-4">
-          {[...Array(4)].map((_, i) => (
-            <Skeleton key={i} className="min-w-[280px] h-96 rounded-lg" />
-          ))}
-        </div>
+        <Skeleton className="h-96 rounded-lg" />
       </div>
     );
   }
 
   return (
     <div className="p-6 space-y-6">
-      <PipelineStats leads={leads} />
+      <PipelineStats
+        leads={leads}
+        activeStage={stageFilter}
+        onStageClick={(stage) => {
+          // Toggle: clicking the active stage clears the filter
+          if (stage === stageFilter) {
+            selectWorkflowFilter('all');
+          } else {
+            selectStageFilter(stage);
+          }
+        }}
+      />
 
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center gap-2 flex-wrap">
@@ -257,30 +305,56 @@ export default function KanbanBoard() {
           </Button>
           <div className="w-px h-6 bg-border mx-1" />
           <Button
-            variant={activeFilter === 'all' ? 'default' : 'outline'}
+            variant={activeFilter === 'all' && !stageFilter ? 'default' : 'outline'}
             size="sm"
-            onClick={() => setActiveFilter('all')}
+            onClick={() => selectWorkflowFilter('all')}
           >
             Alle leads
           </Button>
           <Button
             variant={activeFilter === 'needs_action' ? 'default' : 'outline'}
             size="sm"
-            onClick={() => setActiveFilter('needs_action')}
+            onClick={() => selectWorkflowFilter('needs_action')}
           >
             Actie nodig
           </Button>
+          <div className="w-px h-6 bg-border mx-1" />
+          <Button
+            variant={stageFilter === 'nieuw' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => selectStageFilter('nieuw')}
+          >
+            <span className="h-2 w-2 rounded-full bg-blue-500 mr-1.5" />
+            Nieuw
+          </Button>
+          <Button
+            variant={stageFilter === 'uitgenodigd' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => selectStageFilter('uitgenodigd')}
+          >
+            <span className="h-2 w-2 rounded-full bg-purple-500 mr-1.5" />
+            Uitgenodigd
+          </Button>
+          <Button
+            variant={stageFilter === 'akkoord' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => selectStageFilter('akkoord')}
+          >
+            <span className="h-2 w-2 rounded-full bg-green-500 mr-1.5" />
+            Akkoord
+          </Button>
+          <div className="w-px h-6 bg-border mx-1" />
           <Button
             variant={activeFilter === 'no_response_3d' ? 'default' : 'outline'}
             size="sm"
-            onClick={() => setActiveFilter('no_response_3d')}
+            onClick={() => selectWorkflowFilter('no_response_3d')}
           >
             Geen reactie &gt;3d
           </Button>
           <Button
             variant={activeFilter === 'waiting_quote_response' ? 'default' : 'outline'}
             size="sm"
-            onClick={() => setActiveFilter('waiting_quote_response')}
+            onClick={() => selectWorkflowFilter('waiting_quote_response')}
           >
             Wacht op offerte reactie
           </Button>
@@ -293,13 +367,61 @@ export default function KanbanBoard() {
             placeholder="Zoek op naam, plaats, telefoon..."
             className="w-full sm:w-80"
           />
-          <span className="text-xs text-muted-foreground whitespace-nowrap">
-            {visibleLeads.length} van {leads.length} leads in beeld
-          </span>
+          {/* View toggle: Tabel (default) ↔ Kanban */}
+          <div className="inline-flex rounded-md border bg-background p-0.5">
+            <Button
+              variant={view === 'table' ? 'default' : 'ghost'}
+              size="sm"
+              className="h-7 px-2"
+              onClick={() => setView('table')}
+              title="Tabelweergave"
+            >
+              <List className="h-4 w-4 mr-1" />
+              Tabel
+            </Button>
+            <Button
+              variant={view === 'kanban' ? 'default' : 'ghost'}
+              size="sm"
+              className="h-7 px-2"
+              onClick={() => setView('kanban')}
+              title="Kanbanweergave"
+            >
+              <LayoutGrid className="h-4 w-4 mr-1" />
+              Kanban
+            </Button>
+          </div>
         </div>
       </div>
 
-      {hasLeadResults ? (
+      {/* Active stage filter chip — visible feedback when a stat card is clicked */}
+      {stageFilter && (
+        <div className="flex items-center gap-2 text-xs">
+          <span className="text-muted-foreground">Gefilterd op fase:</span>
+          <button
+            type="button"
+            onClick={() => setStageFilter(null)}
+            className="inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 hover:bg-muted"
+          >
+            <span className={`h-2 w-2 rounded-full ${PIPELINE_STAGES[stageFilter]?.dotColor}`} />
+            {PIPELINE_STAGES[stageFilter]?.label}
+            <X className="h-3 w-3" />
+          </button>
+        </div>
+      )}
+
+      <div className="text-xs text-muted-foreground">
+        {visibleLeads.length} van {leads.length} leads in beeld
+      </div>
+
+      {view === 'table' ? (
+        <LeadTable
+          leads={visibleLeads}
+          onStatusChange={updateLeadStatus}
+          onArchive={archiveLead}
+          onDelete={deleteLead}
+          busyLeadId={leadActionLoadingId}
+        />
+      ) : hasLeadResults ? (
         <DragDropContext onDragEnd={handleDragEnd}>
           <div className="flex gap-4 overflow-x-auto pb-4">
             {STAGE_ORDER.map(stage => (

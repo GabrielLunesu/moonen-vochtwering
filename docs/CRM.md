@@ -1,10 +1,29 @@
 # Moonen Vochtwering — CRM & Quoting Webapp
 
-> **Living document** — last updated: 11 Mar 2026
+> **Living document** — last updated: 13 Apr 2026 (batch reschedule + slot options menu)
 
 ---
 
 ## Current Status
+
+### Pipeline Dashboard Scaling Overhaul (Implemented)
+
+### Batch Reschedule & Slot Options Menu (Implemented)
+- ✅ **Slot options menu** (`SlotCell`): clicking a slot now shows a popover with options first (Nieuwe aanvraag, Verplaats naar hier, Sluiten/Openen, Verwijderen) instead of immediately opening the new lead dialog
+- ✅ **"Verplaats naar hier"** option on open slots when there are pending moves — assigns the first unslotted pending lead to that slot
+- ✅ **Batch pending reschedule**: moving a lead (via popover "Verplaatsen" button or drag) adds it to a pending moves queue rather than confirming immediately
+- ✅ **Pending moves banner**: shows all pending moves with lead name, source → target, and per-move remove (×) buttons
+- ✅ **Also works on empty cells**: clicking an empty cell while pending moves exist auto-creates a slot and assigns the lead there
+- ✅ **"Opslaan & versturen" button**: confirms all pending moves at once, executing each reschedule API call sequentially, with success/failure tally in a toast
+- ✅ **Drag-to-reschedule also queues**: lead drag-drop onto open/empty cells adds to pending moves instead of immediately confirming
+- ✅ **Lead blocks visually indicate pending moves**: leads with a pending reschedule show amber highlighting with the target slot info
+- ✅ **Table view as default** (`LeadTable.jsx`): sortable columns (Naam, Stad, Status, Probleem, Dagen in fase, Inspectie), priority indicator (`AlertCircle`) for "actie nodig" rows, full action dropdown per row (same menu as kanban cards)
+- ✅ **View toggle** in `KanbanBoard.jsx`: "Tabel" / "Kanban" buttons, persisted in localStorage (`crm.dashboard.view.v1`), table is the default
+- ✅ **Default filter is now "Actie nodig"** instead of "Alle leads" — dashboard opens on what needs doing today; storage key bumped to `crm.dashboard.filter.v2` to reset existing users
+- ✅ **Clickable PipelineStats cards**: clicking Bevestigd / Offertes uit / Akkoord cards filters the visible leads to that stage; click again or click chip's × to clear; active card is ring-highlighted
+- ✅ **Stage filter chip**: when a stat card is active, a removable chip appears above the list showing the active stage filter
+- ✅ **Collapsible Kanban columns** (`KanbanColumn.jsx`): columns with >6 leads collapse to top 6 + "Toon alle N" expand button. This stops Bevestigd (often 50+) from dominating the board
+- ✅ Kanban columns still preserve priority sort order (urgent leads always in the visible top 6)
 
 ### Core Build (Phase 1-4)
 - ✅ Foundation, auth, pipeline, lead detail, emails, customer flows
@@ -37,7 +56,7 @@
 - ✅ Quote editing & preview: discount support (percentage/fixed), PDF preview dialog, edit mode with "Opslaan & opnieuw versturen"
 - ✅ Inspection form respects pipeline position in edit mode (won't regress `offerte_verzonden` to `bezocht`)
 - ✅ Discount row in quote PDF between subtotal and BTW, BTW recalculated on discounted amount
-- ✅ Interactive week calendar (`WeekCalendar.jsx`) with per-cell slot management: click to create, drag to create range, popover to toggle/delete
+- ✅ Interactive week calendar (`WeekCalendar.jsx`) with per-cell slot management: click to create, drag to create range, slot options popover, batch reschedule with pending moves queue
 - ✅ Email template editor: editable subject, greeting, body, CTA label, closing per template type with live preview
 - ✅ All 4 email templates accept `overrides` parameter; API routes load overrides from `settings` table
 - ✅ Fixed CSS theme isolation: shadcn tokens use explicit hex values to prevent marketing dark-mode leaking into dashboard
@@ -138,7 +157,7 @@
 - ✅ New API: `POST /api/leads/[id]/reschedule` — admin-initiated reschedule (auth-based, atomic slot swap, confirmation email)
 - ✅ New API: `POST /api/leads/create-with-booking` — combined lead creation + slot booking for phone-in leads (source: `telefoon`)
 - ✅ `QuickLeadDialog.jsx`: form dialog with name, phone, email, address, type, toelichting fields
-- ✅ `WeekCalendar.jsx` enhanced: lead popovers, reschedule mode with banner + pulsing targets, drag-to-reschedule (mouse + touch), AlertDialog confirmation
+- ✅ `WeekCalendar.jsx` enhanced: lead popovers, batch reschedule mode with pending moves queue, drag-to-reschedule (mouse + touch, adds to pending queue), slot options menu (Nieuwe aanvraag / Verplaats naar hier / Openen-Sluiten / Verwijderen), "Opslaan & versturen" confirms all moves
 - ✅ Planning page passes `onLeadsChange` callback to WeekCalendar for data refresh after reschedule/create
 - ✅ "Nieuwe aanvraag" button on Kanban pipeline page — creates lead without appointment (status: `nieuw`)
 - ✅ New `POST /api/leads` — auth-protected manual lead creation with token generation and event logging
@@ -190,6 +209,27 @@
 - ✅ Graceful degradation: all gcal functions are no-ops when env vars not configured
 - ✅ Best-effort sync: Google API failures never block CRM operations
 
+### Financial System — Invoicing & P&L Dashboard (Implemented)
+- ✅ **Invoice system**: Full invoice CRUD with `invoices` table (customer snapshot, line items JSONB, totals, discount, BTW)
+- ✅ **Invoice numbering**: `MV-F-YYYY-NNNN` format via `next_invoice_number()` RPC with yearly sequence (`invoice_sequences` table)
+- ✅ **Invoice PDF**: Branded PDF template (`lib/pdf/invoice-template.js`) with line items, totals, discount support, IBAN payment box
+- ✅ **Invoice email**: Dutch email template with PDF attachment, payment details, IBAN, and due date (`lib/email/templates/invoice.js`)
+- ✅ **Invoice API routes**: `GET/POST /api/invoices`, `GET/PATCH/DELETE /api/invoices/[id]`, `POST /api/invoices/[id]/send`
+- ✅ **Invoice PDF routes**: `GET /api/pdf/invoice/[id]`, `POST /api/pdf/invoice/preview`
+- ✅ **Invoice list page**: `/dashboard/facturen` with search, status filters (concept/verzonden/betaald/deels_betaald/vervallen), overdue indicators
+- ✅ **Invoice builder**: `/dashboard/facturen/nieuw` with CRM check modal ("Is deze klant al in het CRM?"), pre-fill from approved quotes via `?quote=<id>`
+- ✅ **Invoice edit page**: `/dashboard/facturen/[id]` with payment tracking (volledig betaald/deelbetaling), read-only for sent invoices
+- ✅ **Invoice state hook**: `useInvoiceState.js` — line items, customer, discount, totals, buildPayload(), loadInvoice(), loadFromQuote()
+- ✅ **Payment tracking**: Status lifecycle: concept → verzonden → betaald/deels_betaald/vervallen, with paid_amount, paid_at, payment_notes
+- ✅ **P&L Dashboard**: `/dashboard/financieel` with KPI cards (Omzet, Pijplijn, Kosten, Winst), monthly revenue bar chart, cost tracking
+- ✅ **Execution date tracking**: `planned_execution_date` column on quotes — revenue counts in execution month, not approval month
+- ✅ **Execution date dialog**: Prompted when quote status changes to akkoord, calendar date picker
+- ✅ **Job costs tracking**: `job_costs` table (materiaal/arbeid/onderaannemer/overig) linked to quotes
+- ✅ **Business costs tracking**: `business_costs` table (brandstof/gereedschap/verzekering/huur/marketing/administratie/overig)
+- ✅ **Financial API**: `GET /api/financieel` (aggregated P&L data), `GET/POST/DELETE /api/financieel/costs`
+- ✅ **Quote-to-invoice flow**: "Maak factuur" button on approved quotes pre-fills invoice builder
+- ✅ **Sidebar navigation**: Added "Facturen" (Receipt icon) and "Financieel" (TrendingUp icon) to dashboard sidebar
+
 ### Operational Setup (Completed)
 - ✅ Resend domain verification (`moonenvochtwering.nl`) + working `RESEND_API_KEY`
 - ✅ Supabase Storage bucket `inspection-photos` (public)
@@ -227,7 +267,7 @@ src/app/
 ├── (marketing)/                 # Public website
 │   └── vochtbestrijding/[city]/[service]/page.js  # 40 city×service SEO landing pages
 ├── (dashboard)/dashboard/       # Authenticated CRM
-│   ├── page.js                  # Kanban
+│   ├── page.js                  # Pipeline (table view default, kanban toggle)
 │   ├── lead/[id]/page.js        # Lead detail + event timeline
 │   ├── planning/page.js         # Week calendar + day route planner + availability management
 │   ├── offerte/page.js          # Quote list with filters + actions
@@ -248,7 +288,7 @@ src/app/
 ```
 src/app/components/
 ├── dashboard/
-│   ├── WeekCalendar.jsx           # Week view with slot CRUD, lead popovers, reschedule mode, drag-to-reschedule, quick lead creation
+│   ├── WeekCalendar.jsx           # Week view with slot CRUD, lead popovers, batch reschedule (pending moves queue), drag-to-reschedule, slot options menu
 │   ├── QuickLeadDialog.jsx        # Dialog form for creating lead + booking from calendar
 │   ├── quote-builder/
 │   │   ├── QuoteBuilderView.jsx     # AI quote builder orchestrator: useChat + useQuoteState, responsive layout
@@ -381,6 +421,16 @@ Each page outputs three JSON-LD schemas:
 | PATCH | `/api/quotes/[id]` | Auth | Update quote |
 | DELETE | `/api/quotes/[id]` | Auth | Delete quote |
 | POST | `/api/quotes/[id]/send` | Auth | Send quote email with PDF attachment |
+| GET | `/api/invoices` | Auth | List invoices (optional `?lead=ID` filter) |
+| POST | `/api/invoices` | Auth | Create invoice |
+| GET | `/api/invoices/[id]` | Auth | Get single invoice |
+| PATCH | `/api/invoices/[id]` | Auth | Update invoice (status, payment, fields) |
+| DELETE | `/api/invoices/[id]` | Auth | Delete invoice |
+| POST | `/api/invoices/[id]/send` | Auth | Send invoice email with PDF attachment |
+| GET | `/api/pdf/invoice/[id]` | Auth | Render invoice PDF |
+| POST | `/api/pdf/invoice/preview` | Auth | Render draft invoice PDF preview |
+| GET | `/api/financieel` | Auth | Aggregated P&L data (revenue, pipeline, costs, profit) |
+| GET/POST/DELETE | `/api/financieel/costs` | Auth | Job costs and business costs CRUD |
 | GET/PATCH | `/api/settings` | Auth | CRM settings |
 | POST | `/api/route/optimize` | Auth | OSRM route optimize + fallback |
 | GET | `/api/leads/[id]/preview-follow-up` | Auth | Preview follow-up email HTML |
@@ -446,7 +496,40 @@ Each page outputs three JSON-LD schemas:
 - `label TEXT` (e.g. "Optie A: alleen muren")
 - `quote_number TEXT`, `status TEXT` (concept/verzonden/akkoord/afgewezen/verlopen)
 - `sent_at TIMESTAMPTZ`, `response TEXT`, `response_at TIMESTAMPTZ`, `quote_token TEXT UNIQUE`
+- `planned_execution_date DATE` (when work will be done; revenue attributed to this month)
+- `voorwaarden TEXT[]` (editable per-quote terms)
 - Indexes: `idx_quotes_lead_id`, `idx_quotes_status`
+
+### `invoices` (new — invoice system)
+- `id UUID`
+- `lead_id UUID FK -> leads.id ON DELETE SET NULL`
+- `quote_id UUID FK -> quotes.id ON DELETE SET NULL`
+- `invoice_number TEXT` (format: MV-F-YYYY-NNNN)
+- `customer_name TEXT NOT NULL`, `customer_email TEXT`, `customer_phone TEXT`, `customer_straat TEXT`, `customer_postcode TEXT`, `customer_plaatsnaam TEXT`
+- `line_items JSONB DEFAULT '[]'` (all prices incl. BTW)
+- `subtotal_incl NUMERIC`, `discount_type TEXT`, `discount_value NUMERIC`, `discount_amount NUMERIC`
+- `btw_percentage INT DEFAULT 21`, `btw_amount NUMERIC`, `total_incl NUMERIC`
+- `status TEXT` (concept/verzonden/betaald/deels_betaald/vervallen)
+- `issue_date DATE`, `due_date DATE`
+- `paid_amount NUMERIC DEFAULT 0`, `paid_at TIMESTAMPTZ`, `payment_notes TEXT`
+- `betaling TEXT DEFAULT 'Binnen 14 dagen na factuurdatum'`, `notes TEXT`
+- `sent_at TIMESTAMPTZ`, `created_at TIMESTAMPTZ`, `updated_at TIMESTAMPTZ`
+
+### `invoice_sequences` (new — invoice numbering)
+- `year INT PRIMARY KEY`, `last_number INT DEFAULT 0`
+- Function: `next_invoice_number()` → `MV-F-YYYY-NNNN`
+
+### `job_costs` (new — per-job cost tracking)
+- `id UUID`
+- `quote_id UUID FK -> quotes.id ON DELETE CASCADE`
+- `lead_id UUID FK -> leads.id ON DELETE SET NULL`
+- `category TEXT` (materiaal/arbeid/onderaannemer/overig)
+- `description TEXT NOT NULL`, `amount NUMERIC NOT NULL`, `date DATE`, `created_at TIMESTAMPTZ`
+
+### `business_costs` (new — general business expenses)
+- `id UUID`
+- `category TEXT` (brandstof/gereedschap/verzekering/huur/marketing/administratie/overig)
+- `description TEXT NOT NULL`, `amount NUMERIC NOT NULL`, `date DATE`, `recurring BOOLEAN`, `created_at TIMESTAMPTZ`
 
 ### `google_calendar_events` (new — Google Calendar sync)
 - `id UUID`
@@ -792,6 +875,15 @@ Run in Supabase SQL editor in this order:
 - Collapsible "Veelgebruikte toevoegingen" section in InspectionForm with one-click add buttons
 - Visual hints (staffel/minimum labels) shown next to generated line item totals
 - Staffels and minimums applied only during generation; all prices remain freely editable after
+
+### 2026-04-12 — Pipeline Dashboard Scaling Overhaul
+- New `LeadTable.jsx`: sortable table view of all visible leads with columns for naam, stad, telefoon, status, probleem, dagen in fase, inspectie. Reuses LeadCard's action menu (view/maak offerte/bel/verplaats/archiveer/verwijder).
+- `KanbanBoard.jsx` adds view toggle (Tabel ↔ Kanban) persisted in `crm.dashboard.view.v1`. Default view is `table` because Kanban breaks down at 100+ leads.
+- `KanbanBoard.jsx` default filter changed from `all` → `needs_action`. Filter storage key bumped from `crm.dashboard.filter.v1` → `v2` to reset existing users to the new default.
+- `KanbanBoard.jsx` adds independent `stageFilter` state set by clicking PipelineStats cards. Filter chip with × button shows active stage.
+- `PipelineStats.jsx`: stat cards are now clickable. Click toggles `stageFilter` for the corresponding stage (Bevestigd, Offertes uit, Akkoord). Active card is ring-highlighted.
+- `KanbanColumn.jsx`: columns with >6 leads collapse to first 6 + "Toon alle N (X verborgen)" button. Solves the 57-lead Bevestigd column problem. Drag-and-drop still works for visible cards.
+- All sorting/priority logic preserved: table default sort mirrors kanban (priority score desc, then oldest stage entry first).
 
 ### 2026-02-10 — CRM Warning Cards + Priority Sorting
 - `LeadCard.jsx` redesigned to surface: laatste contact, volgende stap (met uiterlijke datum), afspraakstatus, risicobadge, and warning reason

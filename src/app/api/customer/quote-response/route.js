@@ -44,6 +44,16 @@ export async function POST(request) {
 
     await supabase.from('leads').update(updates).eq('id', lead.id);
 
+    // Also update linked quote status to match
+    if (response === 'akkoord' || response === 'nee') {
+      const quoteStatus = response === 'akkoord' ? 'akkoord' : 'afgewezen';
+      await supabase
+        .from('quotes')
+        .update({ status: quoteStatus, response, response_at: new Date().toISOString() })
+        .eq('lead_id', lead.id)
+        .eq('status', 'verzonden');
+    }
+
     await logLeadEvent({
       leadId: lead.id,
       eventType: 'customer_response',
