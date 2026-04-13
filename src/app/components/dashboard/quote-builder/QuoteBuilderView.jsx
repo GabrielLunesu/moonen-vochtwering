@@ -496,7 +496,10 @@ export default function QuoteBuilderView({ lead = null, quote = null }) {
               onDiagnoseDetailsChange={quoteState.setDiagnoseDetails}
               onOppervlakteChange={quoteState.setOppervlakte}
               onNotesChange={quoteState.setNotes}
+              voorwaarden={quoteState.voorwaarden}
+              onVoorwaardenChange={quoteState.setVoorwaarden}
               onDefaultsChange={(updates) => quoteState.setDefaults((prev) => ({ ...prev, ...updates }))}
+              onAddLine={quoteState.addLine}
             />
           </TabsContent>
         </Tabs>

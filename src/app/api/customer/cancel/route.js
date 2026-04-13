@@ -73,7 +73,7 @@ export async function POST(request) {
     }
 
     // Delete from Google Calendar (best-effort)
-    syncLeadToGoogleCalendar(lead, 'delete');
+    await syncLeadToGoogleCalendar(lead, 'delete');
 
     await logLeadEvent({
       leadId: lead.id,

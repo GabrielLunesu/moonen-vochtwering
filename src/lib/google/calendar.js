@@ -389,6 +389,68 @@ export async function upsertSyncedEvents(googleEvents) {
     if (error) {
       console.error(`[GCAL] Failed to upsert event ${ev.id}:`, error);
     }
+
+    // If the event was cancelled in Google Calendar (e.g. customer or owner
+    // deleted it directly), reflect that on any linked lead so the CRM doesn't
+    // keep showing a scheduled inspection.
+    if (status === 'cancelled') {
+      const { data: linkedLeads, error: findErr } = await supabase
+        .from('leads')
+        .select('id, status, inspection_date, inspection_time, availability_slot_id')
+        .eq('google_event_id', ev.id);
+
+      if (findErr) {
+        console.error(`[GCAL] Failed to find leads for cancelled event ${ev.id}:`, findErr);
+        continue;
+      }
+
+      for (const lead of linkedLeads || []) {
+        // Release the slot if one was reserved
+        if (lead.availability_slot_id) {
+          await supabase.rpc('release_availability_slot', { p_slot_id: lead.availability_slot_id });
+        }
+
+        const updates = {
+          inspection_date: null,
+          inspection_time: null,
+          availability_slot_id: null,
+          google_event_id: null,
+          // Only roll back if the lead was actually in a scheduled state
+          status: ['bevestigd', 'bezocht'].includes(lead.status) ? 'uitgenodigd' : lead.status,
+          stage_changed_at: new Date().toISOString(),
+        };
+
+        const { error: updateErr } = await supabase
+          .from('leads')
+          .update(updates)
+          .eq('id', lead.id);
+
+        if (updateErr) {
+          console.error(`[GCAL] Failed to clear lead ${lead.id} after gcal cancellation:`, updateErr);
+          continue;
+        }
+
+        // Log to lead timeline so it shows up in the CRM
+        await supabase.from('lead_events').insert([
+          {
+            lead_id: lead.id,
+            event_type: 'appointment_cancelled',
+            old_value: lead.inspection_date && lead.inspection_time
+              ? `${lead.inspection_date} ${lead.inspection_time}`
+              : null,
+            actor: 'google_calendar',
+            metadata: { google_event_id: ev.id, source: 'gcal_sync' },
+          },
+          {
+            lead_id: lead.id,
+            event_type: 'status_change',
+            old_value: lead.status,
+            new_value: updates.status,
+            actor: 'google_calendar',
+          },
+        ]);
+      }
+    }
   }
 }
 
