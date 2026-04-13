@@ -168,6 +168,26 @@ export default function PlanningPage() {
       // Open InspectionDialog with these new values instead of applying them automatically!
       setSelectedInspectionData({ ...lead, proposed_date: dateStr, proposed_time: timeStr });
       setInspectionDialogOpen(true);
+    } else if (event.type === 'slot') {
+      const slot = event.resource;
+      const y = start.getFullYear();
+      const m = String(start.getMonth() + 1).padStart(2, '0');
+      const d = String(start.getDate()).padStart(2, '0');
+      const dateStr = `${y}-${m}-${d}`;
+      const timeStr = `${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`;
+
+      try {
+        const res = await fetch(`/api/availability/${slot.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ slot_date: dateStr, slot_time: timeStr }),
+        });
+        if (!res.ok) throw new Error();
+        toast.success('Moment verplaatst');
+        fetchSlots();
+      } catch {
+        toast.error('Moment verplaatsen mislukt');
+      }
     } else {
       const ev = event.resource;
       const payload = {
