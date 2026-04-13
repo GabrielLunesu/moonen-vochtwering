@@ -112,15 +112,49 @@ export default function PlanningPage() {
     }
   };
 
-  const handleSelectSlot = (slotInfo) => {
-    // If they drag a day, default to an all day event creation
-    // If they click, we open a dialog.
-    setSelectedEventData({
-      start_time: slotInfo.start.toISOString(),
-      end_time: slotInfo.end.toISOString(),
-      is_all_day: slotInfo.action === 'select' && slotInfo.slots?.length > 1
-    });
-    setEventDialogOpen(true);
+  const handleSelectSlot = async (slotInfo) => {
+    // Drag-select across multiple cells → create an event (e.g. all-day)
+    if (slotInfo.action === 'select' && slotInfo.slots?.length > 1) {
+      setSelectedEventData({
+        start_time: slotInfo.start.toISOString(),
+        end_time: slotInfo.end.toISOString(),
+        is_all_day: true,
+      });
+      setEventDialogOpen(true);
+      return;
+    }
+
+    // Single click on an empty time → open a beschikbaar moment at that hour.
+    // (Clicking an existing slot goes through handleSelectEvent, not here.)
+    const start = slotInfo.start;
+    const y = start.getFullYear();
+    const m = String(start.getMonth() + 1).padStart(2, '0');
+    const d = String(start.getDate()).padStart(2, '0');
+    const dateStr = `${y}-${m}-${d}`;
+    const timeStr = `${String(start.getHours()).padStart(2, '0')}:00`;
+
+    const existing = slots.find(
+      (s) => s.slot_date === dateStr && s.slot_time?.slice(0, 5) === timeStr
+    );
+    if (existing) {
+      // A slot already exists at this hour — second click books on it.
+      setQuickLeadSlot(existing);
+      setQuickLeadOpen(true);
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/availability', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slot_date: dateStr, slot_time: timeStr, max_visits: 1 }),
+      });
+      if (!res.ok) throw new Error();
+      toast.success(`Moment geopend · ${timeStr}`);
+      await fetchSlots();
+    } catch {
+      toast.error('Kon moment niet aanmaken');
+    }
   };
 
   const handleEventDrop = async ({ event, start, end, isAllDay }) => {
