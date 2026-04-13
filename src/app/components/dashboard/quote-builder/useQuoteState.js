@@ -47,7 +47,22 @@ export function useQuoteState(initialLead = null) {
   const [discount, setDiscountState] = useState({ type: 'percentage', value: 0 });
 
   // --- Notes ---
-  const [notes, setNotes] = useState('');
+  const DEFAULT_NOTES = [
+    'Elektra en water wordt door u voorzien tijdens het werk',
+    'Ruimte moet vrij zijn op dagen van uitvoering',
+    'Gevels schoonspuiten niet in genoemde prijzen',
+    'Stuken en verven niet in genoemde prijzen',
+    'Kiesol heeft tot 3 jaar nodig om zijn werk te doen',
+    'Meer/minderwerk wordt naderhand verrekend',
+    'Plinten kunnen worden weggehaald maar niet terug geplaatst',
+    'U regelt zelf de communicatie met buren',
+    '1e jaar behandeling kelder niet te verven',
+    'Geaard stopcontact niet in offerte',
+    'Afdichting is handwerk; wordt met de spaan aangebracht',
+    'Trap wordt even weggehaald of opzij gezet om zijkant te behandelen',
+    'Ervan uitgaande dat aan constructie van de kelder niks mis is',
+  ].join('\n');
+  const [notes, setNotes] = useState(DEFAULT_NOTES);
 
   // --- Diagnose ---
   const [diagnose, setDiagnose] = useState([]);
