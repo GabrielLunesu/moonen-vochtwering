@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef } from 'react';
 import SlotCalendar from '@/app/components/public/SlotCalendar';
 import posthog from 'posthog-js';
+import { LIMBURG_PLACE_NAMES } from '@/lib/utils/availability-areas';
 
 export default function InspectionWizard() {
   // --- State ---
@@ -50,9 +51,19 @@ export default function InspectionWizard() {
   };
 
   // --- Load slots ---
-  const loadSlots = useCallback(() => {
+  const loadSlots = useCallback((addressInput = {}) => {
     setSlotsLoading(true);
-    fetch('/api/availability/public?limit=60')
+    const params = new URLSearchParams({ limit: '60' });
+
+    if (addressInput.postcode) {
+      params.set('postcode', addressInput.postcode);
+    }
+
+    if (addressInput.plaatsnaam) {
+      params.set('plaatsnaam', addressInput.plaatsnaam);
+    }
+
+    fetch(`/api/availability/public?${params.toString()}`)
       .then(res => res.ok ? res.json() : [])
       .then(data => setSlots(Array.isArray(data) ? data : []))
       .catch(() => setSlots([]))
@@ -132,13 +143,14 @@ export default function InspectionWizard() {
   const handleChooseBooking = () => {
     setChosenPath('booking');
     posthog.capture('inspection_wizard_path_chosen', { path: 'booking' });
-    loadSlots();
     goToStep('address');
   };
 
   const handleAddressNext = (e) => {
     e.preventDefault();
     if (!validateAddress()) return;
+    setSelectedSlotId(null);
+    loadSlots(address);
     goToStep('slot');
   };
 
@@ -159,6 +171,11 @@ export default function InspectionWizard() {
           setSlots(prev => prev.filter(s => s.id !== selectedSlotId));
           setSelectedSlotId(null);
           setSubmitError('Dit moment is helaas niet meer beschikbaar. Kies een ander moment.');
+          setIsSubmitting(false);
+          return;
+        }
+        if (res.status === 403 && data.code === 'SLOT_OUT_OF_AREA') {
+          setSubmitError('Dit moment is niet beschikbaar voor uw adres. Kies een ander moment.');
           setIsSubmitting(false);
           return;
         }
@@ -349,10 +366,24 @@ export default function InspectionWizard() {
         </div>
         <div>
           <label htmlFor="plaatsnaam" className="block text-sm font-medium text-[#111827] mb-1.5">Plaatsnaam *</label>
-          <input type="text" id="plaatsnaam" name="plaatsnaam" value={address.plaatsnaam} onChange={handleAddressChange} className={inputClasses('plaatsnaam')} placeholder="Heerlen" />
+          <input
+            type="text"
+            id="plaatsnaam"
+            name="plaatsnaam"
+            list="limburg-place-names"
+            value={address.plaatsnaam}
+            onChange={handleAddressChange}
+            className={inputClasses('plaatsnaam')}
+            placeholder="Heerlen"
+          />
           {errors.plaatsnaam && <p className="text-red-500 text-xs mt-1">{errors.plaatsnaam}</p>}
         </div>
       </div>
+      <datalist id="limburg-place-names">
+        {LIMBURG_PLACE_NAMES.map((placeName) => (
+          <option key={placeName} value={placeName} />
+        ))}
+      </datalist>
 
       <button
         type="submit"
@@ -392,7 +423,7 @@ export default function InspectionWizard() {
       ) : slots.length === 0 ? (
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
           <p className="font-medium mb-1">Geen momenten beschikbaar</p>
-          <p>Er zijn momenteel geen beschikbare momenten online. Bel ons op <a href="tel:+31618162515" className="font-semibold underline">06 18 16 25 15</a>, dan plannen we direct met u in.</p>
+          <p>Voor uw regio zijn momenteel geen online momenten beschikbaar. Bel ons op <a href="tel:+31618162515" className="font-semibold underline">06 18 16 25 15</a>, dan plannen we direct met u in.</p>
         </div>
       ) : (
         <SlotCalendar

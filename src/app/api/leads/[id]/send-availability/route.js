@@ -4,6 +4,10 @@ import { sendEmail } from '@/lib/email/resend';
 import { availabilityEmail } from '@/lib/email/templates/availability';
 import { notifyOpsAlert } from '@/lib/ops/alerts';
 import { logLeadEvent } from '@/lib/utils/events';
+import {
+  filterSlotsForCoordinates,
+  resolveAddressCoordinates,
+} from '@/lib/utils/availability-areas';
 
 export async function POST(request, { params }) {
   const { id: leadId } = await params;
@@ -30,7 +34,9 @@ export async function POST(request, { params }) {
 
     const { data: slots, error: slotError } = await supabase
       .from('availability_slots')
-      .select('id,slot_date,slot_time,max_visits,booked_count')
+      .select(
+        'id,slot_date,slot_time,max_visits,booked_count,visibility_scope,center_place_name,center_lat,center_lng,radius_km'
+      )
       .eq('is_open', true)
       .gte('slot_date', today)
       .order('slot_date', { ascending: true })
@@ -41,8 +47,15 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: slotError.message }, { status: 500 });
     }
 
-    const availableSlots = (slots || [])
-      .filter((slot) => slot.booked_count < slot.max_visits)
+    const leadCoordinates = await resolveAddressCoordinates({
+      plaatsnaam: lead.plaatsnaam,
+      postcode: lead.postcode,
+    });
+
+    const availableSlots = filterSlotsForCoordinates(
+      (slots || []).filter((slot) => slot.booked_count < slot.max_visits),
+      leadCoordinates
+    )
       .filter((slot) => {
         if (slot.slot_date > today) return true;
         if (slot.slot_date < today) return false;

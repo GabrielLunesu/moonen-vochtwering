@@ -44,7 +44,12 @@ function AfspraakContent() {
   }, [token]);
 
   const loadSlots = () => {
-    fetch('/api/availability/public?limit=60')
+    const params = new URLSearchParams({ limit: '60' });
+    if (token) {
+      params.set('token', token);
+    }
+
+    fetch(`/api/availability/public?${params.toString()}`)
       .then((res) => {
         if (!res.ok) throw new Error();
         return res.json();
@@ -91,6 +96,12 @@ function AfspraakContent() {
           setSelectedSlotId(null);
           setStep('reschedule');
           setErrorMessage('Dit moment is helaas niet meer beschikbaar. Kies een ander moment.');
+          return;
+        }
+        if (res.status === 403 && errorBody?.code === 'SLOT_OUT_OF_AREA') {
+          setSelectedSlotId(null);
+          setStep('reschedule');
+          setErrorMessage('Dit moment is niet beschikbaar voor uw adres. Kies een ander moment.');
           return;
         }
         throw new Error(errorBody?.error || 'Kon afspraak niet wijzigen');
@@ -278,7 +289,7 @@ function AfspraakContent() {
             )}
             {slots.length === 0 ? (
               <div className="rounded-md border p-3 text-sm text-muted-foreground">
-                Er zijn momenteel geen beschikbare momenten. Bel ons op 06 18 16 25 15, dan plannen we direct met u in.
+                Voor uw adres zijn momenteel geen beschikbare momenten. Bel ons op 06 18 16 25 15, dan plannen we direct met u in.
               </div>
             ) : (
               <>

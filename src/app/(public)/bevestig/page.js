@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
@@ -8,6 +8,7 @@ import { Label } from '@/app/components/ui/label';
 import { Input } from '@/app/components/ui/input';
 import { CheckCircle, AlertCircle, Loader2, MapPin, Calendar } from 'lucide-react';
 import SlotCalendar from '@/app/components/public/SlotCalendar';
+import { LIMBURG_PLACE_NAMES } from '@/lib/utils/availability-areas';
 
 export default function BevestigPage() {
   return (
@@ -31,16 +32,22 @@ function BevestigContent() {
     plaatsnaam: '',
   });
 
-  useEffect(() => {
-    if (!token) return;
-    fetch('/api/availability/public?limit=60')
-      .then((res) => {
-        if (!res.ok) throw new Error();
-        return res.json();
-      })
-      .then((data) => setSlots(data))
-      .catch(() => setSlots([]));
-  }, [token]);
+  const loadSlots = async (addressInput) => {
+    const params = new URLSearchParams({ limit: '60' });
+
+    if (addressInput.postcode) {
+      params.set('postcode', addressInput.postcode);
+    }
+
+    if (addressInput.plaatsnaam) {
+      params.set('plaatsnaam', addressInput.plaatsnaam);
+    }
+
+    const res = await fetch(`/api/availability/public?${params.toString()}`);
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    setSlots(Array.isArray(data) ? data : []);
+  };
 
   const handleAddressChange = (e) => {
     const { name, value } = e.target;
@@ -59,10 +66,16 @@ function BevestigContent() {
     return Object.keys(errors).length === 0;
   };
 
-  const handleAddressSubmit = (e) => {
+  const handleAddressSubmit = async (e) => {
     e.preventDefault();
     if (!validateAddress()) return;
-    setStep('select');
+    try {
+      await loadSlots(address);
+      setStep('select');
+    } catch {
+      setSlots([]);
+      setStep('select');
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -88,6 +101,9 @@ function BevestigContent() {
         const errorBody = await res.json().catch(() => ({}));
         if (res.status === 409 && errorBody?.code === 'SLOT_FULL') {
           setSlots((prev) => prev.filter((slot) => slot.id !== selectedSlotId));
+          setSelectedSlotId(null);
+        }
+        if (res.status === 403 && errorBody?.code === 'SLOT_OUT_OF_AREA') {
           setSelectedSlotId(null);
         }
         throw new Error(errorBody?.error || 'Kon inspectie niet bevestigen');
@@ -206,6 +222,7 @@ function BevestigContent() {
                   <Input
                     id="plaatsnaam"
                     name="plaatsnaam"
+                    list="limburg-place-names"
                     value={address.plaatsnaam}
                     onChange={handleAddressChange}
                     placeholder="Heerlen"
@@ -214,6 +231,11 @@ function BevestigContent() {
                   {addressErrors.plaatsnaam && <p className="text-red-500 text-xs">{addressErrors.plaatsnaam}</p>}
                 </div>
               </div>
+              <datalist id="limburg-place-names">
+                {LIMBURG_PLACE_NAMES.map((placeName) => (
+                  <option key={placeName} value={placeName} />
+                ))}
+              </datalist>
 
               <Button
                 type="submit"
@@ -245,7 +267,7 @@ function BevestigContent() {
         <CardContent>
           {slots.length === 0 && (
             <div className="rounded-md border p-3 text-sm text-muted-foreground mb-4">
-              Er zijn momenteel geen beschikbare momenten. Bel ons op 06 18 16 25 15, dan plannen we direct met u in.
+              Voor dit adres zijn momenteel geen beschikbare momenten. Bel ons op 06 18 16 25 15, dan plannen we direct met u in.
             </div>
           )}
           <form onSubmit={handleSubmit} className="space-y-4">

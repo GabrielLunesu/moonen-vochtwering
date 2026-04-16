@@ -10,16 +10,15 @@ import 'react-big-calendar/lib/addons/dragAndDrop/styles.css';
 import { Button } from '@/app/components/ui/button';
 import { ChevronLeft, ChevronRight, Plus, ArrowRightLeft, X, Loader2, Send, Trash2, Lock, Unlock } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/app/components/ui/dialog';
+import { Input } from '@/app/components/ui/input';
+import { Label } from '@/app/components/ui/label';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/app/components/ui/alert-dialog';
+  LIMBURG_PLACE_OPTIONS,
+  SLOT_VISIBILITY_SCOPE_RADIUS,
+  getSlotAreaSummary,
+  getSlotVisibilityFormState,
+} from '@/lib/utils/availability-areas';
 import { toast } from 'sonner';
 
 // Configure date-fns localizer
@@ -138,6 +137,7 @@ export default function FullViewportCalendar({
     const [slotDialogOpen, setSlotDialogOpen] = React.useState(false);
     const [selectedSlot, setSelectedSlot] = React.useState(null);
     const [slotActionLoading, setSlotActionLoading] = React.useState(false);
+    const [slotSettings, setSlotSettings] = React.useState(() => getSlotVisibilityFormState(null));
 
     // Batch reschedule state
     const [pendingMoves, setPendingMoves] = React.useState([]);
@@ -233,8 +233,6 @@ export default function FullViewportCalendar({
 
         const mappedSlots = slots
             .filter((slot) => {
-                if (!slot.is_open) return false;
-                if (slot.booked_count >= slot.max_visits) return false; // Fully booked
                 if (searchQuery) return false; // Usually don't want to show empty slots when searching
                 return true;
             })
@@ -242,19 +240,37 @@ export default function FullViewportCalendar({
                 const startStr = `${slot.slot_date}T${slot.slot_time || '09:00'}:00`;
                 const start = new Date(startStr);
                 const end = addHours(start, 1);
+                const isClosed = !slot.is_open;
+                const isFull = slot.booked_count >= slot.max_visits;
+                const stateLabel = isClosed ? 'Gesloten' : isFull ? 'Vol' : 'Beschikbaar';
+                const areaSummary = getSlotAreaSummary(slot);
+
+                let backgroundColor = '#dcfce7';
+                let color = '#166534';
+                let border = '1px dashed #4ade80';
+
+                if (isClosed) {
+                    backgroundColor = '#f3f4f6';
+                    color = '#6b7280';
+                    border = '1px dashed #9ca3af';
+                } else if (isFull) {
+                    backgroundColor = '#fef3c7';
+                    color = '#92400e';
+                    border = '1px dashed #f59e0b';
+                }
 
                 return {
                     id: `slot_${slot.id}`,
-                    title: `Beschikbaar ${slot.booked_count}/${slot.max_visits}`,
+                    title: `${stateLabel} ${slot.booked_count}/${slot.max_visits} · ${areaSummary}`,
                     start,
                     end,
                     allDay: false,
                     type: 'slot',
                     resource: slot,
                     style: {
-                        backgroundColor: '#dcfce7', // green-100
-                        color: '#166534', // green-800
-                        border: '1px dashed #4ade80', // green-400
+                        backgroundColor,
+                        color,
+                        border,
                     }
                 };
             });
@@ -300,6 +316,7 @@ export default function FullViewportCalendar({
     const handleSlotClick = useCallback((event) => {
         if (event.type === 'slot') {
             setSelectedSlot(event.resource);
+            setSlotSettings(getSlotVisibilityFormState(event.resource));
             setSlotDialogOpen(true);
         } else {
             onSelectEvent(event);
@@ -341,6 +358,31 @@ export default function FullViewportCalendar({
             setSlotActionLoading(false);
         }
     }, [selectedSlot, onSlotsChange]);
+
+    const saveSlotSettings = useCallback(async () => {
+        if (!selectedSlot) return;
+        setSlotActionLoading(true);
+        try {
+            const res = await fetch(`/api/availability/${selectedSlot.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    visibility_scope: slotSettings.visibility_scope,
+                    center_place_name: slotSettings.center_place_name,
+                    radius_km: slotSettings.radius_km,
+                }),
+            });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(body?.error || 'Kon moment niet opslaan');
+            toast.success('Moment opgeslagen');
+            if (onSlotsChange) await onSlotsChange();
+            setSlotDialogOpen(false);
+        } catch (error) {
+            toast.error(error.message || 'Kon moment niet opslaan');
+        } finally {
+            setSlotActionLoading(false);
+        }
+    }, [selectedSlot, slotSettings, onSlotsChange]);
 
     // Batch reschedule handlers
     const addPendingMove = useCallback((move) => {
@@ -417,10 +459,26 @@ export default function FullViewportCalendar({
             const lead = event.resource;
             const dateStr = start.toISOString().split('T')[0];
             const timeStr = start.toTimeString().slice(0, 5);
-            const slot = slots.find(s => s.slot_date === dateStr && s.slot_time === timeStr);
+            const slot = slots.find(
+                (s) =>
+                    s.slot_date === dateStr &&
+                    s.slot_time === timeStr &&
+                    s.is_open &&
+                    s.booked_count < s.max_visits
+            );
+            const blockedSlot = slots.find(
+                (s) =>
+                    s.slot_date === dateStr &&
+                    s.slot_time === timeStr &&
+                    (!s.is_open || s.booked_count >= s.max_visits)
+            );
             const oldSlot = lead.availability_slot_id
                 ? slots.find(s => s.id === lead.availability_slot_id)
                 : null;
+            if (blockedSlot) {
+                toast.error('Dit moment is gesloten of al volgeboekt.');
+                return;
+            }
             addPendingMove({ lead, oldSlot, newSlot: slot || null, targetDateStr: slot ? null : dateStr, targetHour: parseInt(timeStr.split(':')[0], 10) });
             toast.info(`${lead.name} → ${formatDateShort(dateStr)} ${timeStr} (in wachtrij)`);
         } else {
@@ -567,90 +625,179 @@ export default function FullViewportCalendar({
                 </div>
             )}
 
+            <datalist id="limburg-slot-centers">
+                {LIMBURG_PLACE_OPTIONS.map((place) => (
+                    <option key={place.key} value={place.label} />
+                ))}
+            </datalist>
+
             {/* Slot options dialog */}
-            <AlertDialog open={slotDialogOpen} onOpenChange={setSlotDialogOpen}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>
+            <Dialog
+                open={slotDialogOpen}
+                onOpenChange={(open) => {
+                    setSlotDialogOpen(open);
+                    if (!open) {
+                        setSelectedSlot(null);
+                    }
+                }}
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>
                             {selectedSlot ? `${selectedSlot.slot_time?.slice(0, 5)} - ${selectedSlot.slot_date}` : 'Moment'}
-                        </AlertDialogTitle>
-                        <AlertDialogDescription>
+                        </DialogTitle>
+                        <DialogDescription>
                             {selectedSlot ? (
                                 <>
                                     {selectedSlot.booked_count}/{selectedSlot.max_visits} geboekt
                                     {selectedSlot.is_open ? ' · Open' : ' · Gesloten'}
+                                    {` · ${getSlotAreaSummary(selectedSlot)}`}
                                 </>
-                            ) : 'Selecteer een actie'}
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <div className="flex flex-col gap-2 py-2">
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            className="w-full justify-start gap-2"
-                            onClick={() => {
-                                setSlotDialogOpen(false);
-                                if (selectedSlot) {
-                                    onSelectEvent({ type: 'slot', resource: selectedSlot });
-                                }
-                            }}
-                        >
-                            <Plus className="h-4 w-4" />
-                            Nieuwe aanvraag
+                            ) : 'Momentinstellingen'}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {selectedSlot && (
+                        <div className="space-y-4">
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                <div className="space-y-1.5">
+                                    <Label htmlFor="slot-visibility-scope">Zichtbaarheid</Label>
+                                    <Select
+                                        value={slotSettings.visibility_scope}
+                                        onValueChange={(value) =>
+                                            setSlotSettings((current) => ({ ...current, visibility_scope: value }))
+                                        }
+                                    >
+                                        <SelectTrigger id="slot-visibility-scope" className="w-full">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">Voor iedereen</SelectItem>
+                                            <SelectItem value="radius">Specifiek gebied</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label htmlFor="slot-radius-km">Straal (km)</Label>
+                                    <Input
+                                        id="slot-radius-km"
+                                        type="number"
+                                        min="1"
+                                        step="1"
+                                        disabled={slotSettings.visibility_scope !== SLOT_VISIBILITY_SCOPE_RADIUS}
+                                        value={slotSettings.radius_km}
+                                        onChange={(event) =>
+                                            setSlotSettings((current) => ({
+                                                ...current,
+                                                radius_km: event.target.value,
+                                            }))
+                                        }
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <Label htmlFor="slot-center-place">Plaats in Limburg</Label>
+                                <Input
+                                    id="slot-center-place"
+                                    list="limburg-slot-centers"
+                                    disabled={slotSettings.visibility_scope !== SLOT_VISIBILITY_SCOPE_RADIUS}
+                                    placeholder="Bijvoorbeeld Heerlen"
+                                    value={slotSettings.center_place_name}
+                                    onChange={(event) =>
+                                        setSlotSettings((current) => ({
+                                            ...current,
+                                            center_place_name: event.target.value,
+                                        }))
+                                    }
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    Alleen adressen binnen deze straal zien dit moment online.
+                                </p>
+                            </div>
+
+                            <div className="flex flex-col gap-2 border-t pt-4">
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="w-full justify-start gap-2"
+                                    onClick={() => {
+                                        setSlotDialogOpen(false);
+                                        onSelectEvent({ type: 'slot', resource: selectedSlot });
+                                    }}
+                                    disabled={!selectedSlot.is_open || selectedSlot.booked_count >= selectedSlot.max_visits}
+                                >
+                                    <Plus className="h-4 w-4" />
+                                    Nieuwe aanvraag
+                                </Button>
+                                {pendingMoves.length > 0 && selectedSlot.is_open && selectedSlot.booked_count < selectedSlot.max_visits && (
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="w-full justify-start gap-2 text-blue-700"
+                                        onClick={() => {
+                                            const unslotted = pendingMoves.filter(m => !m.newSlot);
+                                            const move = unslotted.length > 0 ? unslotted[0] : pendingMoves[pendingMoves.length - 1];
+                                            addPendingMove({ ...move, newSlot: selectedSlot, targetDateStr: null, targetHour: null });
+                                            toast.success(`${move.lead.name} → ${formatDateShort(selectedSlot.slot_date)} ${selectedSlot.slot_time?.slice(0, 5)}`);
+                                            setSlotDialogOpen(false);
+                                        }}
+                                    >
+                                        <ArrowRightLeft className="h-4 w-4" />
+                                        Verplaats naar hier
+                                    </Button>
+                                )}
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="w-full justify-start gap-2"
+                                    disabled={slotActionLoading}
+                                    onClick={toggleSlot}
+                                >
+                                    {slotActionLoading ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : selectedSlot.is_open ? (
+                                        <Lock className="h-4 w-4" />
+                                    ) : (
+                                        <Unlock className="h-4 w-4" />
+                                    )}
+                                    {selectedSlot.is_open ? 'Moment sluiten' : 'Moment openen'}
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="w-full justify-start gap-2 text-destructive hover:text-destructive"
+                                    disabled={slotActionLoading}
+                                    onClick={deleteSlot}
+                                >
+                                    {slotActionLoading ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <Trash2 className="h-4 w-4" />
+                                    )}
+                                    Verwijderen
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setSlotDialogOpen(false)}>
+                            Annuleren
                         </Button>
-                        {pendingMoves.length > 0 && selectedSlot?.is_open && selectedSlot.booked_count < selectedSlot.max_visits && (
-                            <Button
-                                size="sm"
-                                variant="outline"
-                                className="w-full justify-start gap-2 text-blue-700"
-                                onClick={() => {
-                                    const unslotted = pendingMoves.filter(m => !m.newSlot);
-                                    const move = unslotted.length > 0 ? unslotted[0] : pendingMoves[pendingMoves.length - 1];
-                                    addPendingMove({ ...move, newSlot: selectedSlot, targetDateStr: null, targetHour: null });
-                                    toast.success(`${move.lead.name} → ${formatDateShort(selectedSlot.slot_date)} ${selectedSlot.slot_time?.slice(0, 5)}`);
-                                    setSlotDialogOpen(false);
-                                }}
-                            >
-                                <ArrowRightLeft className="h-4 w-4" />
-                                Verplaats naar hier
-                            </Button>
-                        )}
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            className="w-full justify-start gap-2"
-                            disabled={slotActionLoading}
-                            onClick={toggleSlot}
-                        >
+                        <Button onClick={saveSlotSettings} disabled={slotActionLoading || !selectedSlot}>
                             {slotActionLoading ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : selectedSlot?.is_open ? (
-                                <Lock className="h-4 w-4" />
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Opslaan...
+                                </>
                             ) : (
-                                <Unlock className="h-4 w-4" />
+                                'Instellingen opslaan'
                             )}
-                            {selectedSlot?.is_open ? 'Moment sluiten' : 'Moment openen'}
                         </Button>
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            className="w-full justify-start gap-2 text-destructive hover:text-destructive"
-                            disabled={slotActionLoading}
-                            onClick={deleteSlot}
-                        >
-                            {slotActionLoading ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                                <Trash2 className="h-4 w-4" />
-                            )}
-                            Verwijderen
-                        </Button>
-                    </div>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Annuleren</AlertDialogCancel>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

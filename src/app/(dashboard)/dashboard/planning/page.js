@@ -8,14 +8,12 @@ import InspectionDialog from '@/app/components/dashboard/InspectionDialog';
 import QuickLeadDialog from '@/app/components/dashboard/QuickLeadDialog';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
-import { matchesLeadSearch } from '@/lib/utils/lead-search';
 import { RefreshCw, Loader2, Plus } from 'lucide-react';
 
 export default function PlanningPage() {
   const [leads, setLeads] = useState([]);
   const [events, setEvents] = useState([]);
   const [slots, setSlots] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [gcalSyncing, setGcalSyncing] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -95,8 +93,7 @@ export default function PlanningPage() {
 
   useEffect(() => {
     Promise.all([fetchLeads(), fetchEvents(), fetchSlots()])
-      .catch(() => toast.error('Kon planning niet laden'))
-      .finally(() => setLoading(false));
+      .catch(() => toast.error('Kon planning niet laden'));
   }, [fetchLeads, fetchEvents, fetchSlots]);
 
   const handleSelectEvent = (event) => {
@@ -136,10 +133,14 @@ export default function PlanningPage() {
     const existing = slots.find(
       (s) => s.slot_date === dateStr && s.slot_time?.slice(0, 5) === timeStr
     );
-    if (existing) {
+    if (existing && existing.is_open && existing.booked_count < existing.max_visits) {
       // A slot already exists at this hour — second click books on it.
       setQuickLeadSlot(existing);
       setQuickLeadOpen(true);
+      return;
+    }
+    if (existing) {
+      toast.info('Dit moment bestaat al. Klik op het slot om het te beheren.');
       return;
     }
 

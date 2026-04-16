@@ -7,6 +7,10 @@ import { generateToken } from '@/lib/utils/tokens';
 import { notifyOpsAlert } from '@/lib/ops/alerts';
 import { logLeadEvent } from '@/lib/utils/events';
 import { syncLeadToGoogleCalendar } from '@/lib/google/calendar';
+import {
+  resolveAddressCoordinates,
+  slotMatchesCoordinates,
+} from '@/lib/utils/availability-areas';
 
 export async function POST(request) {
   try {
@@ -21,6 +25,30 @@ export async function POST(request) {
     }
 
     const supabase = createAdminClient();
+
+    const { data: slot, error: slotError } = await supabase
+      .from('availability_slots')
+      .select(
+        'id,visibility_scope,center_place_name,center_lat,center_lng,radius_km,is_open,max_visits,booked_count'
+      )
+      .eq('id', slot_id)
+      .single();
+
+    if (slotError || !slot) {
+      return NextResponse.json({ error: 'Dit moment bestaat niet meer.' }, { status: 404 });
+    }
+
+    const customerCoordinates = await resolveAddressCoordinates({ plaatsnaam, postcode });
+
+    if (!slotMatchesCoordinates(slot, customerCoordinates)) {
+      return NextResponse.json(
+        {
+          error: 'Dit moment is niet beschikbaar voor uw adres.',
+          code: 'SLOT_OUT_OF_AREA',
+        },
+        { status: 403 }
+      );
+    }
 
     // Book the slot atomically
     const { data: bookedSlot, error: bookError } = await supabase.rpc('book_availability_slot', {

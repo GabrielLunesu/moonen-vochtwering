@@ -42,11 +42,15 @@ export async function POST(request) {
         return NextResponse.json({ error: bookError.message }, { status: 500 });
       }
 
-      // Even if it's full we can still allow it, but we extract date and time if it succeeded
-      if (bookedSlot?.length) {
-        finalDate = bookedSlot[0].slot_date;
-        finalTime = bookedSlot[0].slot_time;
+      if (!bookedSlot?.length) {
+        return NextResponse.json(
+          { error: 'Dit moment is niet meer beschikbaar.', code: 'SLOT_FULL' },
+          { status: 409 }
+        );
       }
+
+      finalDate = bookedSlot[0].slot_date;
+      finalTime = bookedSlot[0].slot_time;
     }
 
     // Generate tokens

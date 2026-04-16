@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { buildSlotVisibilityPayload } from '@/lib/utils/availability-areas';
 
 export async function PATCH(request, { params }) {
   const supabase = await createClient();
@@ -14,12 +15,48 @@ export async function PATCH(request, { params }) {
 
   const { id } = await params;
   const updates = await request.json();
+  const visibilityKeys = ['visibility_scope', 'center_place_name', 'radius_km', 'center_lat', 'center_lng'];
 
-  const allowed = ['slot_date', 'slot_time', 'max_visits', 'booked_count', 'is_open', 'notes'];
+  const { data: existingSlot, error: existingError } = await supabase
+    .from('availability_slots')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (existingError || !existingSlot) {
+    return NextResponse.json({ error: 'Moment niet gevonden' }, { status: 404 });
+  }
+
+  const allowed = [
+    'slot_date',
+    'slot_time',
+    'max_visits',
+    'booked_count',
+    'is_open',
+    'notes',
+    ...visibilityKeys,
+  ];
   const payload = {};
 
   for (const key of allowed) {
     if (key in updates) payload[key] = updates[key];
+  }
+
+  if (visibilityKeys.some((key) => key in updates)) {
+    try {
+      Object.assign(
+        payload,
+        await buildSlotVisibilityPayload({
+          visibility_scope: updates.visibility_scope ?? existingSlot.visibility_scope,
+          center_place_name: updates.center_place_name ?? existingSlot.center_place_name,
+          center_lat: updates.center_lat ?? existingSlot.center_lat,
+          center_lng: updates.center_lng ?? existingSlot.center_lng,
+          radius_km: updates.radius_km ?? existingSlot.radius_km,
+        })
+      );
+    } catch (error) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
   }
 
   const { data, error } = await supabase

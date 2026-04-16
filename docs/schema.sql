@@ -135,13 +135,21 @@ CREATE TABLE availability_slots (
   max_visits INT NOT NULL DEFAULT 1,
   booked_count INT NOT NULL DEFAULT 0,
   is_open BOOLEAN NOT NULL DEFAULT true,
+  visibility_scope TEXT NOT NULL DEFAULT 'all',
+  center_place_name TEXT,
+  center_lat DOUBLE PRECISION,
+  center_lng DOUBLE PRECISION,
+  radius_km NUMERIC(6,1),
   notes TEXT,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now(),
-  UNIQUE (slot_date, slot_time)
+  UNIQUE (slot_date, slot_time),
+  CONSTRAINT availability_slots_visibility_scope_check
+    CHECK (visibility_scope IN ('all', 'radius'))
 );
 
 CREATE INDEX idx_availability_slots_lookup ON availability_slots(slot_date, slot_time, is_open);
+CREATE INDEX idx_availability_slots_visibility_scope ON availability_slots(visibility_scope, center_place_name);
 
 ALTER TABLE leads
   ADD COLUMN availability_slot_id UUID REFERENCES availability_slots(id);
