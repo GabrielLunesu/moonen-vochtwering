@@ -201,6 +201,12 @@ const styles = StyleSheet.create({
     paddingRight: 8,
     lineHeight: 1.35,
   },
+  lineMeta: {
+    marginTop: 2,
+    fontSize: 8.4,
+    color: COLORS.muted,
+    lineHeight: 1.3,
+  },
   colQty: {
     flex: 1.4,
     textAlign: 'right',
@@ -316,6 +322,31 @@ function roundMoney(value) {
   return Math.round(toNumber(value) * 100) / 100;
 }
 
+function getLineGuaranteeYears(item) {
+  const parsed = Number(item?.garantie_jaren ?? item?.guarantee_years);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function hasPerLineGuarantee(lineItems = []) {
+  return lineItems.some((item) => {
+    const scope = item?.guaranteeScope ?? item?.garantie_scope ?? item?.guarantee_scope;
+    return scope === 'per_line' || (scope !== 'global' && item.guaranteeYears != null);
+  });
+}
+
+function normalizeGuaranteeTerms(terms, perLineGuarantee, guarantee) {
+  const guaranteeText = perLineGuarantee
+    ? 'Garantie: per regel zoals vermeld in de prijsopgave.'
+    : `Garantie: ${guarantee} op waterdichtheid.`;
+
+  return (terms || []).map((term) => {
+    if (/^\s*Garantie\s*:/i.test(term || '')) {
+      return guaranteeText;
+    }
+    return term;
+  });
+}
+
 function formatCurrency(value) {
   return new Intl.NumberFormat('nl-NL', {
     style: 'currency',
@@ -358,6 +389,8 @@ function buildLineItems(lead, inspectionData, subtotalIncl) {
         unit: item.unit || '',
         unitPrice: unitPriceExcl,
         total: rowTotalExcl,
+        guaranteeYears: getLineGuaranteeYears(item),
+        guaranteeScope: item.garantie_scope ?? item.guarantee_scope ?? null,
       };
     });
   }
@@ -371,6 +404,8 @@ function buildLineItems(lead, inspectionData, subtotalIncl) {
       unit: lead?.oppervlakte_m2 ? 'm\u00b2' : 'stuk',
       unitPrice: roundMoney(subtotalExcl / Math.max(1, toNumber(lead?.oppervlakte_m2, 1))),
       total: roundMoney(subtotalExcl),
+      guaranteeYears: null,
+      guaranteeScope: null,
     },
   ];
 }
@@ -430,7 +465,9 @@ function resolveSolution(inspectionData, lead) {
 }
 
 function resolveIntroText(inspectionData, lead) {
-  if (inspectionData?.offerte_inleiding) return inspectionData.offerte_inleiding;
+  if (typeof inspectionData?.offerte_inleiding === 'string') {
+    return inspectionData.offerte_inleiding.trim() || null;
+  }
   // Use oplossingen array if available, else fall back to string
   const oplossingen = inspectionData?.oplossingen;
   if (Array.isArray(oplossingen) && oplossingen.length > 0) {
@@ -460,6 +497,13 @@ function buildQuoteData(lead) {
   const validUntil = addDays(issueDate, validityDays);
   const fallbackQuoteSuffix = (lead?.id || '').replaceAll('-', '').slice(0, 4).toUpperCase() || '0001';
   const quoteNumber = lead?.quote_number || `MV-${issueDate.getFullYear()}-${fallbackQuoteSuffix}`;
+  const lineItems = buildLineItems(lead, inspectionData, subtotalIncl);
+  const perLineGuarantee = hasPerLineGuarantee(lineItems);
+  const guarantee = perLineGuarantee ? 'Per regel' : `${toNumber(inspectionData?.garantie_jaren, 5)} jaar`;
+  const customVoorwaarden = Array.isArray(inspectionData?.voorwaarden) ? inspectionData.voorwaarden : null;
+  const voorwaarden = customVoorwaarden && customVoorwaarden.length > 0
+    ? normalizeGuaranteeTerms(customVoorwaarden, perLineGuarantee, guarantee)
+    : null;
 
   return {
     quoteNumber,
@@ -479,7 +523,8 @@ function buildQuoteData(lead) {
         ? `${toNumber(lead?.oppervlakte_m2 ?? inspectionData?.oppervlakte_m2, 0)} m\u00b2`
         : 'n.v.t.',
     timeline: inspectionData?.doorlooptijd || '3 werkdagen',
-    guarantee: `${toNumber(inspectionData?.garantie_jaren, 5)} jaar`,
+    guarantee,
+    perLineGuarantee,
     paymentTerms: inspectionData?.betaling || 'Op de eerste werkdag bij aanvang, restant binnen 2 weken na oplevering',
     subtotal: subtotalExcl,
     discountAmount: discountAmountExcl,
@@ -489,8 +534,8 @@ function buildQuoteData(lead) {
     btwAmount,
     totalIncl,
     notes: inspectionData?.notes || lead?.inspection_notes || null,
-    voorwaarden: inspectionData?.voorwaarden || null,
-    lineItems: buildLineItems(lead, inspectionData, subtotalIncl),
+    voorwaarden,
+    lineItems,
     photos: buildPhotoRows(lead, inspectionData),
   };
 }
@@ -550,7 +595,7 @@ export function QuoteDocument({ lead, logoDataUri = null, fontFamily = 'Helvetic
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Betreft</Text>
           <Text style={[styles.infoValue, { marginBottom: 6 }]}>{quote.solution}</Text>
-          <Text style={styles.intro}>{quote.introText}</Text>
+          {quote.introText ? <Text style={styles.intro}>{quote.introText}</Text> : null}
         </View>
 
         <View style={styles.summaryWrap}>
@@ -605,7 +650,12 @@ export function QuoteDocument({ lead, logoDataUri = null, fontFamily = 'Helvetic
 
         {quote.lineItems.map((item) => (
           <View key={item.id} style={styles.tableRow} wrap={false}>
-            <Text style={styles.colDescription}>{item.description}</Text>
+            <View style={styles.colDescription}>
+              <Text>{item.description}</Text>
+              {quote.perLineGuarantee && item.guaranteeYears != null ? (
+                <Text style={styles.lineMeta}>Garantie: {item.guaranteeYears} jaar</Text>
+              ) : null}
+            </View>
             <Text style={styles.colQty}>
               {item.quantity} {item.unit}
             </Text>
@@ -660,7 +710,9 @@ export function QuoteDocument({ lead, logoDataUri = null, fontFamily = 'Helvetic
                 'Geen meerwerk zonder voorafgaand overleg.',
                 `Betaling: ${quote.paymentTerms}.`,
                 'Start werkzaamheden in overleg, doorgaans binnen 2-4 weken.',
-                `Garantie: ${quote.guarantee} op waterdichtheid.`,
+                quote.perLineGuarantee
+                  ? 'Garantie: per regel zoals vermeld in de prijsopgave.'
+                  : `Garantie: ${quote.guarantee} op waterdichtheid.`,
               ]
           ).map((term, i) => (
             <Text key={i} style={styles.term}>- {term}</Text>

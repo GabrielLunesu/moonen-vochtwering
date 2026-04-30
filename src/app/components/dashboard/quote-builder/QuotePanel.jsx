@@ -1,12 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useId } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Input } from '@/app/components/ui/input';
 import { Button } from '@/app/components/ui/button';
 import { Badge } from '@/app/components/ui/badge';
 import { Separator } from '@/app/components/ui/separator';
 import { Textarea } from '@/app/components/ui/textarea';
+import { Checkbox } from '@/app/components/ui/checkbox';
+import { Label } from '@/app/components/ui/label';
 import { Trash2, FileText, Plus } from 'lucide-react';
 import LeadSelector from './LeadSelector';
 
@@ -15,6 +17,26 @@ function formatCurrency(value) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
+}
+
+function getDefaultIntroText(oplossingen) {
+  const solutions = Array.isArray(oplossingen) ? oplossingen : [];
+
+  if (solutions.length > 1) {
+    return 'Naar aanleiding van onze inspectie bieden wij u graag onderstaande werkzaamheden aan voor een gecombineerde aanpak om uw vochtproblemen duurzaam op te lossen.';
+  }
+
+  const single = (solutions[0] || '').toLowerCase();
+  if (single.includes('kelderafdichting')) {
+    return 'Naar aanleiding van onze inspectie bieden wij u graag onderstaande werkzaamheden aan om uw kelderwanden duurzaam waterdicht te maken.';
+  }
+  if (single.includes('injectie') || single.includes('dpc')) {
+    return 'Naar aanleiding van onze inspectie bieden wij u graag onderstaande werkzaamheden aan voor een definitieve oplossing tegen opstijgend vocht middels muurinjectie.';
+  }
+  if (single.includes('gevel impregneren') || single.includes('gevelimpregnatie') || single.includes('gevel')) {
+    return 'Naar aanleiding van onze inspectie bieden wij u graag onderstaande werkzaamheden aan om uw gevel blijvend te beschermen tegen vochtdoorslag.';
+  }
+  return 'Naar aanleiding van onze inspectie bieden wij u graag onderstaande werkzaamheden aan voor een duurzame oplossing van uw vochtprobleem.';
 }
 
 export default function QuotePanel({
@@ -32,6 +54,7 @@ export default function QuotePanel({
   diagnoseDetails,
   oppervlakte,
   defaults,
+  guaranteePerLine,
   onUpdateLine,
   onRemoveLine,
   onCustomerChange,
@@ -42,10 +65,15 @@ export default function QuotePanel({
   voorwaarden,
   onVoorwaardenChange,
   onDefaultsChange,
+  onGuaranteePerLineChange,
   onAddLine,
 }) {
+  const guaranteePerLineId = useId();
   // Local string state for Betreft — avoids trimming spaces on every keystroke
   const [betreftInput, setBetreftInput] = useState(oplossingen?.join(', ') || '');
+  const introText = typeof defaults?.offerte_inleiding === 'string'
+    ? defaults.offerte_inleiding
+    : getDefaultIntroText(oplossingen);
 
   // Sync from parent when AI tool calls update oplossingen
   useEffect(() => {
@@ -130,6 +158,16 @@ export default function QuotePanel({
               className="text-sm"
             />
           </div>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">Inleiding offerte</label>
+            <Textarea
+              placeholder="Leeg laten om geen inleidende tekst te tonen"
+              value={introText}
+              onChange={(e) => onDefaultsChange({ offerte_inleiding: e.target.value })}
+              className="text-sm min-h-[70px]"
+              rows={2}
+            />
+          </div>
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">Oppervlakte</label>
@@ -156,20 +194,38 @@ export default function QuotePanel({
               />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">Garantie</label>
-              <div className="flex items-center gap-1">
-                <Input
-                  type="number"
-                  placeholder="5"
-                  value={defaults?.garantie_jaren || ''}
-                  onChange={(e) => onDefaultsChange({ garantie_jaren: e.target.value ? Number(e.target.value) : 5 })}
-                  className="text-sm"
-                  min={0}
-                />
-                <span className="text-xs text-muted-foreground shrink-0">jaar</span>
+          {!guaranteePerLine && (
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">Garantie</label>
+                <div className="flex items-center gap-1">
+                  <Input
+                    type="number"
+                    placeholder="5"
+                    value={defaults?.garantie_jaren || ''}
+                    onChange={(e) => onDefaultsChange({ garantie_jaren: e.target.value ? Number(e.target.value) : 5 })}
+                    className="text-sm"
+                    min={0}
+                  />
+                  <span className="text-xs text-muted-foreground shrink-0">jaar</span>
+                </div>
               </div>
+            </div>
+          )}
+          <div className="flex items-start gap-2 rounded-md border px-3 py-2">
+            <Checkbox
+              id={guaranteePerLineId}
+              checked={Boolean(guaranteePerLine)}
+              onCheckedChange={(checked) => onGuaranteePerLineChange(checked === true)}
+              className="mt-0.5"
+            />
+            <div className="space-y-0.5">
+              <Label htmlFor={guaranteePerLineId} className="text-sm">
+                Garantie per regel
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Gebruik dit als regels verschillende garantietermijnen hebben.
+              </p>
             </div>
           </div>
           <div className="space-y-1">
@@ -210,7 +266,7 @@ export default function QuotePanel({
           {lineItems.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <FileText className="h-8 w-8 mx-auto mb-2 opacity-40" />
-              <p className="text-sm">Voeg regels toe via de chat of klik op "+ Regel"</p>
+              <p className="text-sm">Voeg regels toe via de chat of klik op + Regel</p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -256,6 +312,21 @@ export default function QuotePanel({
                           <Badge variant="outline" className="text-[10px] px-1 py-0 border-amber-400 text-amber-600">min.</Badge>
                         )}
                       </div>
+                      {guaranteePerLine && (
+                        <div className="mt-1 flex items-center gap-1.5">
+                          <span className="text-xs text-muted-foreground">Garantie</span>
+                          <Input
+                            type="number"
+                            value={item.garantie_jaren ?? defaults?.garantie_jaren ?? ''}
+                            onChange={(e) => onUpdateLine(index, {
+                              garantie_jaren: e.target.value !== '' ? Number(e.target.value) : null,
+                            })}
+                            className="h-7 w-16 text-xs"
+                            min={0}
+                          />
+                          <span className="text-xs text-muted-foreground">jaar</span>
+                        </div>
+                      )}
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
                       <span className="text-sm font-medium">{formatCurrency(lineTotal)}</span>

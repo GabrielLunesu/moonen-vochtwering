@@ -129,7 +129,9 @@ export async function POST(request) {
         doorlooptijd: body.doorlooptijd || '3 werkdagen',
         betaling: body.betaling || 'Op de eerste werkdag bij aanvang, restant binnen 2 weken na oplevering',
         geldigheid_dagen: body.geldigheid_dagen ?? 30,
-        offerte_inleiding: body.offerte_inleiding || null,
+        offerte_inleiding: Object.prototype.hasOwnProperty.call(body, 'offerte_inleiding')
+          ? body.offerte_inleiding
+          : null,
         label: body.label || null,
         status: 'concept',
         quote_token: quoteToken,

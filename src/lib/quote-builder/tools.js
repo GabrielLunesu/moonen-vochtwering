@@ -79,6 +79,25 @@ De pricing engine berekent alle prijzen — geef alleen de code en hoeveelheid.`
       },
     }),
 
+    set_line_guarantee: tool({
+      description: `Stel de garantie voor één specifieke offerteregel in. Gebruik dit als regels verschillende garantietermijnen hebben.`,
+      inputSchema: jsonSchema({
+        type: 'object',
+        properties: {
+          line_index: { type: 'integer', minimum: 1, description: 'Regelnummer in de offerte (begint bij 1)' },
+          garantie_jaren: { type: 'integer', minimum: 0, description: 'Garantie in jaren voor deze regel, bijv. 3 of 5' },
+        },
+        required: ['line_index', 'garantie_jaren'],
+      }),
+      execute: async ({ line_index, garantie_jaren }) => {
+        return {
+          action: 'update_line',
+          line_index: line_index - 1,
+          garantie_jaren,
+        };
+      },
+    }),
+
     remove_line: tool({
       description: `Verwijder een offerteregel. Gebruik het regelnummer (1-based index).`,
       inputSchema: jsonSchema({
@@ -247,10 +266,11 @@ De pricing engine berekent alle prijzen — geef alleen de code en hoeveelheid.`
           quantity: { type: 'number', description: 'Hoeveelheid' },
           unit: { type: 'string', description: 'Eenheid (m², m¹, stuk, etc.)' },
           unit_price: { type: 'number', description: 'Prijs per eenheid incl. BTW' },
+          garantie_jaren: { type: 'integer', minimum: 0, description: 'Optionele garantie in jaren voor deze regel' },
         },
         required: ['description', 'quantity', 'unit', 'unit_price'],
       }),
-      execute: async ({ description, quantity, unit, unit_price }) => {
+      execute: async ({ description, quantity, unit, unit_price, garantie_jaren }) => {
         const line_total = Math.round(unit_price * quantity * 100) / 100;
         return {
           action: 'add_lines',
@@ -262,6 +282,7 @@ De pricing engine berekent alle prijzen — geef alleen de code en hoeveelheid.`
             unit_price,
             quantity,
             line_total,
+            garantie_jaren,
             tier_applied: null,
             minimum_applied: false,
           }],

@@ -424,6 +424,7 @@ export default function QuoteBuilderView({ lead = null, quote = null }) {
             diagnoseDetails={quoteState.diagnoseDetails}
             oppervlakte={quoteState.oppervlakte}
             defaults={quoteState.defaults}
+            guaranteePerLine={quoteState.guaranteePerLine}
             subtotalIncl={quoteState.subtotalIncl}
             discountAmount={quoteState.discountAmount}
             afterDiscount={quoteState.afterDiscount}
@@ -440,6 +441,7 @@ export default function QuoteBuilderView({ lead = null, quote = null }) {
             voorwaarden={quoteState.voorwaarden}
             onVoorwaardenChange={quoteState.setVoorwaarden}
             onDefaultsChange={(updates) => quoteState.setDefaults((prev) => ({ ...prev, ...updates }))}
+            onGuaranteePerLineChange={quoteState.setGuaranteePerLine}
             onAddLine={quoteState.addLine}
           />
         </div>
@@ -483,6 +485,7 @@ export default function QuoteBuilderView({ lead = null, quote = null }) {
               diagnoseDetails={quoteState.diagnoseDetails}
               oppervlakte={quoteState.oppervlakte}
               defaults={quoteState.defaults}
+              guaranteePerLine={quoteState.guaranteePerLine}
               subtotalIncl={quoteState.subtotalIncl}
               discountAmount={quoteState.discountAmount}
               afterDiscount={quoteState.afterDiscount}
@@ -499,6 +502,7 @@ export default function QuoteBuilderView({ lead = null, quote = null }) {
               voorwaarden={quoteState.voorwaarden}
               onVoorwaardenChange={quoteState.setVoorwaarden}
               onDefaultsChange={(updates) => quoteState.setDefaults((prev) => ({ ...prev, ...updates }))}
+              onGuaranteePerLineChange={quoteState.setGuaranteePerLine}
               onAddLine={quoteState.addLine}
             />
           </TabsContent>

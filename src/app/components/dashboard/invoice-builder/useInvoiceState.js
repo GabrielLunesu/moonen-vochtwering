@@ -12,6 +12,25 @@ function toMoney(value) {
   return Math.round(toNumber(value, 0) * 100) / 100;
 }
 
+function getLineGuaranteeYears(item) {
+  const parsed = Number(item?.garantie_jaren ?? item?.guarantee_years);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function inferGuaranteeSettings(items = [], fallbackYears = 5) {
+  const values = items
+    .map(getLineGuaranteeYears)
+    .filter((value) => value != null);
+  const hasPerLineScope = items.some((item) => (item?.garantie_scope ?? item?.guarantee_scope) === 'per_line');
+  const hasGlobalScope = items.some((item) => (item?.garantie_scope ?? item?.guarantee_scope) === 'global');
+  const uniqueValues = new Set(values.map((value) => String(value)));
+
+  return {
+    perLine: hasPerLineScope || (!hasGlobalScope && uniqueValues.size > 1),
+    globalYears: values[0] ?? fallbackYears,
+  };
+}
+
 function makeId() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
@@ -47,6 +66,10 @@ export function useInvoiceState() {
   // --- Betaling ---
   const [betaling, setBetaling] = useState('Binnen 14 dagen na factuurdatum');
 
+  // --- Garantie ---
+  const [guaranteePerLine, setGuaranteePerLineState] = useState(false);
+  const [globalGuaranteeYears, setGlobalGuaranteeYears] = useState(5);
+
   // --- Dates ---
   const [dueDate, setDueDate] = useState(null);
   const [issueDate, setIssueDate] = useState(todayISO());
@@ -68,9 +91,10 @@ export function useInvoiceState() {
         quantity: toNumber(line.quantity, 1),
         unit: line.unit || 'stuk',
         unit_price: toMoney(line.unit_price),
+        garantie_jaren: line.garantie_jaren ?? globalGuaranteeYears,
       },
     ]);
-  }, []);
+  }, [globalGuaranteeYears]);
 
   const updateLine = useCallback((index, updates) => {
     setLineItems((prev) => {
@@ -82,6 +106,11 @@ export function useInvoiceState() {
       if (updates.unit_price != null) item.unit_price = toMoney(updates.unit_price);
       if (updates.description != null) item.description = updates.description;
       if (updates.unit != null) item.unit = updates.unit;
+      if (Object.prototype.hasOwnProperty.call(updates, 'garantie_jaren')) {
+        item.garantie_jaren = updates.garantie_jaren === '' || updates.garantie_jaren == null
+          ? null
+          : toNumber(updates.garantie_jaren, item.garantie_jaren);
+      }
 
       updated[index] = item;
       return updated;
@@ -106,9 +135,22 @@ export function useInvoiceState() {
     });
   }, []);
 
+  const setGuaranteePerLine = useCallback((enabled) => {
+    const next = Boolean(enabled);
+    setGuaranteePerLineState(next);
+    if (next) {
+      setLineItems((prev) => prev.map((item) => ({
+        ...item,
+        garantie_jaren: getLineGuaranteeYears(item) ?? globalGuaranteeYears,
+      })));
+    }
+  }, [globalGuaranteeYears]);
+
   // --- Load existing invoice for editing ---
   const loadInvoice = useCallback((inv) => {
     if (!inv) return;
+    const sourceLineItems = inv.line_items || [];
+    const guaranteeSettings = inferGuaranteeSettings(sourceLineItems, 5);
     setInvoiceId(inv.id);
     setQuoteId(inv.quote_id || null);
     setCustomerState({
@@ -121,14 +163,17 @@ export function useInvoiceState() {
       plaatsnaam: inv.customer_plaatsnaam || '',
     });
     setLineItems(
-      (inv.line_items || []).map((item) => ({
+      sourceLineItems.map((item) => ({
         id: makeId(),
         description: item.description || '',
         quantity: toNumber(item.quantity, 1),
         unit: item.unit || 'stuk',
         unit_price: toMoney(item.unit_price),
+        garantie_jaren: getLineGuaranteeYears(item) ?? guaranteeSettings.globalYears,
       }))
     );
+    setGuaranteePerLineState(guaranteeSettings.perLine);
+    setGlobalGuaranteeYears(guaranteeSettings.globalYears);
     setNotes(inv.notes || '');
     setBetaling(inv.betaling || 'Binnen 14 dagen na factuurdatum');
     setDueDate(inv.due_date || null);
@@ -144,6 +189,9 @@ export function useInvoiceState() {
   // --- Load from an approved quote ---
   const loadFromQuote = useCallback((quote) => {
     if (!quote) return;
+    const sourceLineItems = quote.line_items || [];
+    const quoteGuaranteeYears = toNumber(quote.garantie_jaren, 5);
+    const guaranteeSettings = inferGuaranteeSettings(sourceLineItems, quoteGuaranteeYears);
     setQuoteId(quote.id);
     setCustomerState({
       lead_id: quote.lead_id || null,
@@ -155,14 +203,17 @@ export function useInvoiceState() {
       plaatsnaam: quote.customer_plaatsnaam || '',
     });
     setLineItems(
-      (quote.line_items || []).map((item) => ({
+      sourceLineItems.map((item) => ({
         id: makeId(),
         description: item.description || '',
         quantity: toNumber(item.quantity, 1),
         unit: item.unit || 'stuk',
         unit_price: toMoney(item.unit_price),
+        garantie_jaren: getLineGuaranteeYears(item) ?? quoteGuaranteeYears,
       }))
     );
+    setGuaranteePerLineState(guaranteeSettings.perLine);
+    setGlobalGuaranteeYears(quoteGuaranteeYears);
     setNotes(quote.notes || '');
     setIssueDate(todayISO());
     if (quote.discount_type && quote.discount_value > 0) {
@@ -199,6 +250,10 @@ export function useInvoiceState() {
       unit: item.unit,
       unit_price: toMoney(item.unit_price),
       total: toMoney(toNumber(item.quantity) * toNumber(item.unit_price)),
+      garantie_jaren: guaranteePerLine
+        ? getLineGuaranteeYears(item) ?? globalGuaranteeYears
+        : globalGuaranteeYears,
+      garantie_scope: guaranteePerLine ? 'per_line' : 'global',
     }));
 
     return {
@@ -228,7 +283,7 @@ export function useInvoiceState() {
   }, [
     lineItems, customer, notes, betaling, dueDate, issueDate,
     invoiceId, quoteId, subtotalIncl, discount, discountAmount,
-    btwPercentage, btwAmount, afterDiscount, exclBtw,
+    btwPercentage, btwAmount, afterDiscount, exclBtw, guaranteePerLine, globalGuaranteeYears,
   ]);
 
   return {
@@ -238,6 +293,8 @@ export function useInvoiceState() {
     discount,
     notes,
     betaling,
+    guaranteePerLine,
+    globalGuaranteeYears,
     dueDate,
     issueDate,
     invoiceId,
@@ -246,6 +303,8 @@ export function useInvoiceState() {
     // Setters
     setNotes,
     setBetaling,
+    setGuaranteePerLine,
+    setGlobalGuaranteeYears,
     setDueDate,
     setIssueDate,
 

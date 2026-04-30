@@ -137,6 +137,12 @@ const styles = StyleSheet.create({
     paddingRight: 8,
     lineHeight: 1.35,
   },
+  lineMeta: {
+    marginTop: 2,
+    fontSize: 8.4,
+    color: COLORS.muted,
+    lineHeight: 1.3,
+  },
   colQty: {
     flex: 1.4,
     textAlign: 'right',
@@ -247,6 +253,18 @@ function roundMoney(value) {
   return Math.round(toNumber(value) * 100) / 100;
 }
 
+function getLineGuaranteeYears(item) {
+  const parsed = Number(item?.garantie_jaren ?? item?.guarantee_years);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function hasPerLineGuarantee(lineItems = []) {
+  return lineItems.some((item) => {
+    const scope = item?.guaranteeScope ?? item?.garantie_scope ?? item?.guarantee_scope;
+    return scope === 'per_line' || (scope !== 'global' && item.guaranteeYears != null);
+  });
+}
+
 function formatCurrency(value) {
   return new Intl.NumberFormat('nl-NL', {
     style: 'currency',
@@ -283,6 +301,8 @@ function buildLineItems(invoice) {
         unit: item.unit || '',
         unitPrice: unitPriceExcl,
         total: rowTotalExcl,
+        guaranteeYears: getLineGuaranteeYears(item),
+        guaranteeScope: item.garantie_scope ?? item.guarantee_scope ?? null,
       };
     });
   }
@@ -298,6 +318,8 @@ function buildLineItems(invoice) {
       unit: 'stuk',
       unitPrice: subtotalExcl,
       total: subtotalExcl,
+      guaranteeYears: null,
+      guaranteeScope: null,
     },
   ];
 }
@@ -322,6 +344,11 @@ function buildInvoiceData(invoice) {
   const discountAmountExcl = roundMoney(discountAmount / btwDivisor);
 
   const customerCity = `${invoice?.customer_postcode || ''} ${invoice?.customer_plaatsnaam || ''}`.trim();
+  const lineItems = buildLineItems(invoice);
+  const perLineGuarantee = hasPerLineGuarantee(lineItems);
+  const globalGuaranteeYears = perLineGuarantee
+    ? null
+    : lineItems.find((item) => item.guaranteeYears != null)?.guaranteeYears ?? null;
 
   return {
     invoiceNumber: invoice?.invoice_number || 'CONCEPT',
@@ -340,8 +367,10 @@ function buildInvoiceData(invoice) {
     btwAmount,
     totalIncl,
     betaling: invoice?.betaling || `Gelieve het totaalbedrag binnen 14 dagen over te maken op onderstaand rekeningnummer.`,
+    perLineGuarantee,
+    globalGuarantee: globalGuaranteeYears != null ? `${globalGuaranteeYears} jaar` : null,
     notes: invoice?.notes || null,
-    lineItems: buildLineItems(invoice),
+    lineItems,
   };
 }
 
@@ -412,7 +441,12 @@ export function InvoiceDocument({ invoice, logoDataUri = null, fontFamily = 'Hel
 
         {data.lineItems.map((item) => (
           <View key={item.id} style={styles.tableRow} wrap={false}>
-            <Text style={styles.colDescription}>{item.description}</Text>
+            <View style={styles.colDescription}>
+              <Text>{item.description}</Text>
+              {data.perLineGuarantee && item.guaranteeYears != null ? (
+                <Text style={styles.lineMeta}>Garantie: {item.guaranteeYears} jaar</Text>
+              ) : null}
+            </View>
             <Text style={styles.colQty}>
               {item.quantity} {item.unit}
             </Text>
@@ -452,6 +486,11 @@ export function InvoiceDocument({ invoice, logoDataUri = null, fontFamily = 'Hel
           <Text style={styles.paymentDetail}>t.n.v. {COMPANY.name}</Text>
           <Text style={styles.paymentDetail}>o.v.v. factuurnummer {data.invoiceNumber}</Text>
           <Text style={[styles.paymentDetail, { marginTop: 4 }]}>{data.betaling}</Text>
+          {data.perLineGuarantee ? (
+            <Text style={styles.paymentDetail}>Garantie: per regel zoals vermeld in de specificatie.</Text>
+          ) : data.globalGuarantee ? (
+            <Text style={styles.paymentDetail}>Garantie: {data.globalGuarantee}.</Text>
+          ) : null}
         </View>
 
         {/* Notes (optional) */}

@@ -21,6 +21,7 @@ Wanneer je genoeg informatie hebt (afmetingen, type behandeling), roep je DIRECT
 - add_treatment → om behandelingen toe te voegen
 - calculate_area → om oppervlaktes te berekenen
 - set_customer → om klantgegevens in te vullen
+- set_line_guarantee → om garantie per offerteregel in te stellen als regels verschillende garantietermijnen hebben
 
 De offerte verschijnt automatisch in het rechter paneel. Jij hoeft geen overzicht te geven.
 
@@ -33,7 +34,8 @@ De offerte verschijnt automatisch in het rechter paneel. Jij hoeft geen overzich
 6. **Wees proactief:** stel aanvullende behandelingen voor als dat logisch is.
 7. **Houd het kort.** Na het toevoegen van regels, bevestig kort (bijv. "✅ Toegevoegd voor 45 m²"). GEEN prijzen, tabellen of opsommingen — de offerte is zichtbaar rechts.
 8. **Bij wijzigingen:** pas bestaande regels aan met update_line of remove_line.
-9. **GEEN markdown tabellen of prijsoverzichten in de chat.**
+9. **Bij verschillende garantie per regel:** gebruik set_line_guarantee per regel. Gebruik de globale garantie alleen als alle regels dezelfde garantie hebben.
+10. **GEEN markdown tabellen of prijsoverzichten in de chat.**
 
 ## Typische workflow
 1. Gabriel beschrijft de situatie ("kelder 4x5, 2.5m hoog, doorslag op muurvlakken")
@@ -53,6 +55,7 @@ Na het toevoegen van behandelingen MOET je ALTIJD set_quote_details aanroepen me
 
 ## Hoe de offerte werkt
 - Elke regel heeft: omschrijving, hoeveelheid, eenheid, prijs per eenheid, regeltotaal
+- Garantie kan globaal zijn of per regel verschillen. Per-regel garantie staat bij de regel zelf.
 - Alle prijzen zijn INCLUSIEF BTW (21%)
 - Bundels (bijv. kelderafdichting_muurvlak) produceren meerdere regels met dezelfde hoeveelheid
 - De pricing engine past automatisch staffelkortingen en minimumprijzen toe
@@ -75,7 +78,8 @@ export function buildSystemPrompt(quoteState = null) {
     prompt += `Aantal regels: ${quoteState.lineItems.length}\n`;
     prompt += 'Regels:\n';
     quoteState.lineItems.forEach((item, i) => {
-      prompt += `${i + 1}. ${item.description} — ${item.quantity} ${item.unit} × €${item.unit_price} = €${item.line_total || (item.quantity * item.unit_price).toFixed(2)}\n`;
+      const garantie = item.garantie_jaren != null ? `, garantie ${item.garantie_jaren} jaar` : '';
+      prompt += `${i + 1}. ${item.description} — ${item.quantity} ${item.unit} × €${item.unit_price} = €${item.line_total || (item.quantity * item.unit_price).toFixed(2)}${garantie}\n`;
     });
     if (quoteState.subtotalIncl) {
       prompt += `\nSubtotaal incl. BTW: €${quoteState.subtotalIncl.toFixed(2)}\n`;
@@ -105,6 +109,9 @@ export function buildSystemPrompt(quoteState = null) {
     }
     if (quoteState.garantie_jaren) {
       prompt += `Garantie: ${quoteState.garantie_jaren} jaar\n`;
+    }
+    if (quoteState.garantie_per_regel) {
+      prompt += 'Garantie per regel: ja\n';
     }
   }
 

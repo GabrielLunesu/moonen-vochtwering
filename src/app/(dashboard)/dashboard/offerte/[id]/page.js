@@ -59,6 +59,18 @@ function formatDateTime(dateStr) {
   });
 }
 
+function getLineGuaranteeYears(item) {
+  const parsed = Number(item?.garantie_jaren ?? item?.guarantee_years);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function hasPerLineGuarantee(items = []) {
+  return items.some((item) => {
+    const scope = item?.garantie_scope ?? item?.guarantee_scope;
+    return scope === 'per_line' || (scope !== 'global' && getLineGuaranteeYears(item) != null);
+  });
+}
+
 export default function QuoteDetailPage() {
   const { id } = useParams();
   const router = useRouter();
@@ -197,6 +209,7 @@ export default function QuoteDetailPage() {
 
   const status = STATUS_CONFIG[quote.status] || STATUS_CONFIG.concept;
   const lineItems = quote.line_items || [];
+  const guaranteePerLine = hasPerLineGuarantee(lineItems);
   const isSent = quote.status !== 'concept';
 
   return (
@@ -348,7 +361,7 @@ export default function QuoteDetailPage() {
         </Card>
 
         {/* Quote details */}
-        {(quote.oplossingen?.length > 0 || quote.diagnose?.length > 0 || quote.oppervlakte_m2 || quote.doorlooptijd) && (
+        {(quote.oplossingen?.length > 0 || quote.diagnose?.length > 0 || quote.oppervlakte_m2 || quote.doorlooptijd || guaranteePerLine || quote.garantie_jaren) && (
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium">Offerte details</CardTitle>
@@ -379,7 +392,12 @@ export default function QuoteDetailPage() {
                     <p className="font-medium">{quote.doorlooptijd}</p>
                   </div>
                 )}
-                {quote.garantie_jaren && (
+                {guaranteePerLine ? (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-0.5">Garantie</p>
+                    <p className="font-medium">Per regel</p>
+                  </div>
+                ) : quote.garantie_jaren && (
                   <div>
                     <p className="text-xs text-muted-foreground mb-0.5">Garantie</p>
                     <p className="font-medium">{quote.garantie_jaren} jaar</p>
@@ -412,6 +430,11 @@ export default function QuoteDetailPage() {
                         <p className="text-xs text-muted-foreground">
                           {item.quantity} {item.unit} × {formatCurrency(item.unit_price)}
                         </p>
+                        {guaranteePerLine && getLineGuaranteeYears(item) != null && (
+                          <p className="text-xs text-muted-foreground">
+                            Garantie: {getLineGuaranteeYears(item)} jaar
+                          </p>
+                        )}
                       </div>
                       <span className="text-sm font-medium shrink-0 ml-4">
                         {formatCurrency(lineTotal)}

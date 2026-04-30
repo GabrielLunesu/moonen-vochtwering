@@ -12,6 +12,31 @@ function toMoney(value) {
   return Math.round(toNumber(value, 0) * 100) / 100;
 }
 
+function getLineGuaranteeYears(item) {
+  const parsed = Number(item?.garantie_jaren ?? item?.guarantee_years);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function hasPerLineGuarantee(items = []) {
+  return items.some((item) => {
+    const scope = item?.garantie_scope ?? item?.guarantee_scope;
+    return scope === 'per_line' || (scope !== 'global' && getLineGuaranteeYears(item) != null);
+  });
+}
+
+function normalizeVoorwaarden(terms = [], guaranteePerLine, guaranteeYears) {
+  const guaranteeText = guaranteePerLine
+    ? 'Garantie: per regel zoals vermeld in de prijsopgave.'
+    : `Garantie: ${toNumber(guaranteeYears, 5)} jaar op waterdichtheid.`;
+
+  return (terms || []).map((term) => {
+    if (/^\s*Garantie\s*:/i.test(term || '')) {
+      return guaranteeText;
+    }
+    return term;
+  });
+}
+
 function makeId() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
@@ -25,7 +50,7 @@ const DEFAULT_DEFAULTS = {
   doorlooptijd: '3 werkdagen',
   betaling: '40% op de eerste werkdag bij aanvang, restant binnen 2 weken na oplevering',
   geldigheid_dagen: 30,
-  offerte_inleiding: '',
+  offerte_inleiding: null,
 };
 
 export function useQuoteState(initialLead = null) {
@@ -78,6 +103,7 @@ export function useQuoteState(initialLead = null) {
 
   // --- Quote defaults ---
   const [defaults, setDefaults] = useState(DEFAULT_DEFAULTS);
+  const [guaranteePerLine, setGuaranteePerLineState] = useState(false);
 
   // --- Voorwaarden (editable terms for PDF) ---
   const DEFAULT_VOORWAARDEN = [
@@ -109,11 +135,12 @@ export function useQuoteState(initialLead = null) {
         quantity: toNumber(line.quantity, 1),
         unit: line.unit || 'stuk',
         unit_price: toMoney(line.unit_price),
+        garantie_jaren: line.garantie_jaren ?? (guaranteePerLine ? toNumber(defaults.garantie_jaren, 5) : null),
         tier_applied: line.tier_applied || null,
         minimum_applied: line.minimum_applied || false,
       },
     ]);
-  }, []);
+  }, [defaults.garantie_jaren, guaranteePerLine]);
 
   const addLines = useCallback((lines) => {
     const newItems = lines.map((line) => ({
@@ -122,11 +149,12 @@ export function useQuoteState(initialLead = null) {
       quantity: toNumber(line.quantity, 1),
       unit: line.unit || 'stuk',
       unit_price: toMoney(line.unit_price),
+      garantie_jaren: line.garantie_jaren ?? (guaranteePerLine ? toNumber(defaults.garantie_jaren, 5) : null),
       tier_applied: line.tier_applied || null,
       minimum_applied: line.minimum_applied || false,
     }));
     setLineItems((prev) => [...prev, ...newItems]);
-  }, []);
+  }, [defaults.garantie_jaren, guaranteePerLine]);
 
   const updateLine = useCallback((index, updates) => {
     setLineItems((prev) => {
@@ -138,6 +166,11 @@ export function useQuoteState(initialLead = null) {
       if (updates.unit_price != null) item.unit_price = toMoney(updates.unit_price);
       if (updates.description != null) item.description = updates.description;
       if (updates.unit != null) item.unit = updates.unit;
+      if (Object.prototype.hasOwnProperty.call(updates, 'garantie_jaren')) {
+        item.garantie_jaren = updates.garantie_jaren === '' || updates.garantie_jaren == null
+          ? null
+          : toNumber(updates.garantie_jaren, item.garantie_jaren);
+      }
 
       updated[index] = item;
       return updated;
@@ -169,9 +202,21 @@ export function useQuoteState(initialLead = null) {
     });
   }, []);
 
+  const setGuaranteePerLine = useCallback((enabled) => {
+    const next = Boolean(enabled);
+    setGuaranteePerLineState(next);
+    if (next) {
+      setLineItems((prev) => prev.map((item) => ({
+        ...item,
+        garantie_jaren: getLineGuaranteeYears(item) ?? toNumber(defaults.garantie_jaren, 5),
+      })));
+    }
+  }, [defaults.garantie_jaren]);
+
   // --- Load existing quote for editing ---
   const loadQuote = useCallback((q) => {
     if (!q) return;
+    const sourceLineItems = q.line_items || [];
     setQuoteId(q.id);
     setCustomerState({
       lead_id: q.lead_id || null,
@@ -183,16 +228,18 @@ export function useQuoteState(initialLead = null) {
       plaatsnaam: q.customer_plaatsnaam || '',
     });
     setLineItems(
-      (q.line_items || []).map((item) => ({
+      sourceLineItems.map((item) => ({
         id: makeId(),
         description: item.description || '',
         quantity: toNumber(item.quantity, 1),
         unit: item.unit || 'stuk',
         unit_price: toMoney(item.unit_price),
+        garantie_jaren: getLineGuaranteeYears(item),
         tier_applied: item.tier_applied || null,
         minimum_applied: item.minimum_applied || false,
       }))
     );
+    setGuaranteePerLineState(hasPerLineGuarantee(sourceLineItems));
     setDiagnose(q.diagnose || []);
     setOplossingen(q.oplossingen || []);
     setDiagnoseDetails(q.diagnose_details || '');
@@ -216,7 +263,7 @@ export function useQuoteState(initialLead = null) {
       doorlooptijd: q.doorlooptijd || prev.doorlooptijd,
       betaling: q.betaling || prev.betaling,
       geldigheid_dagen: q.geldigheid_dagen ?? prev.geldigheid_dagen,
-      offerte_inleiding: q.offerte_inleiding || prev.offerte_inleiding,
+      offerte_inleiding: typeof q.offerte_inleiding === 'string' ? q.offerte_inleiding : prev.offerte_inleiding,
     }));
   }, []);
 
@@ -228,12 +275,23 @@ export function useQuoteState(initialLead = null) {
       case 'add_lines':
         if (result.lines?.length) {
           addLines(result.lines);
+          if (result.lines.some((line) => getLineGuaranteeYears(line) != null)) {
+            setGuaranteePerLine(true);
+          }
         }
         break;
 
       case 'update_line':
-        if (result.line_index != null && result.new_quantity != null) {
-          updateLine(result.line_index, { quantity: result.new_quantity });
+        if (result.line_index != null) {
+          const updates = {};
+          if (result.new_quantity != null) updates.quantity = result.new_quantity;
+          if (result.garantie_jaren != null) updates.garantie_jaren = result.garantie_jaren;
+          if (Object.keys(updates).length > 0) {
+            updateLine(result.line_index, updates);
+          }
+          if (result.garantie_jaren != null) {
+            setGuaranteePerLine(true);
+          }
         }
         break;
 
@@ -266,12 +324,12 @@ export function useQuoteState(initialLead = null) {
         if (result.diagnose) setDiagnose(result.diagnose);
         if (result.diagnose_details) setDiagnoseDetails(result.diagnose_details);
         if (result.oppervlakte_m2 != null) setOppervlakte(result.oppervlakte_m2);
-        if (result.doorlooptijd || result.garantie_jaren || result.offerte_inleiding || result.betaling) {
+        if (result.doorlooptijd || result.garantie_jaren || Object.prototype.hasOwnProperty.call(result, 'offerte_inleiding') || result.betaling) {
           setDefaults((prev) => ({
             ...prev,
             ...(result.doorlooptijd ? { doorlooptijd: result.doorlooptijd } : {}),
             ...(result.garantie_jaren ? { garantie_jaren: result.garantie_jaren } : {}),
-            ...(result.offerte_inleiding ? { offerte_inleiding: result.offerte_inleiding } : {}),
+            ...(Object.prototype.hasOwnProperty.call(result, 'offerte_inleiding') ? { offerte_inleiding: result.offerte_inleiding } : {}),
             ...(result.betaling ? { betaling: result.betaling } : {}),
           }));
         }
@@ -286,7 +344,7 @@ export function useQuoteState(initialLead = null) {
       default:
         break;
     }
-  }, [addLines, updateLine, removeLine, setCustomer, setDiscount, addNote, setOplossingen, setDiagnose, setDiagnoseDetails, setOppervlakte, setDefaults]);
+  }, [addLines, updateLine, removeLine, setCustomer, setDiscount, addNote, setGuaranteePerLine, setOplossingen, setDiagnose, setDiagnoseDetails, setOppervlakte, setDefaults]);
 
   // --- Computed totals ---
   const subtotalIncl = useMemo(
@@ -314,6 +372,7 @@ export function useQuoteState(initialLead = null) {
       quantity: item.quantity,
       unit: item.unit,
       unit_price: item.unit_price,
+      garantie_jaren: guaranteePerLine ? getLineGuaranteeYears(item) ?? toNumber(defaults.garantie_jaren, 5) : null,
       line_total: toMoney(item.quantity * item.unit_price),
     })),
     customer: customer.name ? { name: customer.name, plaatsnaam: customer.plaatsnaam } : null,
@@ -324,8 +383,9 @@ export function useQuoteState(initialLead = null) {
     oppervlakte: oppervlakte || null,
     doorlooptijd: defaults.doorlooptijd,
     garantie_jaren: defaults.garantie_jaren,
+    garantie_per_regel: guaranteePerLine,
     subtotalIncl,
-  }), [lineItems, customer, discount, notes, oplossingen, diagnoseDetails, oppervlakte, defaults, subtotalIncl]);
+  }), [lineItems, customer, discount, notes, oplossingen, diagnoseDetails, oppervlakte, defaults, guaranteePerLine, subtotalIncl]);
 
   // --- Build payload matching QuoteGenerator format for API compatibility ---
   const buildPayload = useCallback(() => {
@@ -335,7 +395,18 @@ export function useQuoteState(initialLead = null) {
       unit: item.unit,
       unit_price: toMoney(item.unit_price),
       total: toMoney(toNumber(item.quantity) * toNumber(item.unit_price)),
+      ...(guaranteePerLine
+        ? {
+            garantie_jaren: getLineGuaranteeYears(item) ?? toNumber(defaults.garantie_jaren, 5),
+            garantie_scope: 'per_line',
+          }
+        : {}),
     }));
+    const normalizedVoorwaarden = normalizeVoorwaarden(
+      voorwaarden,
+      guaranteePerLine,
+      defaults.garantie_jaren
+    );
 
     return {
       lead_id: customer.lead_id,
@@ -365,14 +436,14 @@ export function useQuoteState(initialLead = null) {
       doorlooptijd: defaults.doorlooptijd || '3 werkdagen',
       betaling: defaults.betaling,
       geldigheid_dagen: toNumber(defaults.geldigheid_dagen, 30),
-      offerte_inleiding: defaults.offerte_inleiding || null,
-      voorwaarden: voorwaarden.length > 0 ? voorwaarden : null,
+      offerte_inleiding: defaults.offerte_inleiding,
+      voorwaarden: normalizedVoorwaarden.length > 0 ? normalizedVoorwaarden : null,
       label: label || null,
     };
   }, [
     lineItems, customer, diagnose, diagnoseDetails, oplossingen, oppervlakte,
     notes, photos, subtotalIncl, discount, discountAmount, btwPercentage,
-    btwAmount, afterDiscount, defaults, label, voorwaarden,
+    btwAmount, afterDiscount, defaults, guaranteePerLine, label, voorwaarden,
   ]);
 
   return {
@@ -383,6 +454,7 @@ export function useQuoteState(initialLead = null) {
     notes,
     diagnose,
     defaults,
+    guaranteePerLine,
     label,
     photos,
     oplossingen,
@@ -398,6 +470,7 @@ export function useQuoteState(initialLead = null) {
     setNotes,
     setDiagnose,
     setDefaults,
+    setGuaranteePerLine,
     setLabel,
     setPhotos,
     setOplossingen,

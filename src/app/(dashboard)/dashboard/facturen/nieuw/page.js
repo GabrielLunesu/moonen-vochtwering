@@ -12,6 +12,8 @@ import { Textarea } from '@/app/components/ui/textarea';
 import { Skeleton } from '@/app/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/app/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
+import { Checkbox } from '@/app/components/ui/checkbox';
+import { Label } from '@/app/components/ui/label';
 import { toast } from 'sonner';
 import { Trash2, Plus, Eye, Send, ArrowLeft, Users, UserPlus } from 'lucide-react';
 import LeadSelector from '@/app/components/dashboard/quote-builder/LeadSelector';
@@ -37,9 +39,10 @@ function InvoiceBuilderContent() {
   const state = useInvoiceState();
   const {
     lineItems, customer, discount, notes, betaling, dueDate, issueDate,
+    guaranteePerLine, globalGuaranteeYears,
     subtotalIncl, discountAmount, afterDiscount, exclBtw, btwAmount, btwPercentage,
     addLine, updateLine, removeLine, setCustomer, setDiscount,
-    setNotes, setBetaling, setDueDate, setIssueDate,
+    setNotes, setBetaling, setGuaranteePerLine, setGlobalGuaranteeYears, setDueDate, setIssueDate,
     loadFromQuote, buildPayload,
   } = state;
 
@@ -307,7 +310,7 @@ function InvoiceBuilderContent() {
                 <label className="text-xs text-muted-foreground">Vervaldatum</label>
                 <Input
                   type="date"
-                  value={dueDate}
+                  value={dueDate || ''}
                   onChange={(e) => setDueDate(e.target.value)}
                   className="text-sm"
                 />
@@ -320,6 +323,39 @@ function InvoiceBuilderContent() {
                 onChange={(e) => setBetaling(e.target.value)}
                 className="text-sm"
               />
+            </div>
+            <div className={guaranteePerLine ? '' : 'grid grid-cols-2 gap-2'}>
+              {!guaranteePerLine && (
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">Garantie</label>
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="number"
+                      min="0"
+                      value={globalGuaranteeYears}
+                      onChange={(e) => setGlobalGuaranteeYears(e.target.value !== '' ? Number(e.target.value) : 5)}
+                      className="text-sm"
+                    />
+                    <span className="text-xs text-muted-foreground shrink-0">jaar</span>
+                  </div>
+                </div>
+              )}
+              <div className="flex items-start gap-2 rounded-md border px-3 py-2">
+                <Checkbox
+                  id="invoice-guarantee-per-line"
+                  checked={Boolean(guaranteePerLine)}
+                  onCheckedChange={(checked) => setGuaranteePerLine(checked === true)}
+                  className="mt-0.5"
+                />
+                <div className="space-y-0.5">
+                  <Label htmlFor="invoice-guarantee-per-line" className="text-sm">
+                    Garantie per regel
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Voor verschillende garantietermijnen.
+                  </p>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -357,46 +393,63 @@ function InvoiceBuilderContent() {
                   <div className="col-span-1" />
                 </div>
                 {lineItems.map((item, index) => (
-                  <div key={item.id} className="grid grid-cols-12 gap-2 items-center">
-                    <Input
-                      className="col-span-5 text-sm"
-                      placeholder="Omschrijving"
-                      value={item.description}
-                      onChange={(e) => updateLine(index, { description: e.target.value })}
-                    />
-                    <Input
-                      className="col-span-2 text-sm"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={item.quantity}
-                      onChange={(e) => updateLine(index, { quantity: e.target.value })}
-                    />
-                    <Input
-                      className="col-span-1 text-sm"
-                      placeholder="stuk"
-                      value={item.unit}
-                      onChange={(e) => updateLine(index, { unit: e.target.value })}
-                    />
-                    <Input
-                      className="col-span-2 text-sm"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={item.unit_price}
-                      onChange={(e) => updateLine(index, { unit_price: e.target.value })}
-                    />
-                    <span className="col-span-1 text-sm text-right font-medium">
-                      {formatCurrency(item.quantity * item.unit_price)}
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="col-span-1 h-8 w-8 text-red-500"
-                      onClick={() => removeLine(index)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+                  <div key={item.id} className="space-y-1">
+                    <div className="grid grid-cols-12 gap-2 items-center">
+                      <Input
+                        className="col-span-5 text-sm"
+                        placeholder="Omschrijving"
+                        value={item.description}
+                        onChange={(e) => updateLine(index, { description: e.target.value })}
+                      />
+                      <Input
+                        className="col-span-2 text-sm"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={item.quantity}
+                        onChange={(e) => updateLine(index, { quantity: e.target.value })}
+                      />
+                      <Input
+                        className="col-span-1 text-sm"
+                        placeholder="stuk"
+                        value={item.unit}
+                        onChange={(e) => updateLine(index, { unit: e.target.value })}
+                      />
+                      <Input
+                        className="col-span-2 text-sm"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={item.unit_price}
+                        onChange={(e) => updateLine(index, { unit_price: e.target.value })}
+                      />
+                      <span className="col-span-1 text-sm text-right font-medium">
+                        {formatCurrency(item.quantity * item.unit_price)}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="col-span-1 h-8 w-8 text-red-500"
+                        onClick={() => removeLine(index)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                    {guaranteePerLine && (
+                      <div className="flex items-center gap-2 pl-1">
+                        <span className="text-xs text-muted-foreground">Garantie</span>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={item.garantie_jaren ?? globalGuaranteeYears}
+                          onChange={(e) => updateLine(index, {
+                            garantie_jaren: e.target.value !== '' ? Number(e.target.value) : null,
+                          })}
+                          className="h-8 w-20 text-sm"
+                        />
+                        <span className="text-xs text-muted-foreground">jaar</span>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
