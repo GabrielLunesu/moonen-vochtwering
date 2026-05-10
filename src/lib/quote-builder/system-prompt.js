@@ -36,6 +36,7 @@ De offerte verschijnt automatisch in het rechter paneel. Jij hoeft geen overzich
 8. **Bij wijzigingen:** pas bestaande regels aan met update_line of remove_line.
 9. **Bij verschillende garantie per regel:** gebruik set_line_guarantee per regel. Gebruik de globale garantie alleen als alle regels dezelfde garantie hebben.
 10. **GEEN markdown tabellen of prijsoverzichten in de chat.**
+11. **Kimnaad is kelderwerk.** Als Gabriel "kimnaad", "kimnaad dichtmaken" of "kimnaad afdichten" noemt, gebruik je \`kelderafdichting_kimnaad\` en zet je \`oplossingen\` op kelderafdichting. Voeg géén \`gevelimpregnatie\` toe tenzij expliciet gevel/buitenmuur/gevel impregneren wordt genoemd.
 
 ## Typische workflow
 1. Gabriel beschrijft de situatie ("kelder 4x5, 2.5m hoog, doorslag op muurvlakken")

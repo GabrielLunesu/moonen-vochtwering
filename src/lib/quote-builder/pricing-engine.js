@@ -291,11 +291,13 @@ function computeLine(tpl, qty, overridePrice) {
 export function suggestTreatmentsForProblem(problem) {
   const p = (problem || '').toLowerCase();
   const suggestions = [];
+  const mentionsKelder = p.includes('kelder') || p.includes('kimnaad');
+  const mentionsGevel = p.includes('gevel') || p.includes('buitenmuur');
 
   if (p.includes('opstijgend') || p.includes('capillair') || p.includes('injectie')) {
     suggestions.push('muurinjectie_30cm', 'vochtbestendige_pleister');
   }
-  if (p.includes('kelder') || p.includes('doorslag') || p.includes('lekkage')) {
+  if (mentionsKelder || p.includes('lekkage')) {
     suggestions.push(
       'kelderafdichting_muurvlak',
       'kelderafdichting_kimnaad',
@@ -306,7 +308,7 @@ export function suggestTreatmentsForProblem(problem) {
   if (p.includes('schimmel')) {
     suggestions.push('schimmel_doden');
   }
-  if (p.includes('gevel') || p.includes('doorslag') || p.includes('buitenmuur')) {
+  if (mentionsGevel || (p.includes('doorslag') && !mentionsKelder)) {
     suggestions.push('gevelimpregnatie'); // code unchanged, display label is "Gevel impregneren"
   }
   if (p.includes('drainage') || p.includes('grondwater')) {
