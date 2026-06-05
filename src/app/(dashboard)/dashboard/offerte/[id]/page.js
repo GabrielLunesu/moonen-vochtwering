@@ -427,6 +427,11 @@ export default function QuoteDetailPage() {
                     <div key={i} className="flex items-center justify-between py-2.5 border-b last:border-0">
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium">{item.description}</p>
+                        {item.details && (
+                          <p className="text-xs text-muted-foreground whitespace-pre-line mt-0.5">
+                            {item.details}
+                          </p>
+                        )}
                         <p className="text-xs text-muted-foreground">
                           {item.quantity} {item.unit} × {formatCurrency(item.unit_price)}
                         </p>

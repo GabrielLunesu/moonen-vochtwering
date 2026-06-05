@@ -282,6 +282,13 @@ export default function QuotePanel({
                         placeholder="Omschrijving"
                         className="h-7 text-sm font-medium mb-1"
                       />
+                      <Textarea
+                        value={item.details || ''}
+                        onChange={(e) => onUpdateLine(index, { details: e.target.value })}
+                        placeholder="Details voor deze regel"
+                        className="mb-1 min-h-[52px] text-xs"
+                        rows={2}
+                      />
                       <div className="flex items-center gap-2">
                         <Input
                           type="number"

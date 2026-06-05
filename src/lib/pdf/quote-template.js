@@ -385,6 +385,7 @@ function buildLineItems(lead, inspectionData, subtotalIncl) {
       return {
         id: `${index}`,
         description: item.description || 'Werkzaamheden',
+        details: item.details || null,
         quantity,
         unit: item.unit || '',
         unitPrice: unitPriceExcl,
@@ -400,6 +401,7 @@ function buildLineItems(lead, inspectionData, subtotalIncl) {
     {
       id: 'fallback',
       description: lead?.oplossing || 'Vochtwering werkzaamheden',
+      details: null,
       quantity: toNumber(lead?.oppervlakte_m2, 1),
       unit: lead?.oppervlakte_m2 ? 'm\u00b2' : 'stuk',
       unitPrice: roundMoney(subtotalExcl / Math.max(1, toNumber(lead?.oppervlakte_m2, 1))),
@@ -652,6 +654,9 @@ export function QuoteDocument({ lead, logoDataUri = null, fontFamily = 'Helvetic
           <View key={item.id} style={styles.tableRow} wrap={false}>
             <View style={styles.colDescription}>
               <Text>{item.description}</Text>
+              {item.details ? (
+                <Text style={styles.lineMeta}>{item.details}</Text>
+              ) : null}
               {quote.perLineGuarantee && item.guaranteeYears != null ? (
                 <Text style={styles.lineMeta}>Garantie: {item.guaranteeYears} jaar</Text>
               ) : null}

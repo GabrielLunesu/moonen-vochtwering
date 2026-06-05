@@ -263,6 +263,7 @@ De pricing engine berekent alle prijzen — geef alleen de code en hoeveelheid.`
         type: 'object',
         properties: {
           description: { type: 'string', description: 'Omschrijving van de werkzaamheden' },
+          details: { type: 'string', description: 'Optionele nadere details bij deze offerteregel' },
           quantity: { type: 'number', description: 'Hoeveelheid' },
           unit: { type: 'string', description: 'Eenheid (m², m¹, stuk, etc.)' },
           unit_price: { type: 'number', description: 'Prijs per eenheid incl. BTW' },
@@ -270,7 +271,7 @@ De pricing engine berekent alle prijzen — geef alleen de code en hoeveelheid.`
         },
         required: ['description', 'quantity', 'unit', 'unit_price'],
       }),
-      execute: async ({ description, quantity, unit, unit_price, garantie_jaren }) => {
+      execute: async ({ description, details, quantity, unit, unit_price, garantie_jaren }) => {
         const line_total = Math.round(unit_price * quantity * 100) / 100;
         return {
           action: 'add_lines',
@@ -278,6 +279,7 @@ De pricing engine berekent alle prijzen — geef alleen de code en hoeveelheid.`
           treatment_label: description,
           lines: [{
             description,
+            details: details || '',
             unit,
             unit_price,
             quantity,

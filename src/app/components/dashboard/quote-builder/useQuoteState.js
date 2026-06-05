@@ -132,6 +132,7 @@ export function useQuoteState(initialLead = null) {
       {
         id: makeId(),
         description: line.description,
+        details: line.details || '',
         quantity: toNumber(line.quantity, 1),
         unit: line.unit || 'stuk',
         unit_price: toMoney(line.unit_price),
@@ -146,6 +147,7 @@ export function useQuoteState(initialLead = null) {
     const newItems = lines.map((line) => ({
       id: makeId(),
       description: line.description,
+      details: line.details || '',
       quantity: toNumber(line.quantity, 1),
       unit: line.unit || 'stuk',
       unit_price: toMoney(line.unit_price),
@@ -165,6 +167,7 @@ export function useQuoteState(initialLead = null) {
       if (updates.quantity != null) item.quantity = toNumber(updates.quantity, item.quantity);
       if (updates.unit_price != null) item.unit_price = toMoney(updates.unit_price);
       if (updates.description != null) item.description = updates.description;
+      if (updates.details != null) item.details = updates.details;
       if (updates.unit != null) item.unit = updates.unit;
       if (Object.prototype.hasOwnProperty.call(updates, 'garantie_jaren')) {
         item.garantie_jaren = updates.garantie_jaren === '' || updates.garantie_jaren == null
@@ -231,6 +234,7 @@ export function useQuoteState(initialLead = null) {
       sourceLineItems.map((item) => ({
         id: makeId(),
         description: item.description || '',
+        details: item.details || '',
         quantity: toNumber(item.quantity, 1),
         unit: item.unit || 'stuk',
         unit_price: toMoney(item.unit_price),
@@ -369,6 +373,7 @@ export function useQuoteState(initialLead = null) {
     lineItems: lineItems.map((item, i) => ({
       index: i + 1,
       description: item.description,
+      details: item.details || null,
       quantity: item.quantity,
       unit: item.unit,
       unit_price: item.unit_price,
@@ -391,6 +396,7 @@ export function useQuoteState(initialLead = null) {
   const buildPayload = useCallback(() => {
     const normalizedLineItems = lineItems.map((item) => ({
       description: item.description,
+      details: item.details || null,
       quantity: toNumber(item.quantity, 0),
       unit: item.unit,
       unit_price: toMoney(item.unit_price),
