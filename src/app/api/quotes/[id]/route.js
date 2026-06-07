@@ -39,10 +39,36 @@ export async function PATCH(request, { params }) {
 
     const body = await request.json();
 
+    const admin = createAdminClient();
+    const { data: existingQuote, error: existingError } = await admin
+      .from('quotes')
+      .select('id, lead_id')
+      .eq('id', id)
+      .single();
+
+    if (existingError || !existingQuote) {
+      return NextResponse.json({ error: 'Offerte niet gevonden' }, { status: 404 });
+    }
+
+    if (
+      existingQuote.lead_id &&
+      body.lead_id &&
+      body.lead_id !== existingQuote.lead_id
+    ) {
+      return NextResponse.json(
+        { error: 'Deze offerte hoort al bij een andere aanvraag. Maak een nieuwe offerte aan.' },
+        { status: 409 }
+      );
+    }
+
     // Remove fields that shouldn't be updated directly
     delete body.id;
     delete body.created_at;
     delete body.quote_token;
+    delete body.quote_number;
+    delete body.sent_at;
+    delete body.response;
+    delete body.response_at;
 
     if (Object.prototype.hasOwnProperty.call(body, 'discount_type')) {
       const discountType = normalizeDiscountType(body.discount_type);
@@ -52,7 +78,6 @@ export async function PATCH(request, { params }) {
       body.discount_type = discountType;
     }
 
-    const admin = createAdminClient();
     const { data: quote, error } = await admin
       .from('quotes')
       .update(body)

@@ -6,6 +6,7 @@ import { sendEmail } from '@/lib/email/resend';
 import { quoteEmail } from '@/lib/email/templates/quote';
 import { notifyOpsAlert } from '@/lib/ops/alerts';
 import { logLeadEvent } from '@/lib/utils/events';
+import { generateToken } from '@/lib/utils/tokens';
 import { QuoteDocument } from '@/lib/pdf/quote-template';
 import { getLogoDataUri } from '@/lib/pdf/assets';
 import { getQuoteFontFamily } from '@/lib/pdf/fonts';
@@ -73,7 +74,6 @@ export async function POST(request, { params }) {
 
     // Auto-create a lead if the quote has no linked lead (prevents orphan quotes)
     if (!quote.lead_id) {
-      const { generateToken } = await import('@/lib/utils/tokens');
       const { data: newLead, error: leadError } = await admin
         .from('leads')
         .insert({
@@ -118,9 +118,75 @@ export async function POST(request, { params }) {
     }
 
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://moonenvochtwering.nl';
-    const quoteToken = quote.quote_token;
+    let quoteToken = quote.quote_token || generateToken();
+    let existingQuoteNumber = quote.quote_number;
+
+    if (quote.lead_id) {
+      const { data: tokenOwner, error: tokenOwnerError } = await admin
+        .from('leads')
+        .select('id')
+        .eq('quote_token', quoteToken)
+        .maybeSingle();
+
+      if (tokenOwnerError) {
+        console.error('[DB_FAIL] Check quote token owner:', tokenOwnerError);
+        await notifyOpsAlert({
+          source: '/api/quotes/[id]/send',
+          message: 'Failed to verify quote token owner before send',
+          error: tokenOwnerError,
+          context: { lead_id: quote.lead_id, quote_id: quoteId },
+        });
+        return NextResponse.json({ error: 'Kon offertelink niet controleren' }, { status: 500 });
+      }
+
+      if (tokenOwner && tokenOwner.id !== quote.lead_id) {
+        quoteToken = generateToken();
+      }
+
+      if (existingQuoteNumber) {
+        const { data: numberOwner, error: numberOwnerError } = await admin
+          .from('leads')
+          .select('id')
+          .eq('quote_number', existingQuoteNumber)
+          .maybeSingle();
+
+        if (numberOwnerError) {
+          console.error('[DB_FAIL] Check quote number owner:', numberOwnerError);
+          await notifyOpsAlert({
+            source: '/api/quotes/[id]/send',
+            message: 'Failed to verify quote number owner before send',
+            error: numberOwnerError,
+            context: { lead_id: quote.lead_id, quote_id: quoteId, quote_number: existingQuoteNumber },
+          });
+          return NextResponse.json({ error: 'Kon offertenummer niet controleren' }, { status: 500 });
+        }
+
+        if (numberOwner && numberOwner.id !== quote.lead_id) {
+          existingQuoteNumber = null;
+        }
+      }
+    }
+
     const responseUrl = `${baseUrl}/reactie?token=${quoteToken}`;
-    const quoteNumber = await generateQuoteNumber(supabase, quote.quote_number);
+    const quoteNumber = await generateQuoteNumber(supabase, existingQuoteNumber);
+
+    if (quoteToken !== quote.quote_token) {
+      const { error: tokenUpdateError } = await admin
+        .from('quotes')
+        .update({ quote_token: quoteToken })
+        .eq('id', quoteId);
+
+      if (tokenUpdateError) {
+        console.error('[DB_FAIL] Refresh quote token before send:', tokenUpdateError);
+        await notifyOpsAlert({
+          source: '/api/quotes/[id]/send',
+          message: 'Failed to refresh stale quote token before send',
+          error: tokenUpdateError,
+          context: { lead_id: quote.lead_id || null, quote_id: quoteId },
+        });
+        return NextResponse.json({ error: 'Kon offertelink niet vernieuwen' }, { status: 500 });
+      }
+    }
 
     // Build a lead-like object for the PDF template (reuse existing QuoteDocument)
     const leadForPdf = {
@@ -252,10 +318,21 @@ export async function POST(request, { params }) {
           leadUpdates.stage_changed_at = sentAt;
         }
 
-        await supabase
+        const { error: updateLeadError } = await admin
           .from('leads')
           .update(leadUpdates)
           .eq('id', quote.lead_id);
+
+        if (updateLeadError) {
+          console.error('[DB_FAIL] Sync lead after quote send:', updateLeadError);
+          await notifyOpsAlert({
+            source: '/api/quotes/[id]/send',
+            message: 'Quote sent but linked lead update failed',
+            error: updateLeadError,
+            context: { lead_id: quote.lead_id, quote_id: quoteId, quote_number: quoteNumber },
+          });
+          return NextResponse.json({ error: 'Offerte verzonden, maar CRM status bijwerken mislukt' }, { status: 500 });
+        }
 
         if (lead.status !== 'offerte_verzonden' && lead.status !== 'akkoord') {
           await logLeadEvent({

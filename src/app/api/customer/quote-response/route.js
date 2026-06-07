@@ -19,13 +19,39 @@ export async function POST(request) {
 
     const supabase = createAdminClient();
 
-    const { data: lead, error } = await supabase
-      .from('leads')
-      .select('*')
+    const { data: quote, error: quoteError } = await supabase
+      .from('quotes')
+      .select('id, lead_id, status, quote_number, quote_token, total_incl')
       .eq('quote_token', token)
-      .single();
+      .maybeSingle();
 
-    if (error || !lead) {
+    if (quoteError) {
+      console.error('[DB_FAIL] Quote lookup by token:', quoteError);
+      return NextResponse.json({ error: 'Server error' }, { status: 500 });
+    }
+
+    let lead = null;
+    let leadError = null;
+
+    if (quote?.lead_id) {
+      const result = await supabase
+        .from('leads')
+        .select('*')
+        .eq('id', quote.lead_id)
+        .single();
+      lead = result.data;
+      leadError = result.error;
+    } else {
+      const result = await supabase
+        .from('leads')
+        .select('*')
+        .eq('quote_token', token)
+        .maybeSingle();
+      lead = result.data;
+      leadError = result.error;
+    }
+
+    if (leadError || !lead) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 404 });
     }
 
@@ -42,16 +68,36 @@ export async function POST(request) {
       }
     }
 
-    await supabase.from('leads').update(updates).eq('id', lead.id);
+    const { error: updateLeadError } = await supabase
+      .from('leads')
+      .update(updates)
+      .eq('id', lead.id);
+
+    if (updateLeadError) {
+      console.error('[DB_FAIL] Quote response lead update:', updateLeadError);
+      return NextResponse.json({ error: 'Kon reactie niet opslaan' }, { status: 500 });
+    }
 
     // Also update linked quote status to match
     if (response === 'akkoord' || response === 'nee') {
       const quoteStatus = response === 'akkoord' ? 'akkoord' : 'afgewezen';
-      await supabase
+      const quoteUpdate = supabase
         .from('quotes')
-        .update({ status: quoteStatus, response, response_at: new Date().toISOString() })
-        .eq('lead_id', lead.id)
-        .eq('status', 'verzonden');
+        .update({ status: quoteStatus, response, response_at: new Date().toISOString() });
+
+      const { error: updateQuoteError } = quote
+        ? await quoteUpdate.eq('id', quote.id)
+        : await quoteUpdate.eq('lead_id', lead.id).eq('status', 'verzonden');
+
+      if (updateQuoteError) {
+        console.error('[DB_FAIL] Quote response quote update:', updateQuoteError);
+        await notifyOpsAlert({
+          source: '/api/customer/quote-response',
+          message: 'Lead response saved but linked quote update failed',
+          error: updateQuoteError,
+          context: { lead_id: lead.id, quote_id: quote?.id || null, response },
+        });
+      }
     }
 
     await logLeadEvent({
@@ -96,19 +142,28 @@ export async function POST(request) {
       nee: 'Afgewezen',
     };
 
-    await sendEmail({
-      to: 'info@moonenvochtwering.nl',
-      subject: `Offerte reactie: ${lead.name} - ${responseLabels[response]}`,
-      html: `
-        <p><strong>${lead.name}</strong> uit ${lead.plaatsnaam} heeft gereageerd op de offerte:</p>
-        <p style="font-size: 18px; font-weight: bold; color: ${response === 'akkoord' ? '#355b23' : response === 'nee' ? '#dc2626' : '#f97316'};">
-          ${responseLabels[response]}
-        </p>
-        ${message ? `<p><strong>Bericht:</strong> ${message}</p>` : ''}
-        <p>Telefoon: <a href="tel:${lead.phone}">${lead.phone}</a></p>
-      `,
-      text: `${lead.name} uit ${lead.plaatsnaam}: ${responseLabels[response]}${message ? `\nBericht: ${message}` : ''}\nTel: ${lead.phone}`,
-    });
+    try {
+      await sendEmail({
+        to: 'info@moonenvochtwering.nl',
+        subject: `Offerte reactie: ${lead.name} - ${responseLabels[response]}`,
+        html: `
+          <p><strong>${lead.name}</strong> uit ${lead.plaatsnaam} heeft gereageerd op de offerte:</p>
+          <p style="font-size: 18px; font-weight: bold; color: ${response === 'akkoord' ? '#355b23' : response === 'nee' ? '#dc2626' : '#f97316'};">
+            ${responseLabels[response]}
+          </p>
+          ${message ? `<p><strong>Bericht:</strong> ${message}</p>` : ''}
+          <p>Telefoon: <a href="tel:${lead.phone}">${lead.phone}</a></p>
+        `,
+        text: `${lead.name} uit ${lead.plaatsnaam}: ${responseLabels[response]}${message ? `\nBericht: ${message}` : ''}\nTel: ${lead.phone}`,
+      });
+    } catch (emailError) {
+      await notifyOpsAlert({
+        source: '/api/customer/quote-response',
+        message: 'Customer response saved but admin notification failed',
+        error: emailError,
+        context: { lead_id: lead.id, quote_id: quote?.id || null, response },
+      });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
