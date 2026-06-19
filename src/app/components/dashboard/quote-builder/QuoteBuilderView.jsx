@@ -421,6 +421,7 @@ export default function QuoteBuilderView({ lead = null, quote = null }) {
             discount={quoteState.discount}
             notes={quoteState.notes}
             oplossingen={quoteState.oplossingen}
+            diagnose={quoteState.diagnose}
             diagnoseDetails={quoteState.diagnoseDetails}
             oppervlakte={quoteState.oppervlakte}
             defaults={quoteState.defaults}
@@ -435,6 +436,7 @@ export default function QuoteBuilderView({ lead = null, quote = null }) {
             onRemoveLine={quoteState.removeLine}
             onCustomerChange={quoteState.setCustomer}
             onOplossingenChange={quoteState.setOplossingen}
+            onDiagnoseChange={quoteState.setDiagnose}
             onDiagnoseDetailsChange={quoteState.setDiagnoseDetails}
             onOppervlakteChange={quoteState.setOppervlakte}
             onNotesChange={quoteState.setNotes}
@@ -482,6 +484,7 @@ export default function QuoteBuilderView({ lead = null, quote = null }) {
               discount={quoteState.discount}
               notes={quoteState.notes}
               oplossingen={quoteState.oplossingen}
+              diagnose={quoteState.diagnose}
               diagnoseDetails={quoteState.diagnoseDetails}
               oppervlakte={quoteState.oppervlakte}
               defaults={quoteState.defaults}
@@ -496,6 +499,7 @@ export default function QuoteBuilderView({ lead = null, quote = null }) {
               onRemoveLine={quoteState.removeLine}
               onCustomerChange={quoteState.setCustomer}
               onOplossingenChange={quoteState.setOplossingen}
+              onDiagnoseChange={quoteState.setDiagnose}
               onDiagnoseDetailsChange={quoteState.setDiagnoseDetails}
               onOppervlakteChange={quoteState.setOppervlakte}
               onNotesChange={quoteState.setNotes}

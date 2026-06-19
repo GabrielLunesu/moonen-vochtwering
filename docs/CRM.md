@@ -87,7 +87,7 @@
 - ✅ **Chat API** (`/api/quote-builder/chat`): streaming chat with Claude Haiku 4.5, server-side tool execution, maxSteps: 5
 - ✅ **useQuoteState hook**: manages line items, customer, discount, notes, oplossingen, diagnoseDetails, oppervlakte; dispatches tool results (incl. `set_quote_details`); builds API-compatible payload
 - ✅ **Responsive UI**: side-by-side on desktop, tabs on mobile; reuses existing save/send/PDF preview flow
-- ✅ **Offerte details panel**: editable Betreft (oplossingen), Diagnose, Oppervlakte, Doorlooptijd, Garantie, Betaling fields in QuotePanel — AI sets via `set_quote_details`, user can override manually
+- ✅ **Offerte details panel**: editable Betreft (oplossingen), Diagnose (`diagnose` array, comma-separated), Toelichting diagnose (`diagnose_details` free text), Oppervlakte, Doorlooptijd, Garantie, Betaling fields in QuotePanel — AI sets via `set_quote_details`, user can override manually
 - ✅ **Inline editable line items**: all fields (description, quantity, unit, unit_price) are editable directly in the QuotePanel
 - ✅ **Manual line item addition**: "+ Regel" button adds a blank custom line to the quote without AI
 - ✅ **Auto-save**: Quote auto-saves every 3 seconds (skips if payload unchanged). Uses customer name or quote ID as fallback when no name entered. Subtle "Opslaan…" / "Opgeslagen" indicator in header.

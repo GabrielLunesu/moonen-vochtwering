@@ -51,6 +51,7 @@ export default function QuotePanel({
   btwAmount,
   btwPercentage,
   oplossingen,
+  diagnose,
   diagnoseDetails,
   oppervlakte,
   defaults,
@@ -59,6 +60,7 @@ export default function QuotePanel({
   onRemoveLine,
   onCustomerChange,
   onOplossingenChange,
+  onDiagnoseChange,
   onDiagnoseDetailsChange,
   onOppervlakteChange,
   onNotesChange,
@@ -71,6 +73,8 @@ export default function QuotePanel({
   const guaranteePerLineId = useId();
   // Local string state for Betreft — avoids trimming spaces on every keystroke
   const [betreftInput, setBetreftInput] = useState(oplossingen?.join(', ') || '');
+  // Local string state for Diagnose (array stored as comma-separated text)
+  const [diagnoseInput, setDiagnoseInput] = useState(diagnose?.join(', ') || '');
   const introText = typeof defaults?.offerte_inleiding === 'string'
     ? defaults.offerte_inleiding
     : getDefaultIntroText(oplossingen);
@@ -79,6 +83,11 @@ export default function QuotePanel({
   useEffect(() => {
     setBetreftInput(oplossingen?.join(', ') || '');
   }, [oplossingen]);
+
+  // Sync from parent when the diagnose array changes (inspection prefill / AI tool calls)
+  useEffect(() => {
+    setDiagnoseInput(diagnose?.join(', ') || '');
+  }, [diagnose]);
 
   return (
     <div className="flex flex-col h-full overflow-y-auto p-4 space-y-4">
@@ -151,6 +160,19 @@ export default function QuotePanel({
           </div>
           <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Diagnose</label>
+            <Input
+              placeholder="Bijv. Grondwater door muur"
+              value={diagnoseInput}
+              onChange={(e) => setDiagnoseInput(e.target.value)}
+              onBlur={() => {
+                const arr = diagnoseInput ? diagnoseInput.split(',').map((s) => s.trim()).filter(Boolean) : [];
+                onDiagnoseChange(arr);
+              }}
+              className="text-sm"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">Toelichting diagnose</label>
             <Input
               placeholder="Bijv. Doorslag bij hevige regen"
               value={diagnoseDetails || ''}
