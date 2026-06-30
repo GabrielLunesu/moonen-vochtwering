@@ -13,7 +13,7 @@
 -- 1. INVOICES TABLE
 -- ============================================================================
 
-CREATE TABLE invoices (
+CREATE TABLE IF NOT EXISTS invoices (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   lead_id UUID REFERENCES leads(id) ON DELETE SET NULL,
   quote_id UUID REFERENCES quotes(id) ON DELETE SET NULL,
@@ -57,6 +57,7 @@ CREATE TABLE invoices (
 );
 
 -- Auto-update updated_at on row change (uses existing trigger function)
+DROP TRIGGER IF EXISTS set_invoices_updated_at ON invoices;
 CREATE TRIGGER set_invoices_updated_at
   BEFORE UPDATE ON invoices
   FOR EACH ROW
@@ -67,7 +68,7 @@ CREATE TRIGGER set_invoices_updated_at
 -- ============================================================================
 -- Format: MV-F-YYYY-NNNN (the F distinguishes from quote numbers MV-YYYY-NNNN)
 
-CREATE TABLE invoice_sequences (
+CREATE TABLE IF NOT EXISTS invoice_sequences (
   year INTEGER NOT NULL PRIMARY KEY,
   last_number INTEGER NOT NULL DEFAULT 0
 );
@@ -93,7 +94,7 @@ $$;
 -- ============================================================================
 -- Per-job costs linked to a quote/lead for profit margin tracking
 
-CREATE TABLE job_costs (
+CREATE TABLE IF NOT EXISTS job_costs (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   quote_id UUID REFERENCES quotes(id) ON DELETE CASCADE,
   lead_id UUID REFERENCES leads(id) ON DELETE SET NULL,
@@ -109,7 +110,7 @@ CREATE TABLE job_costs (
 -- ============================================================================
 -- General business expenses not tied to a specific job
 
-CREATE TABLE business_costs (
+CREATE TABLE IF NOT EXISTS business_costs (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   category TEXT NOT NULL CHECK (category IN ('brandstof', 'gereedschap', 'verzekering', 'huur', 'marketing', 'administratie', 'overig')),
   description TEXT NOT NULL,
@@ -133,11 +134,14 @@ ALTER TABLE invoices ENABLE ROW LEVEL SECURITY;
 ALTER TABLE job_costs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE business_costs ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Authenticated users can manage invoices" ON invoices;
 CREATE POLICY "Authenticated users can manage invoices" ON invoices
   FOR ALL USING (auth.role() = 'authenticated');
 
+DROP POLICY IF EXISTS "Authenticated users can manage job_costs" ON job_costs;
 CREATE POLICY "Authenticated users can manage job_costs" ON job_costs
   FOR ALL USING (auth.role() = 'authenticated');
 
+DROP POLICY IF EXISTS "Authenticated users can manage business_costs" ON business_costs;
 CREATE POLICY "Authenticated users can manage business_costs" ON business_costs
   FOR ALL USING (auth.role() = 'authenticated');
