@@ -521,7 +521,7 @@ Each page outputs three JSON-LD schemas:
 - `subtotal_incl NUMERIC`, `discount_type TEXT`, `discount_value NUMERIC`, `discount_amount NUMERIC`
 - `btw_percentage INT DEFAULT 21`, `btw_amount NUMERIC`, `total_incl NUMERIC`
 - `status TEXT` (concept/verzonden/betaald/deels_betaald/vervallen)
-- `issue_date DATE`, `due_date DATE`
+- `issue_date DATE`, `due_date DATE` — `POST /api/invoices` defaults `due_date` to `issue_date + 14 days` when none is supplied (matches the "Binnen 14 dagen" payment term)
 - `paid_amount NUMERIC DEFAULT 0`, `paid_at TIMESTAMPTZ`, `payment_notes TEXT`
 - `betaling TEXT DEFAULT 'Binnen 14 dagen na factuurdatum'`, `notes TEXT`
 - `sent_at TIMESTAMPTZ`, `created_at TIMESTAMPTZ`, `updated_at TIMESTAMPTZ`

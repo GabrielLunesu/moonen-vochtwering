@@ -60,6 +60,17 @@ export async function POST(request) {
     // PDF preview show the actual factuurnummer instead of "CONCEPT".
     const invoiceNumber = await generateInvoiceNumber(admin, null, 'POST /api/invoices');
 
+    // Default the vervaldatum to factuurdatum + 14 days when none is given,
+    // matching the "Binnen 14 dagen na factuurdatum" payment term. Without this
+    // a null due_date renders as today in the PDF — identical to the issue date.
+    const issueDate = body.issue_date || new Date().toISOString().slice(0, 10);
+    let dueDate = body.due_date;
+    if (!dueDate) {
+      const d = new Date(issueDate);
+      d.setDate(d.getDate() + 14);
+      dueDate = d.toISOString().slice(0, 10);
+    }
+
     const { data: invoice, error: insertError } = await admin
       .from('invoices')
       .insert({
@@ -82,8 +93,8 @@ export async function POST(request) {
         total_incl: body.total_incl || 0,
         betaling: body.betaling || 'Binnen 14 dagen na factuurdatum',
         notes: body.notes || null,
-        due_date: body.due_date || null,
-        issue_date: body.issue_date || null,
+        due_date: dueDate,
+        issue_date: issueDate,
         status: 'concept',
       })
       .select()
