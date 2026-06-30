@@ -221,7 +221,7 @@
 
 ### Financial System — Invoicing & P&L Dashboard (Implemented)
 - ✅ **Invoice system**: Full invoice CRUD with `invoices` table (customer snapshot, line items JSONB, totals, discount, BTW)
-- ✅ **Invoice numbering**: `MV-F-YYYY-NNNN` format via `next_invoice_number()` RPC with yearly sequence (`invoice_sequences` table)
+- ✅ **Invoice numbering**: `MV-F-YYYY-NNNN` format via `next_invoice_number()` RPC with yearly sequence (`invoice_sequences` table). Numbers are assigned at **creation time** (in `POST /api/invoices`) so concepts and their PDF preview show the real factuurnummer instead of "CONCEPT". Shared helper: `lib/utils/invoice-number.js`, reused by the send route. Note: deleting a concept leaves a gap in the sequence.
 - ✅ **Invoice PDF**: Branded PDF template (`lib/pdf/invoice-template.js`) with line items, totals, discount support, IBAN payment box
 - ✅ **Invoice email**: Dutch email template with PDF attachment, payment details, IBAN, and due date (`lib/email/templates/invoice.js`)
 - ✅ **Invoice API routes**: `GET/POST /api/invoices`, `GET/PATCH/DELETE /api/invoices/[id]`, `POST /api/invoices/[id]/send`

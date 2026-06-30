@@ -9,38 +9,7 @@ import { logLeadEvent } from '@/lib/utils/events';
 import { InvoiceDocument } from '@/lib/pdf/invoice-template';
 import { getLogoDataUri } from '@/lib/pdf/assets';
 import { getQuoteFontFamily } from '@/lib/pdf/fonts';
-
-async function generateInvoiceNumber(supabase, existingNumber) {
-  if (existingNumber) return existingNumber;
-
-  const currentYear = new Date().getFullYear();
-
-  // Try RPC first
-  const { data: rpcData, error: rpcError } = await supabase.rpc('next_invoice_number');
-  if (!rpcError && typeof rpcData === 'string' && rpcData) {
-    return rpcData;
-  }
-
-  if (rpcError) {
-    await notifyOpsAlert({
-      source: '/api/invoices/[id]/send',
-      message: 'next_invoice_number RPC unavailable, using fallback sequence',
-      error: rpcError,
-    });
-  }
-
-  // Fallback: count invoices with a number in the current year
-  const startOfYear = `${currentYear}-01-01T00:00:00.000Z`;
-  const startOfNextYear = `${currentYear + 1}-01-01T00:00:00.000Z`;
-  const { count } = await supabase
-    .from('invoices')
-    .select('id', { count: 'exact', head: true })
-    .not('invoice_number', 'is', null)
-    .gte('created_at', startOfYear)
-    .lt('created_at', startOfNextYear);
-
-  return `MV-F-${currentYear}-${String((count || 0) + 1).padStart(4, '0')}`;
-}
+import { generateInvoiceNumber } from '@/lib/utils/invoice-number';
 
 export async function POST(request, { params }) {
   const { id: invoiceId } = await params;
@@ -72,7 +41,7 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: 'Geen factuurregels' }, { status: 400 });
     }
 
-    const invoiceNumber = await generateInvoiceNumber(admin, invoice.invoice_number);
+    const invoiceNumber = await generateInvoiceNumber(admin, invoice.invoice_number, '/api/invoices/[id]/send');
 
     const logoDataUri = await getLogoDataUri();
     const fontFamily = await getQuoteFontFamily();

@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { logLeadEvent } from '@/lib/utils/events';
 import { notifyOpsAlert } from '@/lib/ops/alerts';
 import { normalizeDiscountType } from '@/lib/utils/quote-discounts';
+import { generateInvoiceNumber } from '@/lib/utils/invoice-number';
 
 export async function GET(request) {
   const supabase = await createClient();
@@ -55,9 +56,14 @@ export async function POST(request) {
 
     const admin = createAdminClient();
 
+    // Assign a real, sequential invoice number up front so concepts and their
+    // PDF preview show the actual factuurnummer instead of "CONCEPT".
+    const invoiceNumber = await generateInvoiceNumber(admin, null, 'POST /api/invoices');
+
     const { data: invoice, error: insertError } = await admin
       .from('invoices')
       .insert({
+        invoice_number: invoiceNumber,
         lead_id: body.lead_id || null,
         quote_id: body.quote_id || null,
         customer_name: body.customer_name,
