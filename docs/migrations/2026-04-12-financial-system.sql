@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS invoices (
   payment_notes TEXT,
 
   -- Invoice terms & notes
-  betaling TEXT DEFAULT 'Binnen 14 dagen na factuurdatum',
+  betaling TEXT DEFAULT 'Binnen 30 dagen na factuurdatum',
   notes TEXT,
 
   sent_at TIMESTAMPTZ,

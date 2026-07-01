@@ -5,6 +5,7 @@ import { logLeadEvent } from '@/lib/utils/events';
 import { notifyOpsAlert } from '@/lib/ops/alerts';
 import { normalizeDiscountType } from '@/lib/utils/quote-discounts';
 import { generateInvoiceNumber } from '@/lib/utils/invoice-number';
+import { getInvoiceDueDate, INVOICE_PAYMENT_TERM_LABEL, todayISODate } from '@/lib/utils/invoice-dates';
 
 export async function GET(request) {
   const supabase = await createClient();
@@ -60,16 +61,8 @@ export async function POST(request) {
     // PDF preview show the actual factuurnummer instead of "CONCEPT".
     const invoiceNumber = await generateInvoiceNumber(admin, null, 'POST /api/invoices');
 
-    // Default the vervaldatum to factuurdatum + 14 days when none is given,
-    // matching the "Binnen 14 dagen na factuurdatum" payment term. Without this
-    // a null due_date renders as today in the PDF — identical to the issue date.
-    const issueDate = body.issue_date || new Date().toISOString().slice(0, 10);
-    let dueDate = body.due_date;
-    if (!dueDate) {
-      const d = new Date(issueDate);
-      d.setDate(d.getDate() + 14);
-      dueDate = d.toISOString().slice(0, 10);
-    }
+    const issueDate = body.issue_date || todayISODate();
+    const dueDate = getInvoiceDueDate(issueDate);
 
     const { data: invoice, error: insertError } = await admin
       .from('invoices')
@@ -91,7 +84,7 @@ export async function POST(request) {
         btw_percentage: body.btw_percentage ?? 21,
         btw_amount: body.btw_amount || 0,
         total_incl: body.total_incl || 0,
-        betaling: body.betaling || 'Binnen 14 dagen na factuurdatum',
+        betaling: body.betaling || INVOICE_PAYMENT_TERM_LABEL,
         notes: body.notes || null,
         due_date: dueDate,
         issue_date: issueDate,

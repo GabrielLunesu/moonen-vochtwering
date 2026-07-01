@@ -1,5 +1,6 @@
 import React from 'react';
 import { Document, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer';
+import { getInvoiceDueDate, INVOICE_PAYMENT_TERM_LABEL } from '@/lib/utils/invoice-dates';
 
 const COLORS = {
   primary: '#8AAB4C',
@@ -24,36 +25,36 @@ const COMPANY = {
 
 const styles = StyleSheet.create({
   page: {
-    paddingTop: 28,
-    paddingBottom: 28,
-    paddingHorizontal: 34,
-    fontSize: 10,
+    paddingTop: 24,
+    paddingBottom: 24,
+    paddingHorizontal: 30,
+    fontSize: 9.4,
     color: COLORS.text,
-    lineHeight: 1.35,
+    lineHeight: 1.3,
   },
   topStripe: {
-    height: 9,
+    height: 7,
     backgroundColor: COLORS.primary,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 14,
+    marginBottom: 10,
   },
   logoWrap: {
     width: 220,
-    minHeight: 52,
+    minHeight: 44,
     justifyContent: 'center',
   },
   logoImage: {
-    width: 52,
-    height: 52,
+    width: 44,
+    height: 44,
     objectFit: 'contain',
   },
   logoFallback: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: 700,
     color: COLORS.primaryDark,
   },
@@ -64,32 +65,42 @@ const styles = StyleSheet.create({
   },
   companyMetaLine: {
     color: COLORS.muted,
-    fontSize: 9,
+    fontSize: 8.4,
   },
   title: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: 700,
     color: COLORS.primaryDark,
-    marginBottom: 12,
+    marginBottom: 8,
     letterSpacing: 0.4,
   },
   card: {
     borderWidth: 1,
     borderColor: COLORS.border,
     borderRadius: 3,
-    padding: 10,
-    marginBottom: 10,
+    padding: 8,
+    marginBottom: 8,
+  },
+  detailsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'stretch',
+    marginBottom: 8,
+  },
+  detailsCard: {
+    flex: 1,
+    marginBottom: 0,
   },
   cardTitle: {
     fontSize: 9,
     color: COLORS.muted,
     textTransform: 'uppercase',
     letterSpacing: 0.4,
-    marginBottom: 6,
+    marginBottom: 4,
   },
   infoRow: {
     flexDirection: 'row',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   infoLabel: {
     width: 94,
@@ -108,7 +119,7 @@ const styles = StyleSheet.create({
     color: COLORS.primaryDark,
     textTransform: 'uppercase',
     letterSpacing: 0.35,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   tableHeader: {
     flexDirection: 'row',
@@ -116,9 +127,9 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     borderTopLeftRadius: 3,
     borderTopRightRadius: 3,
-    paddingVertical: 7,
+    paddingVertical: 5,
     paddingHorizontal: 8,
-    fontSize: 9,
+    fontSize: 8.6,
     fontWeight: 700,
   },
   tableRow: {
@@ -127,9 +138,9 @@ const styles = StyleSheet.create({
     borderRightWidth: 1,
     borderBottomWidth: 1,
     borderColor: COLORS.border,
-    paddingVertical: 7,
+    paddingVertical: 5,
     paddingHorizontal: 8,
-    fontSize: 9.4,
+    fontSize: 8.8,
     alignItems: 'flex-start',
   },
   colDescription: {
@@ -139,7 +150,7 @@ const styles = StyleSheet.create({
   },
   lineMeta: {
     marginTop: 2,
-    fontSize: 8.4,
+    fontSize: 7.8,
     color: COLORS.muted,
     lineHeight: 1.3,
   },
@@ -157,88 +168,93 @@ const styles = StyleSheet.create({
     flex: 1.9,
     textAlign: 'right',
   },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 10,
+    marginTop: 8,
+  },
   totalsBox: {
-    marginTop: 10,
-    marginLeft: 'auto',
-    width: 250,
+    width: 235,
     borderWidth: 1,
     borderColor: COLORS.border,
     borderRadius: 3,
-    padding: 9,
+    padding: 8,
     backgroundColor: COLORS.white,
   },
   totalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 5,
-    fontSize: 9.4,
+    marginBottom: 4,
+    fontSize: 8.8,
   },
   totalRowDiscount: {
     color: COLORS.primaryDark,
   },
   totalFinal: {
     marginTop: 3,
-    paddingTop: 6,
+    paddingTop: 5,
     borderTopWidth: 1,
     borderColor: COLORS.border,
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
   totalFinalLabel: {
-    fontSize: 10,
+    fontSize: 9.4,
     fontWeight: 700,
     color: COLORS.primaryDark,
   },
   totalFinalValue: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: 700,
     color: COLORS.primaryDark,
   },
   paymentBox: {
-    marginTop: 14,
+    width: 280,
     borderWidth: 1,
     borderColor: COLORS.border,
     borderRadius: 3,
     backgroundColor: COLORS.primarySoft,
-    padding: 12,
+    padding: 9,
   },
   paymentHeading: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: 700,
     color: COLORS.primaryDark,
     textTransform: 'uppercase',
     letterSpacing: 0.35,
-    marginBottom: 8,
+    marginBottom: 5,
   },
   paymentIban: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: 700,
     color: COLORS.primaryDark,
-    marginBottom: 6,
+    marginBottom: 4,
   },
   paymentDetail: {
-    fontSize: 9.4,
+    fontSize: 8.8,
     color: COLORS.text,
-    marginBottom: 3,
-    lineHeight: 1.4,
+    marginBottom: 2,
+    lineHeight: 1.3,
   },
   notesBox: {
-    marginTop: 12,
+    marginTop: 8,
     borderWidth: 1,
     borderColor: COLORS.border,
     borderRadius: 3,
-    padding: 10,
+    padding: 8,
   },
   notesText: {
-    fontSize: 9.4,
-    lineHeight: 1.4,
+    fontSize: 8.8,
+    lineHeight: 1.3,
   },
   footer: {
-    marginTop: 12,
+    marginTop: 8,
     borderTopWidth: 1,
     borderColor: COLORS.border,
     paddingTop: 6,
-    fontSize: 8.2,
+    fontSize: 7.8,
     color: COLORS.muted,
     textAlign: 'center',
   },
@@ -333,6 +349,12 @@ function buildInvoiceData(invoice) {
   const discountType = invoice?.discount_type || null;
   const discountValue = toNumber(invoice?.discount_value, 0);
   const totalIncl = roundMoney(toNumber(invoice?.total_incl, 0) || (subtotalIncl - discountAmount));
+  const issueDate = invoice?.issue_date;
+  const originalQuoteNumber =
+    invoice?.original_quote_number ||
+    invoice?.quote_number ||
+    invoice?.quotes?.quote_number ||
+    null;
 
   // All stored prices are incl. BTW — back-calculate excl. BTW and BTW amount
   const exclBtw = roundMoney(totalIncl / btwDivisor);
@@ -352,8 +374,9 @@ function buildInvoiceData(invoice) {
 
   return {
     invoiceNumber: invoice?.invoice_number || 'CONCEPT',
-    issueDateLabel: formatDate(invoice?.issue_date),
-    dueDateLabel: formatDate(invoice?.due_date),
+    originalQuoteNumber,
+    issueDateLabel: formatDate(issueDate),
+    dueDateLabel: formatDate(getInvoiceDueDate(issueDate)),
     customerName: invoice?.customer_name || 'Klant',
     customerStreet: invoice?.customer_straat || null,
     customerCity: customerCity || null,
@@ -366,7 +389,7 @@ function buildInvoiceData(invoice) {
     btwPercentage,
     btwAmount,
     totalIncl,
-    betaling: invoice?.betaling || `Gelieve het totaalbedrag binnen 14 dagen over te maken op onderstaand rekeningnummer.`,
+    betaling: invoice?.betaling || INVOICE_PAYMENT_TERM_LABEL,
     perLineGuarantee,
     globalGuarantee: globalGuaranteeYears != null ? `${globalGuaranteeYears} jaar` : null,
     notes: invoice?.notes || null,
@@ -402,31 +425,39 @@ export function InvoiceDocument({ invoice, logoDataUri = null, fontFamily = 'Hel
         {/* Title */}
         <Text style={styles.title}>Factuur</Text>
 
-        {/* Invoice details card */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Factuurgegevens</Text>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Factuurnummer</Text>
-            <Text style={styles.infoValue}>{data.invoiceNumber}</Text>
+        <View style={styles.detailsRow} wrap={false}>
+          {/* Invoice details card */}
+          <View style={[styles.card, styles.detailsCard]}>
+            <Text style={styles.cardTitle}>Factuurgegevens</Text>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Factuurnummer</Text>
+              <Text style={styles.infoValue}>{data.invoiceNumber}</Text>
+            </View>
+            {data.originalQuoteNumber ? (
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Offertenummer</Text>
+                <Text style={styles.infoValue}>{data.originalQuoteNumber}</Text>
+              </View>
+            ) : null}
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Factuurdatum</Text>
+              <Text style={styles.infoValue}>{data.issueDateLabel}</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Vervaldatum</Text>
+              <Text style={styles.infoValue}>{data.dueDateLabel}</Text>
+            </View>
           </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Factuurdatum</Text>
-            <Text style={styles.infoValue}>{data.issueDateLabel}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Vervaldatum</Text>
-            <Text style={styles.infoValue}>{data.dueDateLabel}</Text>
-          </View>
-        </View>
 
-        {/* Customer card */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Aan</Text>
-          <Text style={{ fontSize: 10, fontWeight: 700, lineHeight: 1.4, marginBottom: 2 }}>{data.customerName}</Text>
-          {data.customerStreet ? <Text style={{ fontSize: 10, lineHeight: 1.4, marginBottom: 2 }}>{data.customerStreet}</Text> : null}
-          {data.customerCity ? <Text style={{ fontSize: 10, lineHeight: 1.4, marginBottom: 2 }}>{data.customerCity}</Text> : null}
-          {data.customerEmail ? <Text style={{ fontSize: 10, lineHeight: 1.4, marginBottom: 2 }}>{data.customerEmail}</Text> : null}
-          {data.customerPhone ? <Text style={{ fontSize: 10, lineHeight: 1.4 }}>{data.customerPhone}</Text> : null}
+          {/* Customer card */}
+          <View style={[styles.card, styles.detailsCard]}>
+            <Text style={styles.cardTitle}>Aan</Text>
+            <Text style={{ fontSize: 10, fontWeight: 700, lineHeight: 1.4, marginBottom: 2 }}>{data.customerName}</Text>
+            {data.customerStreet ? <Text style={{ fontSize: 10, lineHeight: 1.4, marginBottom: 2 }}>{data.customerStreet}</Text> : null}
+            {data.customerCity ? <Text style={{ fontSize: 10, lineHeight: 1.4, marginBottom: 2 }}>{data.customerCity}</Text> : null}
+            {data.customerEmail ? <Text style={{ fontSize: 10, lineHeight: 1.4, marginBottom: 2 }}>{data.customerEmail}</Text> : null}
+            {data.customerPhone ? <Text style={{ fontSize: 10, lineHeight: 1.4 }}>{data.customerPhone}</Text> : null}
+          </View>
         </View>
 
         {/* Line items table */}
@@ -455,42 +486,44 @@ export function InvoiceDocument({ invoice, logoDataUri = null, fontFamily = 'Hel
           </View>
         ))}
 
-        {/* Totals */}
-        <View style={styles.totalsBox} wrap={false}>
-          <View style={styles.totalRow}>
-            <Text>Subtotaal</Text>
-            <Text>{formatCurrency(data.subtotal)}</Text>
-          </View>
-          {data.discountAmount > 0 ? (
-            <View style={[styles.totalRow, styles.totalRowDiscount]}>
-              <Text>
-                Korting{data.discountType === 'percentage' ? ` (${data.discountValue}%)` : ''}
-              </Text>
-              <Text>-{formatCurrency(data.discountAmount)}</Text>
+        <View style={styles.summaryRow} wrap={false}>
+          {/* Totals */}
+          <View style={styles.totalsBox}>
+            <View style={styles.totalRow}>
+              <Text>Subtotaal</Text>
+              <Text>{formatCurrency(data.subtotal)}</Text>
             </View>
-          ) : null}
-          <View style={styles.totalRow}>
-            <Text>BTW ({data.btwPercentage}%)</Text>
-            <Text>{formatCurrency(data.btwAmount)}</Text>
+            {data.discountAmount > 0 ? (
+              <View style={[styles.totalRow, styles.totalRowDiscount]}>
+                <Text>
+                  Korting{data.discountType === 'percentage' ? ` (${data.discountValue}%)` : ''}
+                </Text>
+                <Text>-{formatCurrency(data.discountAmount)}</Text>
+              </View>
+            ) : null}
+            <View style={styles.totalRow}>
+              <Text>BTW ({data.btwPercentage}%)</Text>
+              <Text>{formatCurrency(data.btwAmount)}</Text>
+            </View>
+            <View style={styles.totalFinal}>
+              <Text style={styles.totalFinalLabel}>Totaal incl. BTW</Text>
+              <Text style={styles.totalFinalValue}>{formatCurrency(data.totalIncl)}</Text>
+            </View>
           </View>
-          <View style={styles.totalFinal}>
-            <Text style={styles.totalFinalLabel}>Totaal incl. BTW</Text>
-            <Text style={styles.totalFinalValue}>{formatCurrency(data.totalIncl)}</Text>
-          </View>
-        </View>
 
-        {/* Payment info */}
-        <View style={styles.paymentBox} wrap={false}>
-          <Text style={styles.paymentHeading}>Betaling</Text>
-          <Text style={styles.paymentIban}>{COMPANY.iban}</Text>
-          <Text style={styles.paymentDetail}>t.n.v. {COMPANY.name}</Text>
-          <Text style={styles.paymentDetail}>o.v.v. factuurnummer {data.invoiceNumber}</Text>
-          <Text style={[styles.paymentDetail, { marginTop: 4 }]}>{data.betaling}</Text>
-          {data.perLineGuarantee ? (
-            <Text style={styles.paymentDetail}>Garantie: per regel zoals vermeld in de specificatie.</Text>
-          ) : data.globalGuarantee ? (
-            <Text style={styles.paymentDetail}>Garantie: {data.globalGuarantee}.</Text>
-          ) : null}
+          {/* Payment info */}
+          <View style={styles.paymentBox}>
+            <Text style={styles.paymentHeading}>Betaling</Text>
+            <Text style={styles.paymentIban}>{COMPANY.iban}</Text>
+            <Text style={styles.paymentDetail}>t.n.v. {COMPANY.name}</Text>
+            <Text style={styles.paymentDetail}>o.v.v. factuurnummer {data.invoiceNumber}</Text>
+            <Text style={[styles.paymentDetail, { marginTop: 4 }]}>{data.betaling}</Text>
+            {data.perLineGuarantee ? (
+              <Text style={styles.paymentDetail}>Garantie: per regel zoals vermeld in de specificatie.</Text>
+            ) : data.globalGuarantee ? (
+              <Text style={styles.paymentDetail}>Garantie: {data.globalGuarantee}.</Text>
+            ) : null}
+          </View>
         </View>
 
         {/* Notes (optional) */}

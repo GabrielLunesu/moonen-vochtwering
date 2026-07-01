@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useCallback } from 'react';
 import { normalizeDiscountType } from '@/lib/utils/quote-discounts';
+import { getInvoiceDueDate, INVOICE_PAYMENT_TERM_LABEL, todayISODate } from '@/lib/utils/invoice-dates';
 
 function toNumber(value, fallback = 0) {
   const parsed = Number(value);
@@ -38,10 +39,6 @@ function makeId() {
   return Math.random().toString(36).slice(2, 10);
 }
 
-function todayISO() {
-  return new Date().toISOString().slice(0, 10);
-}
-
 export function useInvoiceState() {
   // --- Line items ---
   const [lineItems, setLineItems] = useState([]);
@@ -64,21 +61,21 @@ export function useInvoiceState() {
   const [notes, setNotes] = useState('');
 
   // --- Betaling ---
-  const [betaling, setBetaling] = useState('Binnen 14 dagen na factuurdatum');
+  const [betaling, setBetaling] = useState(INVOICE_PAYMENT_TERM_LABEL);
 
   // --- Garantie ---
   const [guaranteePerLine, setGuaranteePerLineState] = useState(false);
   const [globalGuaranteeYears, setGlobalGuaranteeYears] = useState(5);
 
   // --- Dates ---
-  const [dueDate, setDueDate] = useState(null);
-  const [issueDate, setIssueDate] = useState(todayISO());
+  const [issueDate, setIssueDate] = useState(todayISODate());
 
   // --- Editing existing invoice ---
   const [invoiceId, setInvoiceId] = useState(null);
 
   // --- Linked quote ---
   const [quoteId, setQuoteId] = useState(null);
+  const [originalQuoteNumber, setOriginalQuoteNumber] = useState(null);
 
   // --- Actions ---
 
@@ -153,6 +150,7 @@ export function useInvoiceState() {
     const guaranteeSettings = inferGuaranteeSettings(sourceLineItems, 5);
     setInvoiceId(inv.id);
     setQuoteId(inv.quote_id || null);
+    setOriginalQuoteNumber(inv.original_quote_number || inv.quote_number || inv.quotes?.quote_number || null);
     setCustomerState({
       lead_id: inv.lead_id || null,
       name: inv.customer_name || '',
@@ -175,9 +173,8 @@ export function useInvoiceState() {
     setGuaranteePerLineState(guaranteeSettings.perLine);
     setGlobalGuaranteeYears(guaranteeSettings.globalYears);
     setNotes(inv.notes || '');
-    setBetaling(inv.betaling || 'Binnen 14 dagen na factuurdatum');
-    setDueDate(inv.due_date || null);
-    setIssueDate(inv.issue_date || todayISO());
+    setBetaling(inv.betaling || INVOICE_PAYMENT_TERM_LABEL);
+    setIssueDate(inv.issue_date || todayISODate());
     if (inv.discount_type && inv.discount_value > 0) {
       setDiscountState({
         type: normalizeDiscountType(inv.discount_type) || 'percentage',
@@ -193,6 +190,7 @@ export function useInvoiceState() {
     const quoteGuaranteeYears = toNumber(quote.garantie_jaren, 5);
     const guaranteeSettings = inferGuaranteeSettings(sourceLineItems, quoteGuaranteeYears);
     setQuoteId(quote.id);
+    setOriginalQuoteNumber(quote.quote_number || null);
     setCustomerState({
       lead_id: quote.lead_id || null,
       name: quote.customer_name || '',
@@ -215,7 +213,7 @@ export function useInvoiceState() {
     setGuaranteePerLineState(guaranteeSettings.perLine);
     setGlobalGuaranteeYears(quoteGuaranteeYears);
     setNotes(quote.notes || '');
-    setIssueDate(todayISO());
+    setIssueDate(todayISODate());
     if (quote.discount_type && quote.discount_value > 0) {
       setDiscountState({
         type: normalizeDiscountType(quote.discount_type) || 'percentage',
@@ -241,6 +239,7 @@ export function useInvoiceState() {
   const btwPercentage = 21;
   const exclBtw = toMoney(afterDiscount / 1.21);
   const btwAmount = toMoney(afterDiscount - exclBtw);
+  const dueDate = useMemo(() => getInvoiceDueDate(issueDate), [issueDate]);
 
   // --- Build payload for API ---
   const buildPayload = useCallback(() => {
@@ -268,7 +267,7 @@ export function useInvoiceState() {
       customer_plaatsnaam: customer.plaatsnaam || null,
       notes: notes || null,
       betaling,
-      due_date: dueDate || null,
+      due_date: dueDate,
       issue_date: issueDate,
       line_items: normalizedLineItems,
       subtotal_incl: toMoney(subtotalIncl),
@@ -299,13 +298,13 @@ export function useInvoiceState() {
     issueDate,
     invoiceId,
     quoteId,
+    originalQuoteNumber,
 
     // Setters
     setNotes,
     setBetaling,
     setGuaranteePerLine,
     setGlobalGuaranteeYears,
-    setDueDate,
     setIssueDate,
 
     // Actions

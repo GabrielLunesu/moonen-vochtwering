@@ -19,7 +19,7 @@ export async function GET(request, { params }) {
 
     const { data: invoice, error } = await supabase
       .from('invoices')
-      .select('*')
+      .select('*, quotes(quote_number)')
       .eq('id', id)
       .single();
 

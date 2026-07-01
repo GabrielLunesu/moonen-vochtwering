@@ -54,11 +54,11 @@ export default function FactuurDetailPage() {
 
   const state = useInvoiceState();
   const {
-    lineItems, customer, discount, notes, betaling, dueDate, issueDate,
+    lineItems, customer, discount, notes, betaling, dueDate, issueDate, originalQuoteNumber,
     guaranteePerLine, globalGuaranteeYears,
     subtotalIncl, discountAmount, afterDiscount, exclBtw, btwAmount, btwPercentage,
     addLine, updateLine, removeLine, setCustomer, setDiscount,
-    setNotes, setBetaling, setGuaranteePerLine, setGlobalGuaranteeYears, setDueDate, setIssueDate,
+    setNotes, setBetaling, setGuaranteePerLine, setGlobalGuaranteeYears, setIssueDate,
     loadInvoice, buildPayload,
   } = state;
 
@@ -151,6 +151,9 @@ export default function FactuurDetailPage() {
     setPreviewing(true);
     try {
       const payload = buildPayload();
+      if (originalQuoteNumber) {
+        payload.original_quote_number = originalQuoteNumber;
+      }
       payload.invoice_number = invoice?.invoice_number || null;
       payload.issue_date = issueDate;
       payload.due_date = dueDate;
@@ -406,9 +409,8 @@ export default function FactuurDetailPage() {
                 <Input
                   type="date"
                   value={dueDate || ''}
-                  onChange={(e) => setDueDate(e.target.value)}
                   className="text-sm"
-                  disabled={!isEditable}
+                  disabled
                 />
               </div>
             </div>

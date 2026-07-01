@@ -38,11 +38,11 @@ function InvoiceBuilderContent() {
 
   const state = useInvoiceState();
   const {
-    lineItems, customer, discount, notes, betaling, dueDate, issueDate,
+    lineItems, customer, discount, notes, betaling, dueDate, issueDate, originalQuoteNumber,
     guaranteePerLine, globalGuaranteeYears,
     subtotalIncl, discountAmount, afterDiscount, exclBtw, btwAmount, btwPercentage,
     addLine, updateLine, removeLine, setCustomer, setDiscount,
-    setNotes, setBetaling, setGuaranteePerLine, setGlobalGuaranteeYears, setDueDate, setIssueDate,
+    setNotes, setBetaling, setGuaranteePerLine, setGlobalGuaranteeYears, setIssueDate,
     loadFromQuote, buildPayload,
   } = state;
 
@@ -149,6 +149,9 @@ function InvoiceBuilderContent() {
     setPreviewing(true);
     try {
       const payload = buildPayload();
+      if (originalQuoteNumber) {
+        payload.original_quote_number = originalQuoteNumber;
+      }
       const res = await fetch('/api/pdf/invoice/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -311,8 +314,8 @@ function InvoiceBuilderContent() {
                 <Input
                   type="date"
                   value={dueDate || ''}
-                  onChange={(e) => setDueDate(e.target.value)}
                   className="text-sm"
+                  disabled
                 />
               </div>
             </div>

@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { logLeadEvent } from '@/lib/utils/events';
 import { notifyOpsAlert } from '@/lib/ops/alerts';
 import { normalizeDiscountType } from '@/lib/utils/quote-discounts';
+import { getInvoiceDueDate, todayISODate } from '@/lib/utils/invoice-dates';
 
 export async function GET(request, { params }) {
   const { id } = await params;
@@ -16,7 +17,7 @@ export async function GET(request, { params }) {
 
   const { data: invoice, error } = await supabase
     .from('invoices')
-    .select('*')
+    .select('*, quotes(quote_number)')
     .eq('id', id)
     .single();
 
@@ -42,18 +43,30 @@ export async function PATCH(request, { params }) {
     // Remove fields that shouldn't be updated directly
     delete body.id;
     delete body.created_at;
+    delete body.quote_number;
+    delete body.original_quote_number;
+    delete body.quotes;
+
+    const { data: existing } = await supabase
+      .from('invoices')
+      .select('status, issue_date')
+      .eq('id', id)
+      .single();
 
     // Protect invoice_number for sent invoices
     if (Object.prototype.hasOwnProperty.call(body, 'invoice_number')) {
-      const { data: existing } = await supabase
-        .from('invoices')
-        .select('status')
-        .eq('id', id)
-        .single();
-
       if (existing && existing.status !== 'concept') {
         delete body.invoice_number;
       }
+    }
+
+    if (
+      Object.prototype.hasOwnProperty.call(body, 'issue_date') ||
+      Object.prototype.hasOwnProperty.call(body, 'due_date')
+    ) {
+      const issueDate = body.issue_date || existing?.issue_date || todayISODate();
+      body.issue_date = issueDate;
+      body.due_date = getInvoiceDueDate(issueDate);
     }
 
     if (Object.prototype.hasOwnProperty.call(body, 'discount_type')) {

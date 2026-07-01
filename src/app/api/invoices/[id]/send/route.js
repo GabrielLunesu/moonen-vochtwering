@@ -10,6 +10,7 @@ import { InvoiceDocument } from '@/lib/pdf/invoice-template';
 import { getLogoDataUri } from '@/lib/pdf/assets';
 import { getQuoteFontFamily } from '@/lib/pdf/fonts';
 import { generateInvoiceNumber } from '@/lib/utils/invoice-number';
+import { getInvoiceDueDate } from '@/lib/utils/invoice-dates';
 
 export async function POST(request, { params }) {
   const { id: invoiceId } = await params;
@@ -25,7 +26,7 @@ export async function POST(request, { params }) {
 
     const { data: invoice, error } = await supabase
       .from('invoices')
-      .select('*')
+      .select('*, quotes(quote_number)')
       .eq('id', invoiceId)
       .single();
 
@@ -42,6 +43,7 @@ export async function POST(request, { params }) {
     }
 
     const invoiceNumber = await generateInvoiceNumber(admin, invoice.invoice_number, '/api/invoices/[id]/send');
+    const dueDate = getInvoiceDueDate(invoice.issue_date);
 
     const logoDataUri = await getLogoDataUri();
     const fontFamily = await getQuoteFontFamily();
@@ -49,7 +51,7 @@ export async function POST(request, { params }) {
     let pdfBuffer;
     try {
       pdfBuffer = await renderToBuffer(
-        InvoiceDocument({ invoice: { ...invoice, invoice_number: invoiceNumber }, logoDataUri, fontFamily })
+        InvoiceDocument({ invoice: { ...invoice, invoice_number: invoiceNumber, due_date: dueDate }, logoDataUri, fontFamily })
       );
     } catch (renderError) {
       console.error('[API_ERROR] Invoice PDF render failed:', renderError);
@@ -64,9 +66,7 @@ export async function POST(request, { params }) {
 
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://moonenvochtwering.nl';
     const pdfUrl = `${baseUrl}/api/pdf/invoice/${invoiceId}`;
-    const dueDateFormatted = invoice.due_date
-      ? new Date(invoice.due_date).toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' })
-      : '14 dagen na factuurdatum';
+    const dueDateFormatted = new Date(dueDate).toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
 
     const emailContent = invoiceEmail({
       name: invoice.customer_name,
@@ -97,6 +97,7 @@ export async function POST(request, { params }) {
         status: 'verzonden',
         sent_at: sentAt,
         invoice_number: invoiceNumber,
+        due_date: dueDate,
       })
       .eq('id', invoiceId)
       .select()

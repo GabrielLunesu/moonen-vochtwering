@@ -1,5 +1,15 @@
 import { notifyOpsAlert } from '@/lib/ops/alerts';
 
+function formatInvoiceNumber(year, sequence) {
+  return `MV-F-${year}-${String(sequence).padStart(4, '0')}`;
+}
+
+function readInvoiceSequence(invoiceNumber) {
+  if (typeof invoiceNumber !== 'string') return 0;
+  const match = invoiceNumber.match(/^MV-F-\d{4}-(\d+)$/);
+  return match ? Number(match[1]) : 0;
+}
+
 /**
  * Generate the next sequential invoice number (MV-F-YYYY-NNNN).
  *
@@ -29,15 +39,21 @@ export async function generateInvoiceNumber(supabase, existingNumber, source = '
     });
   }
 
-  // Fallback: count invoices with a number in the current year
-  const startOfYear = `${currentYear}-01-01T00:00:00.000Z`;
-  const startOfNextYear = `${currentYear + 1}-01-01T00:00:00.000Z`;
-  const { count } = await supabase
+  const { data: latestInvoice, error: latestError } = await supabase
     .from('invoices')
-    .select('id', { count: 'exact', head: true })
-    .not('invoice_number', 'is', null)
-    .gte('created_at', startOfYear)
-    .lt('created_at', startOfNextYear);
+    .select('invoice_number')
+    .like('invoice_number', `MV-F-${currentYear}-%`)
+    .order('invoice_number', { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
-  return `MV-F-${currentYear}-${String((count || 0) + 1).padStart(4, '0')}`;
+  if (latestError) {
+    await notifyOpsAlert({
+      source,
+      message: 'Unable to read latest invoice number for fallback sequence',
+      error: latestError,
+    });
+  }
+
+  return formatInvoiceNumber(currentYear, readInvoiceSequence(latestInvoice?.invoice_number) + 1);
 }
