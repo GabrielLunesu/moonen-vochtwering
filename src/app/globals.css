@@ -12,6 +12,8 @@
   --secondary: #F9FAFB;
   --accent: #8aab4c;
   --success: #8aab4c;
+  --moonen-action: #355b23;
+  --moonen-action-soft: #f0f7ec;
   --danger: #8B3A3A;
   --text: #111827;
   --text-muted: #6B7280;
@@ -65,6 +67,8 @@
   --color-primary: var(--primary);
   --color-primary-dark: var(--primary-dark);
   --color-primary-light: var(--primary-light);
+  --color-moonen-action: var(--moonen-action);
+  --color-moonen-action-soft: var(--moonen-action-soft);
   --font-sans: var(--font-inter);
   --font-serif: "SF Pro Display", "SF Pro", -apple-system, BlinkMacSystemFont, var(--font-inter), sans-serif;
   --font-body: var(--font-inter);
@@ -119,6 +123,8 @@
     --primary-light: #374151;
     --secondary: #1a1a1a;
     --accent: #9BBC5C;
+    --moonen-action: #9BBC5C;
+    --moonen-action-soft: oklch(0.269 0 0);
   }
 }
 

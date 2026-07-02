@@ -1,4 +1,5 @@
 export function followUpEmail({ name, followUpCount, responseUrl, overrides = {} }) {
+  const termsUrl = "https://www.moonenvochtwering.nl/algemene-voorwaarden.pdf";
   const subjects = [
     overrides.subject || `Herinnering: Uw offerte van Moonen Vochtwering`,
     `Nog even over uw offerte - Moonen Vochtwering`,
@@ -36,6 +37,11 @@ export function followUpEmail({ name, followUpCount, responseUrl, overrides = {}
       <div style="padding: 32px 24px;">
         <p style="font-size: 16px; color: #333;">Beste ${name},</p>
         ${overrides.greeting && idx === 0 ? `<p style="font-size: 16px; color: #333;">${overrides.greeting} ${overrides.body || ''}</p>` : messages[idx]}
+        <p style="font-size: 14px; color: #666; line-height: 1.6; background: #f0f7ec; padding: 14px 16px; border-radius: 4px;">
+          Bij akkoord vragen wij u de offerte samen met onze
+          <a href="${termsUrl}" style="color: #355b23; font-weight: 600;"> algemene voorwaarden</a>
+          te bevestigen.
+        </p>
         <div style="text-align: center; margin: 32px 0;">
           <a href="${responseUrl}&response=akkoord"
              style="background: #355b23; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 4px; font-size: 16px; font-weight: 600; display: inline-block; margin: 0 8px 12px;">
@@ -58,6 +64,9 @@ export function followUpEmail({ name, followUpCount, responseUrl, overrides = {}
 ${idx === 0 ? "Wij willen u er even aan herinneren dat u een offerte van ons heeft ontvangen. Heeft u nog vragen? Wij helpen u graag." : ""}${idx === 1 ? "Wij merkten dat u nog niet heeft gereageerd op onze offerte. Misschien heeft u nog vragen of twijfelt u? Neem gerust contact op." : ""}${idx === 2 ? "Dit is onze laatste herinnering over de offerte die wij u hebben gestuurd. Mocht u in de toekomst alsnog hulp nodig hebben, staan wij altijd voor u klaar." : ""}
 
 Reageer via: ${responseUrl}
+
+Bij akkoord vragen wij u de offerte samen met onze algemene voorwaarden te bevestigen:
+${termsUrl}
 
 Of bel ons: 06 18 16 25 15
 

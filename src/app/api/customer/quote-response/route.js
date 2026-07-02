@@ -5,9 +5,16 @@ import { notifyOpsAlert } from '@/lib/ops/alerts';
 import { logLeadEvent } from '@/lib/utils/events';
 import { getPostHogClient } from '@/lib/posthog-server';
 
+const TERMS_URL = 'https://www.moonenvochtwering.nl/algemene-voorwaarden.pdf';
+const RESPONSE_LABELS = {
+  akkoord: 'AKKOORD',
+  vraag: 'VRAAG',
+  nee: 'Afgewezen',
+};
+
 export async function POST(request) {
   try {
-    const { token, response, message } = await request.json();
+    const { token, response, message, termsAccepted } = await request.json();
 
     if (!token || !response) {
       return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
@@ -15,6 +22,13 @@ export async function POST(request) {
 
     if (!['akkoord', 'vraag', 'nee'].includes(response)) {
       return NextResponse.json({ error: 'Invalid response' }, { status: 400 });
+    }
+
+    if (response === 'akkoord' && termsAccepted !== true) {
+      return NextResponse.json(
+        { error: 'Algemene voorwaarden moeten worden geaccepteerd' },
+        { status: 400 }
+      );
     }
 
     const supabase = createAdminClient();
@@ -107,6 +121,8 @@ export async function POST(request) {
       newValue: response,
       metadata: {
         message: message || null,
+        termsAccepted: response === 'akkoord' ? true : null,
+        termsUrl: response === 'akkoord' ? TERMS_URL : null,
       },
     });
 
@@ -131,30 +147,26 @@ export async function POST(request) {
         quote_amount: lead.quote_amount || null,
         quote_number: lead.quote_number || null,
         plaatsnaam: lead.plaatsnaam || null,
+        terms_accepted: response === 'akkoord' ? true : null,
       },
     });
     await posthog.shutdown();
 
     // Notify admin
-    const responseLabels = {
-      akkoord: 'AKKOORD',
-      vraag: 'VRAAG',
-      nee: 'Afgewezen',
-    };
-
     try {
       await sendEmail({
         to: 'info@moonenvochtwering.nl',
-        subject: `Offerte reactie: ${lead.name} - ${responseLabels[response]}`,
+        subject: `Offerte reactie: ${lead.name} - ${RESPONSE_LABELS[response]}`,
         html: `
           <p><strong>${lead.name}</strong> uit ${lead.plaatsnaam} heeft gereageerd op de offerte:</p>
           <p style="font-size: 18px; font-weight: bold; color: ${response === 'akkoord' ? '#355b23' : response === 'nee' ? '#dc2626' : '#f97316'};">
-            ${responseLabels[response]}
+            ${RESPONSE_LABELS[response]}
           </p>
           ${message ? `<p><strong>Bericht:</strong> ${message}</p>` : ''}
+          ${response === 'akkoord' ? '<p><strong>Algemene voorwaarden:</strong> geaccepteerd door de klant.</p>' : ''}
           <p>Telefoon: <a href="tel:${lead.phone}">${lead.phone}</a></p>
         `,
-        text: `${lead.name} uit ${lead.plaatsnaam}: ${responseLabels[response]}${message ? `\nBericht: ${message}` : ''}\nTel: ${lead.phone}`,
+        text: `${lead.name} uit ${lead.plaatsnaam}: ${RESPONSE_LABELS[response]}${message ? `\nBericht: ${message}` : ''}${response === 'akkoord' ? '\nAlgemene voorwaarden: geaccepteerd door de klant.' : ''}\nTel: ${lead.phone}`,
       });
     } catch (emailError) {
       await notifyOpsAlert({

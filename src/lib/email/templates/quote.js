@@ -1,4 +1,5 @@
 export function quoteEmail({ name, amount, responseUrl, pdfUrl, quoteNumber, overrides = {} }) {
+  const termsUrl = "https://www.moonenvochtwering.nl/algemene-voorwaarden.pdf";
   const subject = overrides.subject || "Uw offerte van Moonen Vochtwering";
 
   const greeting = overrides.greeting || "Naar aanleiding van ons bezoek hebben wij een offerte voor u opgesteld.";
@@ -23,7 +24,12 @@ export function quoteEmail({ name, amount, responseUrl, pdfUrl, quoteNumber, ove
         </div>
         ` : ""}
         <p style="font-size: 16px; color: #333; line-height: 1.6;">
-          Bent u akkoord? Dan kunt u dat direct aangeven via de knop hieronder. Heeft u vragen? Ook dat kan — wij nemen dan zo snel mogelijk contact met u op.
+          Bent u akkoord? Dan kunt u dit via de knop hieronder bevestigen. Heeft u vragen? Ook dat kan — wij nemen dan zo snel mogelijk contact met u op.
+        </p>
+        <p style="font-size: 14px; color: #666; line-height: 1.6; background: #f0f7ec; padding: 14px 16px; border-radius: 4px;">
+          Bij akkoord vragen wij u de offerte samen met onze
+          <a href="${termsUrl}" style="color: #355b23; font-weight: 600;"> algemene voorwaarden</a>
+          te bevestigen.
         </p>
         <div style="text-align: center; margin: 32px 0;">
           <a href="${responseUrl}&response=akkoord"
@@ -57,6 +63,9 @@ ${pdfUrl ? `Bekijk de offerte: ${pdfUrl}` : ''}
 
 Bent u akkoord? Ga naar de volgende link om te reageren:
 ${responseUrl}
+
+Bij akkoord vragen wij u de offerte samen met onze algemene voorwaarden te bevestigen:
+${termsUrl}
 
 Met vriendelijke groet,
 Moonen Vochtwering
