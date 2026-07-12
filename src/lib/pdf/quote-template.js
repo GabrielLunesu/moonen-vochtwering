@@ -523,7 +523,7 @@ function buildQuoteData(lead) {
     areaLabel:
       lead?.oppervlakte_m2 || inspectionData?.oppervlakte_m2
         ? `${toNumber(lead?.oppervlakte_m2 ?? inspectionData?.oppervlakte_m2, 0)} m\u00b2`
-        : 'n.v.t.',
+        : null,
     timeline: inspectionData?.doorlooptijd || '3 werkdagen',
     guarantee,
     perLineGuarantee,
@@ -613,10 +613,12 @@ export function QuoteDocument({ lead, logoDataUri = null, fontFamily = 'Helvetic
                 <Text style={styles.summaryValue}>{quote.diagnosisDetails}</Text>
               </View>
             ) : null}
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Oppervlakte</Text>
-              <Text style={styles.summaryValue}>{quote.areaLabel}</Text>
-            </View>
+            {quote.areaLabel ? (
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Oppervlakte</Text>
+                <Text style={styles.summaryValue}>{quote.areaLabel}</Text>
+              </View>
+            ) : null}
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Doorlooptijd</Text>
               <Text style={styles.summaryValue}>{quote.timeline}</Text>
