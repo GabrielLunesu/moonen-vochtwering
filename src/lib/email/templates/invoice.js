@@ -26,7 +26,7 @@ export function invoiceEmail({ name, invoiceNumber, amount, pdfUrl, dueDate, ove
         ` : ""}
         <div style="background: #f0f7ec; padding: 20px; margin: 24px 0; border-radius: 4px;">
           <p style="font-size: 14px; color: #333; margin: 0 0 8px; font-weight: 600;">Betaalgegevens</p>
-          <p style="font-size: 14px; color: #333; margin: 4px 0;">IBAN: <strong>NL25 INGB 0631 8262 11</strong></p>
+          <p style="font-size: 14px; color: #333; margin: 4px 0;">IBAN: <strong>NL05 INGB 0631 8262 11</strong></p>
           <p style="font-size: 14px; color: #333; margin: 4px 0;">T.n.v.: <strong>Moonen Vochtwering</strong></p>
           <p style="font-size: 14px; color: #333; margin: 4px 0;">Referentie: <strong>${invoiceNumber}</strong></p>
         </div>
@@ -56,7 +56,7 @@ Wij verzoeken u het bedrag voor ${dueDate} over te maken.
 ${pdfUrl ? `Bekijk de factuur: ${pdfUrl}` : ''}
 
 Betaalgegevens:
-IBAN: NL25 INGB 0631 8262 11
+IBAN: NL05 INGB 0631 8262 11
 T.n.v.: Moonen Vochtwering
 Referentie: ${invoiceNumber}
 

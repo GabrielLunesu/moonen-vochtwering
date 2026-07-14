@@ -20,7 +20,7 @@ const COMPANY = {
   email: 'info@moonenvochtwering.nl',
   kvk: '14090765',
   btw: 'NL001816013B68',
-  iban: 'NL25 INGB 0631 8262 11',
+  iban: 'NL05 INGB 0631 8262 11',
 };
 
 const styles = StyleSheet.create({

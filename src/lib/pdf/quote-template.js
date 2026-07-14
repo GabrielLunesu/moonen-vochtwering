@@ -20,7 +20,7 @@ const COMPANY = {
   email: 'info@moonenvochtwering.nl',
   kvk: '14090765',
   btw: 'NL001816013B68',
-  iban: 'NL25 INGB 0631 8262 11',
+  iban: 'NL05 INGB 0631 8262 11',
 };
 
 const styles = StyleSheet.create({
@@ -283,6 +283,36 @@ const styles = StyleSheet.create({
     fontSize: 8.5,
     color: COLORS.muted,
     marginTop: 4,
+  },
+  paymentBox: {
+    marginTop: 10,
+    marginLeft: 'auto',
+    width: 250,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 3,
+    backgroundColor: COLORS.primarySoft,
+    padding: 9,
+  },
+  paymentHeading: {
+    fontSize: 9,
+    fontWeight: 700,
+    color: COLORS.primaryDark,
+    textTransform: 'uppercase',
+    letterSpacing: 0.35,
+    marginBottom: 5,
+  },
+  paymentIban: {
+    fontSize: 12,
+    fontWeight: 700,
+    color: COLORS.primaryDark,
+    marginBottom: 4,
+  },
+  paymentDetail: {
+    fontSize: 8.8,
+    color: COLORS.text,
+    marginBottom: 2,
+    lineHeight: 1.3,
   },
   termsBox: {
     borderWidth: 1,
@@ -692,6 +722,13 @@ export function QuoteDocument({ lead, logoDataUri = null, fontFamily = 'Helvetic
             <Text style={styles.totalFinalLabel}>Totaal incl. BTW</Text>
             <Text style={styles.totalFinalValue}>{formatCurrency(quote.totalIncl)}</Text>
           </View>
+        </View>
+
+        <View style={styles.paymentBox} wrap={false}>
+          <Text style={styles.paymentHeading}>Betaalgegevens</Text>
+          <Text style={styles.paymentIban}>{COMPANY.iban}</Text>
+          <Text style={styles.paymentDetail}>t.n.v. {COMPANY.name}</Text>
+          <Text style={styles.paymentDetail}>o.v.v. offertenummer {quote.quoteNumber}</Text>
         </View>
 
         {quote.photos.length > 0 ? (
