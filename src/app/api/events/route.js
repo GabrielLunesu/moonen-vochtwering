@@ -88,9 +88,12 @@ export async function POST(request) {
         }
 
         const adminClient = createAdminClient();
+        // Upsert (not insert): when Google Calendar is configured, syncEventToGoogleCalendar
+        // already persisted this row via upsertSyncedEvents. A plain insert would collide on
+        // the UNIQUE google_event_id and fail. Upserting reconciles that row and stamps source='crm'.
         const { data: newEvent, error } = await adminClient
             .from('google_calendar_events')
-            .insert({
+            .upsert({
                 google_event_id: crmEvent.google_event_id,
                 summary: crmEvent.summary,
                 description: crmEvent.description,
@@ -100,7 +103,7 @@ export async function POST(request) {
                 is_all_day: crmEvent.is_all_day,
                 status: crmEvent.status,
                 source: crmEvent.source
-            })
+            }, { onConflict: 'google_event_id' })
             .select()
             .single();
 
